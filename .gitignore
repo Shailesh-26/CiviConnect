@@ -1,0 +1,16 @@
+# OS files
+.DS_Store
+
+# Local notes
+thoughts.md
+
+# Environment variables
+.env
+.env.*
+!.env.example
+
+# Dependencies
+node_modules/
+
+# Build output
+dist/
