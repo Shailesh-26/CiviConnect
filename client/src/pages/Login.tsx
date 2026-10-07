@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../auth/useAuth";
+import { AuthShell } from "../components/AuthShell";
 import { Field } from "../components/Field";
 import { ApiError } from "../lib/api";
 
@@ -30,9 +31,8 @@ export default function Login() {
   }
 
   return (
-    <div className="max-w-sm">
-      <h1 className="text-2xl font-semibold tracking-tight">Log in</h1>
-      <form onSubmit={onSubmit} className="mt-6 space-y-4">
+    <AuthShell title="Log in">
+      <form onSubmit={onSubmit} className="mt-6 max-w-sm space-y-4">
         <Field label="Email" type="email" value={email} onChange={setEmail} autoComplete="email" />
         <Field
           label="Password"
@@ -45,7 +45,7 @@ export default function Login() {
         <button
           type="submit"
           disabled={submitting}
-          className="rounded bg-signboard px-4 py-2 font-medium text-white hover:bg-signboard/90 disabled:opacity-60"
+          className="rounded-md bg-signboard px-4 py-2 font-medium text-white hover:bg-signboard/90 disabled:opacity-60"
         >
           {submitting ? "Logging in…" : "Log in"}
         </button>
@@ -56,6 +56,6 @@ export default function Login() {
           Register
         </Link>
       </p>
-    </div>
+    </AuthShell>
   );
 }

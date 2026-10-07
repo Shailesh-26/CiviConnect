@@ -1,68 +1,72 @@
 # PROJECT_STATE — CiviConnect
 
-Last updated: after Phase 1 implementation (status: IMPLEMENTED, awaiting owner testing)
+Last updated: after Phase 2 + 3 implementation (status: IMPLEMENTED, awaiting owner testing)
 
 ## Stack
-- Client: React 19 + Vite + TypeScript + Tailwind v4 (`client/`), React Router, Public Sans font, plain `fetch` wrapper
-- Server: Node 24 LTS + Express 5 + TypeScript (CommonJS, run with tsx) + Mongoose + Zod (`server/`)
-- Database: MongoDB Atlas (free M0), database `civiconnect`
-- Auth: JWT in httpOnly cookie (`civiconnect_token`), bcryptjs (12 rounds), role-based access
-- Planned: Cloudinary (images), Leaflet + OpenStreetMap (maps), Socket.IO, local CV classifier (Python service)
+- Client: React 19 + Vite + TypeScript + Tailwind v4 (`client/`), React Router, lucide-react icons, Leaflet + react-leaflet (OpenStreetMap tiles), Public Sans font, plain `fetch` wrapper
+- Server: Node 24 LTS + Express 5 + TypeScript (CommonJS, run with tsx) + Mongoose 9 + Zod 4 + multer + cloudinary (`server/`)
+- Database: MongoDB Atlas (free M0), database `civiconnect`; `issues` has a 2dsphere index on `location`
+- Auth: JWT in httpOnly cookie (`civiconnect_token`), bcryptjs (12 rounds), roles citizen / officer / admin
+- Images: Cloudinary (server-side upload through multer memory storage, max 3 photos, 5 MB each)
+- Planned: Socket.IO notifications, heatmap + analytics, resolution proof, local CV classifier (Python service)
 - Not used on purpose: Kafka, Docker, Redis, external GenAI APIs
 
 ## Decisions
-- Separate `client` and `server` folders; Vite dev server proxies `/api` to `http://localhost:5000`
+- Separate `client` and `server`; Vite dev server proxies `/api` to `http://localhost:5000`
 - Roles: citizen (self-register), officer (created by admin, has department), admin (seeded via script)
-- Master Civic Issue vs Report model (see PROJECT_MASTER.md) is used for geo-merge in the next phases
-- Design: signboard blue / marker amber / resolved green / alert red on paper background; Public Sans only; no gradients
+- Master issue model: one `Issue` document holds many embedded `reports`; a new report of the same category within 50 m of an OPEN issue is merged into it
+- Priority score (0-100) is computed on read: category hazard (45) + extra reports (30) + citizen support (15) + days open (10). Label: high >= 70, medium >= 40, else low
+- Status flow: reported -> acknowledged -> in_progress -> resolved (reopen allowed); rejected is final. Resolve/reject need a note
+- Officers act only on issues assigned to them; admins assign officers and can update any issue
+- Reporter identities are not exposed in issue detail responses
+- Design: signboard blue / marker amber / resolved green / alert red on paper background; Public Sans; lucide icons
 
-## Structure
+## Structure (key files)
 ```
-CiviConnect/
-  PROJECT_MASTER.md, CLAUDE_MASTER_PROMPT.md, PROJECT_STATE.md, README.md, .gitignore
-  server/
-    .env (secret, ignored), .env.example, tsconfig.json
-    src/ server.ts, app.ts
-      config/ env.ts, db.ts
-      models/ User.ts
-      middleware/ auth.ts (authenticate, requireRole), validate.ts, errorHandler.ts
-      controllers/ auth.controller.ts, admin.controller.ts
-      routes/ health.ts, auth.routes.ts, admin.routes.ts
-      validators/ auth.schemas.ts
-      utils/ AppError.ts, password.ts, publicUser.ts, token.ts
-      scripts/ seedAdmin.ts
-      types/ express.d.ts
-  client/
-    vite.config.ts (tailwind plugin + /api proxy)
-    src/ main.tsx, App.tsx, index.css, types.ts
-      lib/ api.ts
-      auth/ auth-context.ts, AuthProvider.tsx, useAuth.ts, ProtectedRoute.tsx
-      components/ Layout.tsx, Field.tsx
-      pages/ Login.tsx, Register.tsx, Dashboard.tsx, Admin.tsx
+server/src/
+  app.ts, server.ts
+  config/ env.ts, db.ts
+  models/ User.ts, Issue.ts
+  middleware/ auth.ts, validate.ts, upload.ts, errorHandler.ts
+  controllers/ auth, admin, issue (create/merge, list, mine, assigned, get, support, assign, updateStatus)
+  routes/ health, auth.routes, admin.routes, issue.routes
+  validators/ auth.schemas.ts, issue.schemas.ts
+  utils/ AppError, password, publicUser, token, priority, issueDto, cloudinary
+  scripts/ seedAdmin.ts
+client/src/
+  App.tsx, main.tsx, index.css, types.ts
+  lib/ api.ts, constants.ts
+  auth/ auth-context.ts, AuthProvider.tsx, useAuth.ts, ProtectedRoute.tsx
+  components/ Layout, Field, AuthShell, StatusBadge, PriorityMeter, CategoryIcon, IssueList, LocationPicker, IssueMap
+  pages/ Login, Register, Dashboard, ReportIssue, MyReports, Issues, IssueDetail, MapView, Admin
 ```
 
-## API (all under /api)
-- GET /health
-- POST /auth/register, POST /auth/login, POST /auth/logout, GET /auth/me
-- GET /admin/users, POST /admin/officers (admin only)
+## API (all under /api, all except health/auth need login)
+- GET /health; POST /auth/register, /auth/login, /auth/logout; GET /auth/me
+- GET /admin/users; POST /admin/officers (admin)
+- POST /issues (multipart: category, description, lat, lng, address?, photos[]) -> creates or merges
+- GET /issues (all, ?status=&category=); GET /issues/mine; GET /issues/assigned (officer); GET /issues/:id
+- POST /issues/:id/support (toggle); PATCH /issues/:id/assign (admin); PATCH /issues/:id/status (admin or assigned officer)
 
 ## Environment variables (server/.env)
-NODE_ENV, PORT, MONGODB_URI, CLIENT_URL, JWT_SECRET (32+ chars), JWT_EXPIRES_DAYS, SEED_ADMIN_NAME, SEED_ADMIN_EMAIL, SEED_ADMIN_PASSWORD
+NODE_ENV, PORT, MONGODB_URI, CLIENT_URL, JWT_SECRET (32+ chars), JWT_EXPIRES_DAYS, SEED_ADMIN_NAME, SEED_ADMIN_EMAIL, SEED_ADMIN_PASSWORD, CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, CLOUDINARY_API_SECRET
 
 ## Run
-- Server: `cd server && npm run dev`  (http://localhost:5000)
-- Client: `cd client && npm run dev`  (http://localhost:5173)
+- Server: `cd server && npm run dev` (http://localhost:5000); Client: `cd client && npm run dev` (http://localhost:5173)
 - Seed first admin: `cd server && npx tsx src/scripts/seedAdmin.ts`
 
 ## Feature status
-- Phase 0 project skeleton + Atlas connection + health check: TESTED, pushed
-- Phase 1 authentication and roles: IMPLEMENTED (owner testing pending)
+- Phase 0 skeleton + Atlas: TESTED, pushed
+- Phase 1 authentication and roles: TESTED, pushed
+- Phase 2 report issue (photos, map pin, categories), My reports, issue detail + timeline: IMPLEMENTED
+- Phase 3 geo-merge, priority score, support, officer assignment and status flow, map view, queue: IMPLEMENTED
 
 ## Next steps
-1. Owner runs the Phase 1 test list; fix anything failing; commit `feat(auth): ...`
-2. Phase 2: Report issue (Cloudinary photo upload, Leaflet map pin, category, description), My Reports with status timeline
-3. Phase 3: Master issue + geo-merge (2dsphere index), officer/admin lifecycle
+1. Owner runs the Phase 2+3 test list; fix failures; commit
+2. Notifications (Socket.IO + email), resolution proof (before/after photo + citizen verification)
+3. Analytics dashboard + heatmap + issue health score, then local CV classifier
 
 ## Notes / revisit
 - Production cookies use SameSite=None; revisit CSRF protection at deployment
-- Atlas user currently has atlasAdmin and IP list allows 0.0.0.0/0; tighten before deployment
+- Atlas user has atlasAdmin and IP list allows 0.0.0.0/0; tighten before deployment
+- Priority list endpoints return up to 300 issues; add pagination if data grows

@@ -1,4 +1,5 @@
 import type { ErrorRequestHandler } from "express";
+import multer from "multer";
 import { ZodError } from "zod";
 import { env } from "../config/env";
 import { AppError } from "../utils/AppError";
@@ -17,6 +18,17 @@ export const errorHandler: ErrorRequestHandler = (err, _req, res, _next) => {
 
   if (err instanceof AppError) {
     res.status(err.status).json({ message: err.message });
+    return;
+  }
+
+  if (err instanceof multer.MulterError) {
+    const message =
+      err.code === "LIMIT_FILE_SIZE"
+        ? "Each photo must be 5 MB or smaller"
+        : err.code === "LIMIT_FILE_COUNT" || err.code === "LIMIT_UNEXPECTED_FILE"
+          ? "You can attach up to 3 photos"
+          : "Photo upload failed";
+    res.status(400).json({ message });
     return;
   }
 

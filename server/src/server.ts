@@ -1,9 +1,12 @@
 import { app } from "./app";
 import { env } from "./config/env";
 import { connectDB } from "./config/db";
+import { Issue } from "./models/Issue";
 
 async function start() {
   await connectDB();
+  // Make sure the geospatial index exists before the first report arrives.
+  await Issue.init();
   app.listen(env.PORT, () => {
     console.log(`API running on http://localhost:${env.PORT}`);
   });

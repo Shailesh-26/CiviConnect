@@ -1,8 +1,29 @@
 import { Link, NavLink, Outlet, useNavigate } from "react-router-dom";
+import {
+  FilePlus2,
+  LayoutDashboard,
+  ListChecks,
+  LogOut,
+  Map as MapIcon,
+  MapPin,
+  ShieldUser,
+  type LucideIcon,
+} from "lucide-react";
 import { useAuth } from "../auth/useAuth";
 
 const navClass = ({ isActive }: { isActive: boolean }) =>
-  isActive ? "font-medium text-signboard" : "text-ink/70 hover:text-ink";
+  `flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-sm ${
+    isActive ? "bg-signboard/10 font-medium text-signboard" : "text-ink/70 hover:bg-ink/5 hover:text-ink"
+  }`;
+
+function Item({ to, icon: Icon, label }: { to: string; icon: LucideIcon; label: string }) {
+  return (
+    <NavLink to={to} className={navClass} title={label}>
+      <Icon size={17} aria-hidden />
+      <span className="hidden md:inline">{label}</span>
+    </NavLink>
+  );
+}
 
 export function Layout() {
   const { user, logout } = useAuth();
@@ -15,27 +36,34 @@ export function Layout() {
 
   return (
     <div className="min-h-screen">
-      <header className="border-b border-ink/15 bg-white">
-        <div className="mx-auto flex max-w-5xl items-center justify-between px-6 py-3">
-          <Link to="/" className="text-lg font-semibold tracking-tight text-signboard">
-            CiviConnect
+      <header className="sticky top-0 z-[2000] border-b border-ink/15 bg-white/95 backdrop-blur">
+        <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-2.5 sm:px-6">
+          <Link to="/" className="flex items-center gap-2 text-lg font-semibold tracking-tight text-signboard">
+            <span className="grid size-8 place-items-center rounded-md bg-signboard text-white">
+              <MapPin size={18} aria-hidden />
+            </span>
+            <span className="hidden sm:inline">CiviConnect</span>
           </Link>
-          <nav className="flex items-center gap-5 text-sm">
+          <nav className="flex items-center gap-1">
             {user ? (
               <>
-                <NavLink to="/dashboard" className={navClass}>
-                  Dashboard
-                </NavLink>
-                {user.role === "admin" && (
-                  <NavLink to="/admin" className={navClass}>
-                    Admin
-                  </NavLink>
-                )}
-                <span className="text-ink/60">
+                <Item to="/dashboard" icon={LayoutDashboard} label="Dashboard" />
+                <Item to="/report" icon={FilePlus2} label="Report" />
+                {user.role === "citizen" && <Item to="/my-reports" icon={ListChecks} label="My reports" />}
+                {user.role !== "citizen" && <Item to="/issues" icon={ListChecks} label="Queue" />}
+                <Item to="/map" icon={MapIcon} label="Map" />
+                {user.role === "admin" && <Item to="/admin" icon={ShieldUser} label="Admin" />}
+                <span className="mx-2 hidden h-5 w-px bg-ink/15 sm:block" />
+                <span className="hidden text-sm text-ink/60 lg:inline">
                   {user.name} · {user.role}
                 </span>
-                <button onClick={onLogout} className="text-ink/70 hover:text-ink">
-                  Log out
+                <button
+                  onClick={onLogout}
+                  title="Log out"
+                  className="flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-sm text-ink/70 hover:bg-ink/5 hover:text-ink"
+                >
+                  <LogOut size={17} aria-hidden />
+                  <span className="hidden md:inline">Log out</span>
                 </button>
               </>
             ) : (
@@ -51,7 +79,7 @@ export function Layout() {
           </nav>
         </div>
       </header>
-      <main className="mx-auto max-w-5xl px-6 py-10">
+      <main className="mx-auto max-w-6xl px-4 py-8 sm:px-6">
         <Outlet />
       </main>
     </div>

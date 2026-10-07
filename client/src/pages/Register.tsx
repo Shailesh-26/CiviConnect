@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../auth/useAuth";
+import { AuthShell } from "../components/AuthShell";
 import { Field } from "../components/Field";
 import { ApiError } from "../lib/api";
 
@@ -36,9 +37,8 @@ export default function Register() {
   }
 
   return (
-    <div className="max-w-sm">
-      <h1 className="text-2xl font-semibold tracking-tight">Create an account</h1>
-      <form onSubmit={onSubmit} className="mt-6 space-y-4">
+    <AuthShell title="Create an account">
+      <form onSubmit={onSubmit} className="mt-6 max-w-sm space-y-4">
         <Field label="Full name" value={name} onChange={setName} autoComplete="name" error={fieldErrors.name} />
         <Field
           label="Email"
@@ -61,7 +61,7 @@ export default function Register() {
         <button
           type="submit"
           disabled={submitting}
-          className="rounded bg-signboard px-4 py-2 font-medium text-white hover:bg-signboard/90 disabled:opacity-60"
+          className="rounded-md bg-signboard px-4 py-2 font-medium text-white hover:bg-signboard/90 disabled:opacity-60"
         >
           {submitting ? "Creating account…" : "Register"}
         </button>
@@ -72,6 +72,6 @@ export default function Register() {
           Log in
         </Link>
       </p>
-    </div>
+    </AuthShell>
   );
 }

@@ -1,4 +1,3 @@
-import "dotenv/config";
 import mongoose from "mongoose";
 import { env } from "../config/env";
 import { User } from "../models/User";

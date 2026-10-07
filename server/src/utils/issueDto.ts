@@ -1,0 +1,72 @@
+import type { Category, Status } from "../models/Issue";
+import { computePriority, priorityLabel } from "./priority";
+
+type Id = { toString(): string };
+
+export type IssueRecord = {
+  _id: Id;
+  ticket: string;
+  category: Category;
+  address?: string | null;
+  location: { coordinates: number[] };
+  status: Status;
+  reports: { description: string; images: { url: string }[]; createdAt: Date }[];
+  supporters: Id[];
+  assignedTo?: { _id: Id; name: string; department?: string | null } | null;
+  timeline: { status: Status; note?: string | null; byName?: string | null; at: Date }[];
+  createdAt: Date;
+  updatedAt: Date;
+};
+
+export function toIssueDTO(issue: IssueRecord, viewerId?: string) {
+  const [lng, lat] = issue.location.coordinates;
+  const priority = computePriority({
+    category: issue.category,
+    reportCount: issue.reports.length,
+    supporterCount: issue.supporters.length,
+    createdAt: issue.createdAt,
+  });
+
+  return {
+    id: issue._id.toString(),
+    ticket: issue.ticket,
+    category: issue.category,
+    address: issue.address ?? null,
+    location: { lat, lng },
+    status: issue.status,
+    priority,
+    priorityLabel: priorityLabel(priority),
+    reportCount: issue.reports.length,
+    supporterCount: issue.supporters.length,
+    supportedByMe: viewerId ? issue.supporters.some((s) => s.toString() === viewerId) : false,
+    assignedTo: issue.assignedTo
+      ? {
+          id: issue.assignedTo._id.toString(),
+          name: issue.assignedTo.name,
+          department: issue.assignedTo.department ?? null,
+        }
+      : null,
+    description: issue.reports[0]?.description ?? "",
+    images: issue.reports.flatMap((r) => r.images.map((img) => ({ url: img.url }))).slice(0, 6),
+    createdAt: issue.createdAt,
+    updatedAt: issue.updatedAt,
+  };
+}
+
+// Reporter identities are never exposed, only what each report said.
+export function toIssueDetailDTO(issue: IssueRecord, viewerId?: string) {
+  return {
+    ...toIssueDTO(issue, viewerId),
+    reports: issue.reports.map((r) => ({
+      description: r.description,
+      images: r.images.map((img) => ({ url: img.url })),
+      createdAt: r.createdAt,
+    })),
+    timeline: issue.timeline.map((t) => ({
+      status: t.status,
+      note: t.note ?? null,
+      byName: t.byName ?? null,
+      at: t.at,
+    })),
+  };
+}

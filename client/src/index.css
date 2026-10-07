@@ -1,18 +1,23 @@
-   @import "tailwindcss";
-   @import "@fontsource-variable/public-sans";
+@import "tailwindcss";
+@import "@fontsource-variable/public-sans";
 
-   @theme {
-     --font-sans: "Public Sans Variable", ui-sans-serif, system-ui, sans-serif;
-     --color-paper: #f5f6f3;
-     --color-ink: #1b2430;
-     --color-signboard: #1f4e79;
-     --color-marker: #e0a100;
-     --color-resolved: #2e7d5b;
-     --color-alert: #b83a2e;
-   }
+@theme {
+  --font-sans: "Public Sans Variable", ui-sans-serif, system-ui, sans-serif;
+  --color-paper: #f5f6f3;
+  --color-ink: #1b2430;
+  --color-signboard: #1f4e79;
+  --color-marker: #e0a100;
+  --color-marker-dark: #8a6100;
+  --color-resolved: #2e7d5b;
+  --color-alert: #b83a2e;
+}
 
-   body {
-     background: var(--color-paper);
-     color: var(--color-ink);
-     font-family: var(--font-sans);
-   }
+body {
+  background: var(--color-paper);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+}
+
+.leaflet-container {
+  font-family: var(--font-sans);
+}
