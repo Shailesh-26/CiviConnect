@@ -2,6 +2,7 @@ import { Link, Navigate, Route, Routes } from "react-router-dom";
 import { ProtectedRoute } from "./auth/ProtectedRoute";
 import { Layout } from "./components/Layout";
 import Admin from "./pages/Admin";
+import Analytics from "./pages/Analytics";
 import Dashboard from "./pages/Dashboard";
 import IssueDetail from "./pages/IssueDetail";
 import Issues from "./pages/Issues";
@@ -42,6 +43,7 @@ export default function App() {
         </Route>
         <Route element={<ProtectedRoute roles={["officer", "admin"]} />}>
           <Route path="/issues" element={<Issues />} />
+          <Route path="/analytics" element={<Analytics />} />
         </Route>
         <Route element={<ProtectedRoute roles={["admin"]} />}>
           <Route path="/admin" element={<Admin />} />

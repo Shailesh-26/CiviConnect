@@ -1,5 +1,6 @@
 import { Link, NavLink, Outlet, useNavigate } from "react-router-dom";
 import {
+  ChartColumn,
   FilePlus2,
   LayoutDashboard,
   ListChecks,
@@ -52,6 +53,7 @@ export function Layout() {
                 {user.role === "citizen" && <Item to="/my-reports" icon={ListChecks} label="My reports" />}
                 {user.role !== "citizen" && <Item to="/issues" icon={ListChecks} label="Queue" />}
                 <Item to="/map" icon={MapIcon} label="Map" />
+                {user.role !== "citizen" && <Item to="/analytics" icon={ChartColumn} label="Analytics" />}
                 {user.role === "admin" && <Item to="/admin" icon={ShieldUser} label="Admin" />}
                 <span className="mx-2 hidden h-5 w-px bg-ink/15 sm:block" />
                 <span className="hidden text-sm text-ink/60 lg:inline">

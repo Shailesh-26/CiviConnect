@@ -28,11 +28,19 @@ export type Issue = {
   assignedTo: { id: string; name: string; department: string | null } | null;
   description: string;
   images: { url: string }[];
+  resolvedAt: string | null;
   createdAt: string;
   updatedAt: string;
 };
 
 export type IssueDetail = Issue & {
   reports: { description: string; images: { url: string }[]; createdAt: string }[];
-  timeline: { status: Status; note: string | null; byName: string | null; at: string }[];
+  timeline: {
+    status: Status;
+    note: string | null;
+    images: { url: string }[];
+    byName: string | null;
+    at: string;
+  }[];
+  verification: { fixed: number; notFixed: number; myVote: boolean | null };
 };

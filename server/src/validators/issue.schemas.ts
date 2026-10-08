@@ -22,6 +22,11 @@ export const statusSchema = z.object({
   note: z.string().trim().max(500, "Note must be at most 500 characters").optional(),
 });
 
+export const verifySchema = z.object({
+  fixed: z.boolean({ error: "Choose an option" }),
+});
+
+export type VerifyInput = z.infer<typeof verifySchema>;
 export type CreateIssueInput = z.infer<typeof createIssueSchema>;
 export type AssignInput = z.infer<typeof assignSchema>;
 export type StatusInput = z.infer<typeof statusSchema>;

@@ -13,7 +13,15 @@ export type IssueRecord = {
   reports: { description: string; images: { url: string }[]; createdAt: Date }[];
   supporters: Id[];
   assignedTo?: { _id: Id; name: string; department?: string | null } | null;
-  timeline: { status: Status; note?: string | null; byName?: string | null; at: Date }[];
+  timeline: {
+    status: Status;
+    note?: string | null;
+    images?: { url: string }[];
+    byName?: string | null;
+    at: Date;
+  }[];
+  verifications?: { user: Id; fixed: boolean }[];
+  resolvedAt?: Date | null;
   createdAt: Date;
   updatedAt: Date;
 };
@@ -48,6 +56,7 @@ export function toIssueDTO(issue: IssueRecord, viewerId?: string) {
       : null,
     description: issue.reports[0]?.description ?? "",
     images: issue.reports.flatMap((r) => r.images.map((img) => ({ url: img.url }))).slice(0, 6),
+    resolvedAt: issue.resolvedAt ?? null,
     createdAt: issue.createdAt,
     updatedAt: issue.updatedAt,
   };
@@ -55,6 +64,9 @@ export function toIssueDTO(issue: IssueRecord, viewerId?: string) {
 
 // Reporter identities are never exposed, only what each report said.
 export function toIssueDetailDTO(issue: IssueRecord, viewerId?: string) {
+  const votes = issue.verifications ?? [];
+  const mine = viewerId ? votes.find((v) => v.user.toString() === viewerId) : undefined;
+
   return {
     ...toIssueDTO(issue, viewerId),
     reports: issue.reports.map((r) => ({
@@ -65,8 +77,14 @@ export function toIssueDetailDTO(issue: IssueRecord, viewerId?: string) {
     timeline: issue.timeline.map((t) => ({
       status: t.status,
       note: t.note ?? null,
+      images: (t.images ?? []).map((img) => ({ url: img.url })),
       byName: t.byName ?? null,
       at: t.at,
     })),
+    verification: {
+      fixed: votes.filter((v) => v.fixed).length,
+      notFixed: votes.filter((v) => !v.fixed).length,
+      myVote: mine ? mine.fixed : null,
+    },
   };
 }

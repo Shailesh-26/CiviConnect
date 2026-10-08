@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, useLocation, useParams } from "react-router-dom";
-import { ArrowLeft, Layers, ThumbsUp, UserCheck } from "lucide-react";
+import { ArrowLeft, BadgeCheck, ImagePlus, Layers, ThumbsDown, ThumbsUp, UserCheck, X } from "lucide-react";
 import { useAuth } from "../auth/useAuth";
 import { CategoryIcon } from "../components/CategoryIcon";
 import { IssueMap } from "../components/IssueMap";
@@ -8,7 +8,7 @@ import { PriorityMeter } from "../components/PriorityMeter";
 import { StatusBadge } from "../components/StatusBadge";
 import { api, ApiError } from "../lib/api";
 import { categoryMeta, formatDate, NEXT_STATUS, OPEN, STATUS_META } from "../lib/constants";
-import type { IssueDetail as Detail, User } from "../types";
+import type { IssueDetail as Detail, Status, User } from "../types";
 
 const selectClass = "w-full rounded border border-ink/25 bg-white px-3 py-2 text-sm focus:outline-2 focus:outline-signboard";
 
@@ -25,6 +25,7 @@ export default function IssueDetail() {
   const [busy, setBusy] = useState(false);
   const [officerId, setOfficerId] = useState("");
   const [note, setNote] = useState("");
+  const [proof, setProof] = useState<File[]>([]);
 
   const role = user?.role;
 
@@ -57,11 +58,20 @@ export default function IssueDetail() {
       setIssue(data.issue);
       setNote("");
       setOfficerId("");
+      setProof([]);
     } catch (err) {
       setActionError(err instanceof ApiError ? err.message : "Something went wrong. Try again.");
     } finally {
       setBusy(false);
     }
+  }
+
+  function changeStatus(next: Status) {
+    const form = new FormData();
+    form.append("status", next);
+    if (note.trim()) form.append("note", note);
+    proof.forEach((file) => form.append("photos", file));
+    return act(() => api<{ issue: Detail }>(`/issues/${id}/status`, { method: "PATCH", body: form }));
   }
 
   if (error) return <p className="text-sm text-alert">{error}</p>;
@@ -71,9 +81,16 @@ export default function IssueDetail() {
   const canUpdate = role === "admin" || (role === "officer" && issue.assignedTo?.id === user.id);
   const nextStatuses = NEXT_STATUS[issue.status];
 
+  const before = issue.images[0];
+  const resolution = [...issue.timeline].reverse().find((t) => t.status === "resolved" && t.images.length > 0);
+  const after = issue.status === "resolved" ? resolution?.images[0] : undefined;
+
   return (
     <div>
-      <Link to={role === "citizen" ? "/my-reports" : "/issues"} className="inline-flex items-center gap-1 text-sm text-ink/60 hover:text-ink">
+      <Link
+        to={role === "citizen" ? "/my-reports" : "/issues"}
+        className="inline-flex items-center gap-1 text-sm text-ink/60 hover:text-ink"
+      >
         <ArrowLeft size={15} aria-hidden /> Back
       </Link>
 
@@ -106,14 +123,41 @@ export default function IssueDetail() {
 
           {issue.address && <p className="text-sm text-ink/70">Landmark: {issue.address}</p>}
 
-          {issue.images.length > 0 && (
-            <div className="flex flex-wrap gap-3">
-              {issue.images.map((img) => (
-                <a key={img.url} href={img.url} target="_blank" rel="noreferrer">
-                  <img src={img.url} alt="Reported problem" loading="lazy" className="h-36 rounded-md border border-ink/15 object-cover" />
-                </a>
-              ))}
-            </div>
+          {before && after ? (
+            <section>
+              <h2 className="text-sm font-medium text-ink/60">Before and after</h2>
+              <div className="mt-3 grid grid-cols-2 gap-3">
+                {[
+                  { label: "Before", url: before.url },
+                  { label: "After", url: after.url },
+                ].map((item) => (
+                  <a key={item.label} href={item.url} target="_blank" rel="noreferrer" className="block">
+                    <img
+                      src={item.url}
+                      alt={`${item.label} the fix`}
+                      loading="lazy"
+                      className="aspect-[4/3] w-full rounded-md border border-ink/15 object-cover"
+                    />
+                    <span className="mt-1 block text-xs font-medium text-ink/60">{item.label}</span>
+                  </a>
+                ))}
+              </div>
+            </section>
+          ) : (
+            issue.images.length > 0 && (
+              <div className="flex flex-wrap gap-3">
+                {issue.images.map((img) => (
+                  <a key={img.url} href={img.url} target="_blank" rel="noreferrer">
+                    <img
+                      src={img.url}
+                      alt="Reported problem"
+                      loading="lazy"
+                      className="h-36 rounded-md border border-ink/15 object-cover"
+                    />
+                  </a>
+                ))}
+              </div>
+            )
           )}
 
           <section>
@@ -161,6 +205,44 @@ export default function IssueDetail() {
             )}
           </div>
 
+          {issue.status === "resolved" && (
+            <div className="rounded-lg border border-resolved/40 bg-resolved/10 p-4">
+              <h2 className="flex items-center gap-2 text-sm font-medium text-resolved">
+                <BadgeCheck size={17} aria-hidden /> Marked as resolved
+              </h2>
+              <p className="mt-2 text-sm text-ink/70">
+                {issue.verification.fixed} confirmed fixed · {issue.verification.notFixed} say it is still there
+              </p>
+              {role === "citizen" && (
+                <div className="mt-3">
+                  <p className="text-sm font-medium">Is it really fixed?</p>
+                  <div className="mt-2 flex gap-2">
+                    {[
+                      { fixed: true, label: "Yes, fixed", icon: ThumbsUp },
+                      { fixed: false, label: "Still there", icon: ThumbsDown },
+                    ].map(({ fixed, label, icon: Icon }) => (
+                      <button
+                        key={label}
+                        disabled={busy}
+                        aria-pressed={issue.verification.myVote === fixed}
+                        onClick={() =>
+                          act(() => api(`/issues/${issue.id}/verify`, { method: "POST", body: { fixed } }))
+                        }
+                        className={`flex flex-1 items-center justify-center gap-1.5 rounded-md border px-2 py-1.5 text-sm disabled:opacity-60 ${
+                          issue.verification.myVote === fixed
+                            ? "border-signboard bg-signboard text-white"
+                            : "border-ink/25 bg-white hover:border-signboard"
+                        }`}
+                      >
+                        <Icon size={15} aria-hidden /> {label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
           {role === "admin" && isOpen && (
             <div className="rounded-lg border border-ink/15 bg-white p-4">
               <h2 className="text-sm font-medium">Assign to officer</h2>
@@ -175,9 +257,7 @@ export default function IssueDetail() {
               </select>
               <button
                 disabled={busy || !officerId}
-                onClick={() =>
-                  act(() => api(`/issues/${issue.id}/assign`, { method: "PATCH", body: { officerId } }))
-                }
+                onClick={() => act(() => api(`/issues/${issue.id}/assign`, { method: "PATCH", body: { officerId } }))}
                 className="mt-3 w-full rounded-md bg-signboard px-3 py-2 text-sm font-medium text-white hover:bg-signboard/90 disabled:opacity-50"
               >
                 Assign
@@ -195,17 +275,46 @@ export default function IssueDetail() {
                 placeholder="Note (required to resolve or reject)"
                 className={`${selectClass} mt-3`}
               />
+              <div className="mt-3">
+                <label className="inline-flex cursor-pointer items-center gap-2 text-sm text-signboard">
+                  <ImagePlus size={16} aria-hidden />
+                  {proof.length > 0 ? "Add another proof photo" : "Add proof photo (needed to resolve)"}
+                  <input
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp"
+                    multiple
+                    className="sr-only"
+                    onChange={(e) => {
+                      const picked = Array.from(e.target.files ?? []);
+                      setProof((prev) => [...prev, ...picked].slice(0, 2));
+                      e.target.value = "";
+                    }}
+                  />
+                </label>
+                {proof.map((file, index) => (
+                  <p key={index} className="mt-1 flex items-center justify-between gap-2 text-xs text-ink/70">
+                    <span className="truncate">{file.name}</span>
+                    <button
+                      type="button"
+                      aria-label={`Remove ${file.name}`}
+                      onClick={() => setProof((prev) => prev.filter((_, i) => i !== index))}
+                    >
+                      <X size={14} aria-hidden />
+                    </button>
+                  </p>
+                ))}
+              </div>
               <div className="mt-3 flex flex-wrap gap-2">
                 {nextStatuses.map((next) => (
                   <button
                     key={next}
                     disabled={busy}
-                    onClick={() =>
-                      act(() => api(`/issues/${issue.id}/status`, { method: "PATCH", body: { status: next, note } }))
-                    }
+                    onClick={() => changeStatus(next)}
                     className="rounded-md border border-ink/25 bg-white px-3 py-1.5 text-sm hover:border-signboard disabled:opacity-50"
                   >
-                    {next === "in_progress" && issue.status === "resolved" ? "Reopen" : `Mark ${STATUS_META[next].label.toLowerCase()}`}
+                    {next === "in_progress" && issue.status === "resolved"
+                      ? "Reopen"
+                      : `Mark ${STATUS_META[next].label.toLowerCase()}`}
                   </button>
                 ))}
               </div>
@@ -226,6 +335,15 @@ export default function IssueDetail() {
                   />
                   <p className="font-medium">{STATUS_META[step.status].label}</p>
                   {step.note && <p className="text-ink/70">{step.note}</p>}
+                  {step.images.length > 0 && (
+                    <div className="mt-2 flex gap-2">
+                      {step.images.map((img) => (
+                        <a key={img.url} href={img.url} target="_blank" rel="noreferrer">
+                          <img src={img.url} alt="Proof" loading="lazy" className="size-16 rounded border border-ink/15 object-cover" />
+                        </a>
+                      ))}
+                    </div>
+                  )}
                   <p className="text-xs text-ink/50">
                     {formatDate(step.at)}
                     {step.byName ? ` · ${step.byName}` : ""}

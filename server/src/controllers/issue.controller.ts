@@ -5,7 +5,7 @@ import { User } from "../models/User";
 import { AppError } from "../utils/AppError";
 import { imageStorageEnabled, uploadImage } from "../utils/cloudinary";
 import { toIssueDetailDTO, toIssueDTO, type IssueRecord } from "../utils/issueDto";
-import type { AssignInput, CreateIssueInput, StatusInput } from "../validators/issue.schemas";
+import type { AssignInput, CreateIssueInput, StatusInput, VerifyInput } from "../validators/issue.schemas";
 
 // Reports of the same category closer than this are merged into one master issue.
 const MERGE_RADIUS_METERS = 50;
@@ -168,6 +168,7 @@ export const updateStatus: RequestHandler = async (req, res) => {
   const user = req.user!;
   const id = String(req.params.id);
   const { status, note } = req.body as StatusInput;
+  const files = (req.files as Express.Multer.File[] | undefined) ?? [];
   if (!isValidObjectId(id)) throw new AppError(404, "Issue not found");
 
   const issue = await Issue.findById(id);
@@ -184,16 +185,70 @@ export const updateStatus: RequestHandler = async (req, res) => {
   if ((status === "resolved" || status === "rejected") && !note) {
     throw new AppError(400, "Add a short note explaining this decision");
   }
+  if (files.length > 0 && !imageStorageEnabled) {
+    throw new AppError(503, "Photo upload is not set up on the server yet");
+  }
+  if (status === "resolved" && imageStorageEnabled && files.length === 0) {
+    throw new AppError(400, "Add a photo of the completed work as proof");
+  }
+
+  const images = await Promise.all(files.map((f) => uploadImage(f.buffer)));
 
   issue.status = status;
   issue.resolvedAt = status === "resolved" ? new Date() : undefined;
+  if (status === "resolved") issue.verifications.splice(0, issue.verifications.length);
   issue.timeline.push({
     status,
     note,
+    images,
     by: new Types.ObjectId(user.id),
     byName: user.name,
     at: new Date(),
   });
+  await issue.save();
+
+  const record = await loadRecord(id);
+  res.json({ issue: toIssueDetailDTO(record, user.id) });
+};
+
+export const verifyIssue: RequestHandler = async (req, res) => {
+  const user = req.user!;
+  const id = String(req.params.id);
+  const { fixed } = req.body as VerifyInput;
+  if (!isValidObjectId(id)) throw new AppError(404, "Issue not found");
+
+  const issue = await Issue.findById(id);
+  if (!issue) throw new AppError(404, "Issue not found");
+  if (issue.status !== "resolved") {
+    throw new AppError(400, "Only resolved issues can be verified");
+  }
+
+  const userId = new Types.ObjectId(user.id);
+  const existing = issue.verifications.find((v) => v.user.equals(userId));
+  if (existing) {
+    existing.fixed = fixed;
+    existing.at = new Date();
+  } else {
+    issue.verifications.push({ user: userId, fixed, at: new Date() });
+  }
+
+  // Reopen when a reporter, or two other citizens, say the problem is still there.
+  const reporterIds = new Set(issue.reports.map((r) => r.user.toString()));
+  const stillThere = issue.verifications.filter((v) => !v.fixed);
+  const reporterVotes = stillThere.filter((v) => reporterIds.has(v.user.toString())).length;
+  const otherVotes = stillThere.length - reporterVotes;
+
+  if (reporterVotes >= 1 || otherVotes >= 2) {
+    issue.status = "in_progress";
+    issue.resolvedAt = undefined;
+    issue.timeline.push({
+      status: "in_progress",
+      note: "Reopened: citizens report the problem is still there",
+      images: [],
+      byName: "Citizen verification",
+      at: new Date(),
+    });
+  }
   await issue.save();
 
   const record = await loadRecord(id);

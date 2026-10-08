@@ -9,11 +9,12 @@ import {
   listMine,
   supportIssue,
   updateStatus,
+  verifyIssue,
 } from "../controllers/issue.controller";
 import { authenticate, requireRole } from "../middleware/auth";
 import { upload } from "../middleware/upload";
 import { validateBody } from "../middleware/validate";
-import { assignSchema, createIssueSchema, statusSchema } from "../validators/issue.schemas";
+import { assignSchema, createIssueSchema, statusSchema, verifySchema } from "../validators/issue.schemas";
 
 export const issueRouter = Router();
 
@@ -34,4 +35,11 @@ issueRouter.get("/assigned", requireRole("officer"), listAssigned);
 issueRouter.get("/:id", getIssue);
 issueRouter.post("/:id/support", supportIssue);
 issueRouter.patch("/:id/assign", requireRole("admin"), validateBody(assignSchema), assignIssue);
-issueRouter.patch("/:id/status", requireRole("admin", "officer"), validateBody(statusSchema), updateStatus);
+issueRouter.patch(
+  "/:id/status",
+  requireRole("admin", "officer"),
+  upload.array("photos", 2),
+  validateBody(statusSchema),
+  updateStatus,
+);
+issueRouter.post("/:id/verify", requireRole("citizen"), validateBody(verifySchema), verifyIssue);

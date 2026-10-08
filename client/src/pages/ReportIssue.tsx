@@ -26,7 +26,9 @@ export default function ReportIssue() {
 
   function addFiles(list: FileList | null) {
     if (!list) return;
-    setFiles((prev) => [...prev, ...Array.from(list)].slice(0, 3));
+    // Copy the files now: the input is cleared right after this runs.
+    const picked = Array.from(list);
+    setFiles((prev) => [...prev, ...picked].slice(0, 3));
   }
 
   function useMyLocation() {

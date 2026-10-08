@@ -28,8 +28,19 @@ const timelineSchema = new Schema(
   {
     status: { type: String, enum: STATUSES, required: true },
     note: { type: String, trim: true, maxlength: 500 },
+    images: { type: [imageSchema], default: [] },
     by: { type: Schema.Types.ObjectId, ref: "User" },
     byName: { type: String },
+    at: { type: Date, default: Date.now },
+  },
+  { _id: false },
+);
+
+// A citizen's answer to "was this really fixed?" after an officer resolves an issue.
+const verificationSchema = new Schema(
+  {
+    user: { type: Schema.Types.ObjectId, ref: "User", required: true },
+    fixed: { type: Boolean, required: true },
     at: { type: Date, default: Date.now },
   },
   { _id: false },
@@ -49,6 +60,7 @@ const issueSchema = new Schema(
     supporters: { type: [Schema.Types.ObjectId], ref: "User", default: [] },
     assignedTo: { type: Schema.Types.ObjectId, ref: "User", index: true },
     timeline: { type: [timelineSchema], default: [] },
+    verifications: { type: [verificationSchema], default: [] },
     resolvedAt: { type: Date },
   },
   { timestamps: true },
