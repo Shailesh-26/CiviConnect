@@ -5,6 +5,7 @@ import { daysOpen } from "../lib/format";
 import type { Issue } from "../types";
 import { CategoryChip } from "./CategoryChip";
 import { PriorityMeter } from "./PriorityMeter";
+import { SlaChip } from "./SlaChip";
 import { StatusBadge } from "./StatusBadge";
 
 export function IssueList({ issues, empty }: { issues: Issue[]; empty: string }) {
@@ -44,6 +45,7 @@ export function IssueList({ issues, empty }: { issues: Issue[]; empty: string })
                       <Clock size={13} aria-hidden /> {daysOpen(issue.createdAt)}d open
                     </span>
                   )}
+                  {issue.sla && <SlaChip sla={issue.sla} compact />}
                 </span>
               </span>
               <span className="hidden w-32 shrink-0 sm:block">

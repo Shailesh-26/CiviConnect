@@ -7,6 +7,8 @@ import { env } from "./config/env";
 import { errorHandler } from "./middleware/errorHandler";
 import { adminRouter } from "./routes/admin.routes";
 import { commentRouter, feedRouter, geoRouter } from "./routes/community.routes";
+import { notificationRouter } from "./routes/notification.routes";
+import { analyticsRouter, officerRouter } from "./routes/workspace.routes";
 import { authRouter } from "./routes/auth.routes";
 import { healthRouter } from "./routes/health";
 import { issueRouter } from "./routes/issue.routes";
@@ -32,6 +34,9 @@ app.use("/api/public", publicRouter);
 app.use("/api/feed", feedRouter);
 app.use("/api/comments", commentRouter);
 app.use("/api/geo", geoRouter);
+app.use("/api/notifications", notificationRouter);
+app.use("/api/officer", officerRouter);
+app.use("/api/analytics", analyticsRouter);
 
 app.use((_req, res) => {
   res.status(404).json({ message: "Route not found" });

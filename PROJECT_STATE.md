@@ -1,6 +1,6 @@
 # PROJECT_STATE — CiviConnect
 
-Last updated: 2026-10-10, after Phase 7 (status: IMPLEMENTED, awaiting owner testing). Phase 6.1: TESTED by owner
+Last updated: 2026-10-10, after Phase 8.1 (status: IMPLEMENTED, awaiting owner testing). Phases 6.1, 7 and 8: TESTED by owner
 
 ## Stack
 - Client: React 19 + Vite + TypeScript + Tailwind v4 (`client/`), React Router, lucide-react icons, Leaflet + react-leaflet (OpenStreetMap tiles), Public Sans font, plain `fetch` wrapper
@@ -51,6 +51,9 @@ client/src/
 - GET /feed?sort=hot|new|top|unresolved|resolved&radiusKm=1|2|5|10&category=&lat=&lng=&page= (center = lat/lng or the user's home spot; 400 code NO_LOCATION when neither)
 - GET /issues/nearby?lat&lng&category&label&text (open issues within 200 m with a 0-100 match score and willMerge)
 - GET/POST /issues/:id/comments (multipart body, parentId?, photos[] up to 2); DELETE /comments/:id (own or admin); POST /comments/:id/flag; POST /issues/:id/flag {reason, note?}; POST /issues/:id/follow (toggle); POST /issues/:id/hide (toggle)
+- Phase 8: GET /notifications, GET /notifications/stream (Server-Sent Events: events hello, notification, refresh), POST /notifications/read-all, POST /notifications/:id/read
+- Phase 8: GET /officer/desk (officer); GET /analytics?days=7|30|90|365 and GET /analytics/export.csv?days= (officer, admin)
+- Phase 8 admin: GET /admin/overview, PATCH /admin/users/:id {isActive?, role?, department?}, GET /admin/flags?status=open|closed, POST /admin/flags/resolve {targetType, targetId, action: dismiss|remove}, GET /admin/categories, PUT /admin/categories/:category {slaHours}, GET /admin/audit?action=&before=
 - GET /public/issues/:ticket (no login, anonymous); GET /geo/search?q=&lat=&lng= and GET /geo/reverse?lat&lng (login; server-side OpenStreetMap Nominatim, 1 request/second, 24 h cache)
 - POST /issues (multipart: category, description, lat, lng, address?, customLabel?, customIcon?, onBehalfName?, channel?, photos[]) -> creates or merges; behaviour depends on role (see Phase 6.1)
 - GET /issues (all, ?status=&category=); GET /issues/mine; GET /issues/assigned (officer); GET /issues/:id
@@ -90,7 +93,7 @@ NODE_ENV, PORT, MONGODB_URI, CLIENT_URL, JWT_SECRET (32+ chars), JWT_EXPIRES_DAY
 - Demo seed: avatars, home areas for citizens, named "Other" issues
 - Verified in sandbox: server tsc, client tsc + eslint + build, validator checks, 401 checks, Playwright screenshots (desktop, phone, dark). NOT verified: anything needing Atlas or Cloudinary (create flows per role, profile save, avatar upload, password change)
 
-## Phase 7 (Neighbourhood + community + wizard) - IMPLEMENTED 2026-10-10, awaiting owner testing
+## Phase 7 (Neighbourhood + community + wizard) - TESTED by owner 2026-10-10 ("this phase is amazing")
 - Owner's friend's remarks recorded: analytics too basic (one chart type), /admin page is only a form + table, toasts too small, UI still bland. Decision: toasts fixed now; Analytics v2 moved from Phase 9 into Phase 8 together with the admin Command Center
 - Design direction agreed: minimal base; bento grid for dashboards/analytics/admin; glass only for floating layers (nav, menus, sheets, toasts, map overlays); spatial depth for map views; no neumorphism, no maximalism
 - Bigger toasts: title, icon tile, optional action button (Undo/Open), countdown bar, pause on hover (components/ToastProvider.tsx; toast.success(message, { title, action, duration }))
@@ -105,10 +108,28 @@ NODE_ENV, PORT, MONGODB_URI, CLIENT_URL, JWT_SECRET (32+ chars), JWT_EXPIRES_DAY
 - Demo seed: discussions with neighbour comments and officer updates, followers, last activity
 - Verified in sandbox: server tsc, client tsc + eslint + build, validator/similarity/throttle checks, 401 checks on every new route, Playwright screenshots (feed, menu, toasts, phone dark, thread, wizard, public page). NOT verified: anything needing Atlas (feed query, comments, flags, follow, hide), Cloudinary (comment photos), Nominatim (address search; sandbox has no internet)
 
+## Phase 8 (Living system) - TESTED by owner 2026-10-10 ("next level")
+- Notifications for all roles: model Notification (60-day TTL), services/notify.ts saves + pushes live over Server-Sent Events (no new dependency), respects each user's switches. Bell in sidebar and phone header, unread badge, panel with All/Unread, mark all read, live toast with "Open"
+- Events: merge -> earlier followers; assign -> officer + followers; status change / resolved ("please confirm") -> followers; citizen reopen -> officer + admins; new high-priority issue -> admins; comment -> followers (official updates labelled); flag -> admins; SLA warning -> officer; escalation -> officer + admins; unassigned 12 h -> admins
+- SLA engine: CategoryConfig (defaults fallen tree 24 h, drainage 48, garbage 48, pothole 72, street light 72, other 120); Issue.slaDueAt set at creation (reopen gets half the time again); services/scheduler.ts runs every minute inside the server (no queues): backfill, warning at 25% time left, automatic escalation (timeline note, +15 priority, notifications, audit), unassigned alert. SLA chips and an SLA card everywhere
+- Audit log: model AuditLog; written for assign, every status change, field inspection, on-behalf complaints, user create/update, moderation decisions, SLA changes, admin deleting comments, automatic escalations and reopenings
+- Officer /dashboard = Field Desk: bento hero + stats, "Next up" sorted by SLA with one-tap Start work, today's route (nearest-neighbour from most urgent, numbered map), on-time ring, recently fixed
+- Admin /dashboard = Command Center: KPI bento, live map (hollow pins = unassigned, red pulsing = overdue, glass legend), breach board, drag-and-drop assignment board with Unassigned lane and smart-routing suggestion (category history + department match - 1.5 x open load), workload bars, live activity; refreshes on SSE events
+- /admin = Admin console with tabs: People (search, role filter, activate/deactivate with confirm, edit role/department drawer, add officer drawer), Moderation (grouped flags with reasons and notes, Keep or Remove, decided history), Categories & SLA (edit hours, applied to open issues), Audit log (filters, grouped by day, load older)
+- Analytics v2 (server-side): KPIs with previous-period deltas, SLA compliance ring, reopen rate, median first response; reported-vs-fixed area chart; status donut; category bars + table (open, avg fix, on-time); hour x weekday heatmap + busiest hour/day + hourly bars; area x category matrix; officer leaderboard; open hotspots map; 7/30/90/365 ranges; CSV export
+- Category colours replaced with a palette validated for colour-blind separation (dataviz validator); dark-mode chart steps added
+- Demo seed v3: 150 issues over 90 days, 20 citizens, 6 officers, realistic report hours, SLA due times, escalations, discussions, open flags (some comments auto-hidden), notifications and audit entries (marked meta.demo so seed:demo:clear removes them)
+- Verified in sandbox: server tsc; client tsc + eslint + build; SLA/priority/validator unit checks; 401 checks on all new routes; Playwright screenshots against a mock API (Command Center, bell panel, Analytics light + dark, Field Desk, admin tabs, phone width). NOT verified: anything needing Atlas (aggregations, sweep, SSE delivery end to end, seed run)
+
+## Phase 8.1 (polish) - IMPLEMENTED 2026-10-10, awaiting owner testing
+- Command Center assignment board: Unassigned lane is fixed; only officer lanes scroll sideways, with fade edges, arrow buttons and snap; thin themed scrollbars (`.cc-scroll`) on inner lists
+- /map redesigned as "Explore the city": full-height map, glass side panel (search, Open/Fixed/All, category chips, overdue only, group pins, heat layer), list of issues in the visible area ("search as I move") synced with pins (hover grows a pin, click flies to it), own marker clustering (no new dependency: groups pins within 56 px per zoom level, red when any is overdue, badge = high-priority count), custom glass zoom/fit/locate controls, legend, preview card with Open and Share; phone: filter drawer on top, list as a bottom sheet
+- SLA chip time format fixed ("6 h 60 m" bug)
+- CV decision recorded: Phase 10a (before review) = local Python service + Photo Assistant UI + zero-shot baseline + Colab notebook; Phase 10b (after review) = fine-tune on owner's dataset and report real metrics. Owner to start collecting photos per category now
+
 ## Next steps
-1. Owner runs the Phase 7 test list; fix failures; commit
-2. Phase 8 notifications (SSE), SLA clocks + escalation, Field Desk (officer), Command Center (admin: live map, breach board, drag-to-assign, workload, moderation queue for flags, user management, audit log), Analytics v2 (server-side aggregation, bento layout, chart per data type, time range, CSV)
-3. Phase 9 chronic spots, area report cards, civic score, time-lapse + demo simulator, marker clustering, heat layer, before/after slider; Phase 10 Photo Assistant (CV) and tests
+1. Owner runs the Phase 8.1 test list; commit
+2. Phase 9 chronic spots, area report cards, civic score, time-lapse + demo simulator, marker clustering, heat layer, before/after slider; Phase 10 Photo Assistant (CV) and tests
 
 ## Notes / revisit
 - Production cookies use SameSite=None; revisit CSRF protection at deployment

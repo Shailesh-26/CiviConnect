@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link, NavLink, Outlet, useNavigate } from "react-router-dom";
 import {
+  BriefcaseBusiness,
   ChartColumn,
   ChevronsLeft,
   ChevronsRight,
@@ -12,6 +13,7 @@ import {
   LogOut,
   Map as MapIcon,
   Radar,
+  Radio,
   ShieldUser,
   type LucideIcon,
 } from "lucide-react";
@@ -22,6 +24,7 @@ import type { Role } from "../types";
 import { Avatar } from "./Avatar";
 import { ConfirmDialog } from "./ConfirmDialog";
 import { Logo, LogoMark } from "./Logo";
+import { NotificationBell } from "./NotificationBell";
 import { ThemeToggle } from "./ThemeToggle";
 
 type NavItem = { to: string; icon: LucideIcon; label: string; short?: string };
@@ -76,7 +79,12 @@ export function Layout() {
   if (!user) return null;
 
   const items: NavItem[] = [
-    { to: "/dashboard", icon: LayoutDashboard, label: "Dashboard", short: "Home" },
+    {
+      to: "/dashboard",
+      icon: user.role === "officer" ? BriefcaseBusiness : user.role === "admin" ? Radio : LayoutDashboard,
+      label: user.role === "officer" ? "Field Desk" : user.role === "admin" ? "Command Center" : "Dashboard",
+      short: user.role === "officer" ? "Desk" : user.role === "admin" ? "Command" : "Home",
+    },
     ...(user.role === "citizen" ? [{ to: "/neighbourhood", icon: Radar, label: "Neighbourhood", short: "Nearby" }] : []),
     REPORT_ITEM[user.role],
     user.role === "citizen"
@@ -84,7 +92,7 @@ export function Layout() {
       : { to: "/issues", icon: ListChecks, label: user.role === "officer" ? "My queue" : "All issues", short: "Queue" },
     { to: "/map", icon: MapIcon, label: "Map" },
     ...(user.role !== "citizen" ? [{ to: "/analytics", icon: ChartColumn, label: "Analytics", short: "Stats" }] : []),
-    ...(user.role === "admin" ? [{ to: "/admin", icon: ShieldUser, label: "Admin" }] : []),
+    ...(user.role === "admin" ? [{ to: "/admin", icon: ShieldUser, label: "Admin console", short: "Admin" }] : []),
   ];
 
   const roleLine = user.role === "officer" && user.department ? user.department : user.role;
@@ -130,12 +138,13 @@ export function Layout() {
           {collapsed ? <ChevronsRight size={15} aria-hidden /> : <ChevronsLeft size={15} aria-hidden />}
         </button>
 
-        <div className={collapsed ? "flex justify-center" : "px-2"}>
+        <div className={collapsed ? "flex flex-col items-center gap-3" : "flex items-center justify-between pl-2"}>
           {collapsed ? (
             <Link to="/dashboard" aria-label="CiviConnect dashboard"><LogoMark /></Link>
           ) : (
             <Logo to="/dashboard" />
           )}
+          <NotificationBell placement="side" />
         </div>
 
         <nav className="mt-10 flex flex-1 flex-col gap-1" aria-label="Main">
@@ -165,7 +174,7 @@ export function Layout() {
               <Avatar name={user.name} avatar={user.avatar} />
               <span className="min-w-0">
                 <span className="block truncate text-sm font-semibold">{user.name}</span>
-                <span className="block truncate text-xs capitalize text-ink/55">{roleLine}</span>
+                <span className={`block truncate text-xs text-ink/55 ${user.role === "officer" && user.department ? "" : "capitalize"}`}>{roleLine}</span>
               </span>
             </Link>
             <div className="mt-3 flex gap-2">
@@ -182,6 +191,7 @@ export function Layout() {
         <header className="sticky top-0 z-[1500] flex items-center justify-between border-b border-ink/10 bg-surface/90 px-4 py-2.5 backdrop-blur lg:hidden">
           <Logo to="/dashboard" />
           <div className="flex items-center gap-1">
+            <NotificationBell />
             <ThemeToggle />
             <button onClick={() => setConfirming(true)} aria-label="Log out" className="btn btn-ghost size-10 !p-0">
               <LogOut size={18} aria-hidden />

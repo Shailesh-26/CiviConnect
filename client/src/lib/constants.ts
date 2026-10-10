@@ -9,23 +9,35 @@ import {
 } from "lucide-react";
 import type { Category, Channel, PriorityLabel, Source, Status } from "../types";
 
+// Order matters: charts draw categories in this order, and the colours below were checked
+// (dataviz palette validator) so neighbours stay distinguishable, also for colour-blind readers.
 export const CATEGORIES: { value: Category; label: string; icon: LucideIcon }[] = [
   { value: "pothole", label: "Pothole", icon: Construction },
-  { value: "garbage", label: "Garbage", icon: Trash2 },
   { value: "drainage", label: "Drainage", icon: Droplets },
-  { value: "streetlight", label: "Street light", icon: Lightbulb },
+  { value: "garbage", label: "Garbage", icon: Trash2 },
   { value: "fallen_tree", label: "Fallen tree", icon: TreeDeciduous },
+  { value: "streetlight", label: "Street light", icon: Lightbulb },
   { value: "other", label: "Other", icon: CircleHelp },
 ];
 
 // Each category has its own colour so lists, pins and charts stay recognisable at a glance.
 export const CATEGORY_COLOR: Record<Category, string> = {
-  pothole: "#c2561f",
-  garbage: "#4f7d3a",
-  drainage: "#2a7f9e",
-  streetlight: "#c99700",
-  fallen_tree: "#6b4a8f",
-  other: "#5b6b7a",
+  pothole: "#eb6834",
+  drainage: "#2a78d6",
+  garbage: "#008300",
+  fallen_tree: "#6250d6",
+  streetlight: "#eda100",
+  other: "#e87ba4",
+};
+
+// The same hues stepped for the dark background (used by charts in dark mode).
+export const CATEGORY_COLOR_DARK: Record<Category, string> = {
+  pothole: "#d95926",
+  drainage: "#3987e5",
+  garbage: "#008300",
+  fallen_tree: "#9085e9",
+  streetlight: "#c98500",
+  other: "#d55181",
 };
 
 export const categoryMeta = (value: Category) =>

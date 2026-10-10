@@ -9,6 +9,7 @@ import { FlagDialog } from "../components/FlagDialog";
 import { IssueMap } from "../components/IssueMap";
 import { PriorityMeter } from "../components/PriorityMeter";
 import { StatusBadge } from "../components/StatusBadge";
+import { SlaCard } from "../components/SlaCard";
 import { StatusTracker } from "../components/StatusTracker";
 import { ErrorNote, Skeleton } from "../components/ui";
 import { api, ApiError } from "../lib/api";
@@ -51,7 +52,7 @@ export default function IssueDetail() {
     if (role !== "admin") return;
     let active = true;
     api<{ users: User[] }>("/admin/users")
-      .then((data) => active && setOfficers(data.users.filter((u) => u.role === "officer")))
+      .then((data) => active && setOfficers(data.users.filter((u) => u.role === "officer" && (u as { isActive?: boolean }).isActive !== false)))
       .catch(() => undefined);
     return () => {
       active = false;
@@ -216,10 +217,12 @@ export default function IssueDetail() {
         </div>
 
         <aside className="space-y-5">
+          {issue.sla && <SlaCard sla={issue.sla} createdAt={issue.createdAt} />}
           <div className="card p-5">
             <PriorityMeter score={issue.priority} label={issue.priorityLabel} />
             <p className="mt-3 text-xs text-ink/60">
               Based on how hazardous the problem is, how many people reported it, citizen support and how long it has been open.
+              {issue.escalated ? " Includes +15 for missing its fix-by time." : ""}
             </p>
             <p className="mt-3 flex items-center gap-2 text-sm">
               <UserCheck size={16} className="text-ink/50" aria-hidden />

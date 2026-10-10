@@ -93,6 +93,11 @@ const issueSchema = new Schema(
     commentCount: { type: Number, default: 0 },
     flagCount: { type: Number, default: 0 },
     lastActivityAt: { type: Date },
+    // Service level (Phase 8): fix-by time and what the automatic sweep has already done.
+    slaDueAt: { type: Date, index: true },
+    slaWarnedAt: { type: Date },
+    escalatedAt: { type: Date },
+    unassignedAlertAt: { type: Date },
   },
   { timestamps: true },
 );

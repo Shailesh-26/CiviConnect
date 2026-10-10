@@ -48,9 +48,14 @@ export type Issue = {
   description: string;
   images: { url: string }[];
   resolvedAt: string | null;
+  escalated: boolean;
+  sla: Sla;
   createdAt: string;
   updatedAt: string;
 };
+
+export type SlaState = "ok" | "warning" | "breached" | "met" | "missed" | "none";
+export type Sla = { dueAt: string; hours: number; hoursLeft: number; state: SlaState; escalated: boolean };
 
 export type IssueDetail = Issue & {
   reports: {
@@ -156,3 +161,127 @@ export type PublicIssue = {
 };
 
 export type Place = { label: string; full: string; lat: number; lng: number };
+
+export type NotificationType =
+  | "status" | "resolved" | "comment" | "merged" | "assigned" | "sla_warning" | "escalated" | "reopened" | "new_issue" | "unassigned" | "flag";
+
+export type AppNotification = {
+  id: string;
+  type: NotificationType;
+  title: string;
+  body: string | null;
+  link: string | null;
+  category: Category | null;
+  read: boolean;
+  createdAt: string;
+};
+
+export type AuditEntry = {
+  id: string;
+  actorName: string;
+  actorRole: string;
+  action: string;
+  summary: string;
+  targetType: string;
+  targetId: string | null;
+  at: string;
+};
+
+export type Suggestion = { id: string; name: string; reason: string } | null;
+
+export type Lane = {
+  officer: { id: string; name: string; department: string | null; avatar: Avatar | null };
+  open: number;
+  breached: number;
+  resolved30d: number;
+  avgFixHours: number | null;
+  issues: Issue[];
+};
+
+export type CommandOverview = {
+  kpis: { open: number; unassigned: number; breached: number; dueSoon: number; highPriority: number; resolved7d: number; flagsOpen: number };
+  breachBoard: Issue[];
+  unassigned: (Issue & { suggestion: Suggestion })[];
+  lanes: Lane[];
+  pins: {
+    id: string;
+    ticket: string;
+    category: Category;
+    customIcon: string | null;
+    customLabel: string | null;
+    status: Status;
+    priorityLabel: PriorityLabel;
+    slaState: SlaState;
+    assigned: boolean;
+    location: { lat: number; lng: number };
+  }[];
+  activity: AuditEntry[];
+};
+
+export type DeskData = {
+  stats: {
+    open: number;
+    breached: number;
+    dueToday: number;
+    inProgress: number;
+    resolvedWeek: number;
+    resolved90d: number;
+    avgFixHours: number | null;
+    onTimeRate: number | null;
+  };
+  queue: Issue[];
+  recent: Issue[];
+};
+
+export type AnalyticsData = {
+  days: number;
+  weekly: boolean;
+  kpis: {
+    reported: number;
+    reportedPrev: number;
+    resolved: number;
+    resolvedPrev: number;
+    openNow: number;
+    breachedNow: number;
+    avgFixHours: number | null;
+    medianFixHours: number | null;
+    slaCompliance: number | null;
+    reopenRate: number | null;
+    medianFirstResponseHours: number | null;
+    citizensEngaged: number;
+  };
+  trend: { key: string; reported: number; resolved: number }[];
+  statusShare: { status: Status; count: number }[];
+  byCategory: { category: Category; reported: number; open: number; resolved: number; avgFixHours: number | null; slaCompliance: number | null }[];
+  heat: { day: number; hour: number; count: number }[];
+  areas: { area: string; total: number; counts: Partial<Record<Category, number>> }[];
+  leaderboard: {
+    id: string;
+    name: string;
+    department: string | null;
+    active: boolean;
+    resolved: number;
+    open: number;
+    breached: number;
+    avgFixHours: number | null;
+    onTimeRate: number | null;
+    reopened: number;
+  }[];
+  hotspots: { id: string; lat: number; lng: number; category: Category; priority: number }[];
+};
+
+export type AdminUser = User & { isActive: boolean; reportCount: number };
+
+export type FlagGroup = {
+  targetType: "issue" | "comment";
+  targetId: string;
+  count: number;
+  reasons: Partial<Record<FlagReason, number>>;
+  notes: string[];
+  firstAt: string;
+  lastAt: string;
+  issue: { id: string; ticket: string; category: Category; customLabel: string | null; customIcon: string | null; status: Status; address: string | null; description: string } | null;
+  comment: { body: string | null; author: string; hidden: boolean; deleted: boolean } | null;
+};
+
+export type CategorySla = { category: Category; slaHours: number; defaultHours: number; open: number };

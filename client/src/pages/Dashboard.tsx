@@ -8,6 +8,8 @@ import { EmptyState, ErrorNote, ListSkeleton } from "../components/ui";
 import { api, ApiError } from "../lib/api";
 import { OPEN } from "../lib/constants";
 import type { Issue } from "../types";
+import CommandCenter from "./CommandCenter";
+import FieldDesk from "./FieldDesk";
 
 const REPORT_CTA = { citizen: "Report an issue", officer: "Log field inspection", admin: "Register a complaint" };
 
@@ -23,7 +25,15 @@ function Tile({ label, value, icon: Icon, tone, bg }: { label: string; value: nu
   );
 }
 
+// Each role gets its own workspace on /dashboard.
 export default function Dashboard() {
+  const { user } = useAuth();
+  if (user?.role === "officer") return <FieldDesk />;
+  if (user?.role === "admin") return <CommandCenter />;
+  return <CitizenHome />;
+}
+
+function CitizenHome() {
   const { user } = useAuth();
   const [issues, setIssues] = useState<Issue[] | null>(null);
   const [error, setError] = useState<string | null>(null);

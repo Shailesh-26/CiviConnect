@@ -6,6 +6,10 @@ import { AppError } from "../utils/AppError";
 import { imageStorageEnabled, uploadImage } from "../utils/cloudinary";
 import { normaliseLabel } from "../utils/customIcons";
 import { toIssueDetailDTO, toIssueDTO, type IssueRecord } from "../utils/issueDto";
+import { issueName, STATUS_NAME } from "../utils/labels";
+import { audit, SYSTEM } from "../services/audit";
+import { adminIds, broadcast, notify } from "../services/notify";
+import { dueFrom, slaHoursFor } from "../services/sla";
 import type { AssignInput, CreateIssueInput, StatusInput, VerifyInput } from "../validators/issue.schemas";
 
 // Reports of the same category closer than this are merged into one master issue.
@@ -122,12 +126,20 @@ export const createIssue: RequestHandler = async (req, res) => {
   let merged = false;
 
   if (nearby) {
+    const earlierFollowers = [...nearby.followers];
     nearby.reports.push(report);
     if (!nearby.followers.some((f) => f.equals(userId))) nearby.followers.push(userId);
     nearby.lastActivityAt = new Date();
     await nearby.save();
     issueId = nearby.id;
     merged = true;
+    await notify(earlierFollowers, {
+      type: "merged",
+      title: `Another neighbour reported ${issueName(nearby)}`,
+      body: `It now has ${nearby.reports.length} reports, so its priority went up.`,
+      issueId,
+      category: nearby.category,
+    }, user.id);
   } else {
     const now = new Date();
     const firstNote =
@@ -164,12 +176,27 @@ export const createIssue: RequestHandler = async (req, res) => {
       timeline,
       followers: [userId],
       lastActivityAt: now,
+      slaDueAt: dueFrom(category, now),
     });
     issueId = created.id;
+    if (source !== "citizen") {
+      await audit(user, source === "field_inspection" ? "issue.field_inspection" : "issue.on_behalf", { type: "issue", id: issueId }, `${issueName(created)} ${source === "field_inspection" ? "logged during a field inspection" : `registered for a citizen by ${CHANNEL_LABEL[onBehalf!.channel]}`}`);
+    }
   }
 
   const record = await loadRecord(issueId);
-  res.status(merged ? 200 : 201).json({ merged, issue: toIssueDetailDTO(record, user.id) });
+  const dto = toIssueDetailDTO(record, user.id);
+  if (!merged && dto.priorityLabel === "high" && source !== "field_inspection") {
+    await notify(await adminIds(), {
+      type: "new_issue",
+      title: `New high-priority issue: ${issueName(record)}`,
+      body: record.address ?? undefined,
+      issueId,
+      category: record.category,
+    }, user.id);
+  }
+  broadcast(await adminIds(), "refresh", { reason: "issue" });
+  res.status(merged ? 200 : 201).json({ merged, issue: dto });
 };
 
 export const listIssues: RequestHandler = async (req, res) => {
@@ -245,6 +272,24 @@ export const assignIssue: RequestHandler = async (req, res) => {
   });
   await issue.save();
 
+  const name = issueName(issue);
+  await notify([officer._id], {
+    type: "assigned",
+    title: `New assignment: ${name}`,
+    body: issue.address ?? "Open it to see the details and the fix-by time.",
+    issueId: id,
+    category: issue.category,
+  }, req.user!.id);
+  await notify(issue.followers, {
+    type: "status",
+    title: `${name} was picked up`,
+    body: `${officer.name}${officer.department ? ` (${officer.department})` : ""} is now responsible for it.`,
+    issueId: id,
+    category: issue.category,
+  }, req.user!.id);
+  await audit(req.user!, "issue.assigned", { type: "issue", id }, `${name} assigned to ${officer.name}`, { officerId: officer.id });
+  broadcast([...(await adminIds()), officer.id], "refresh", { reason: "assign" });
+
   const record = await loadRecord(id);
   res.json({ issue: toIssueDetailDTO(record, req.user!.id) });
 };
@@ -279,9 +324,16 @@ export const updateStatus: RequestHandler = async (req, res) => {
 
   const images = await Promise.all(files.map((f) => uploadImage(f.buffer)));
 
+  const previous = issue.status;
   issue.status = status;
   issue.lastActivityAt = new Date();
   issue.resolvedAt = status === "resolved" ? new Date() : undefined;
+  if (previous === "resolved" && status === "in_progress") {
+    // Reopened: a fresh, shorter fix-by window.
+    issue.slaDueAt = new Date(Date.now() + (slaHoursFor(issue.category) / 2) * 3_600_000);
+    issue.escalatedAt = undefined;
+    issue.slaWarnedAt = undefined;
+  }
   if (status === "resolved") issue.verifications.splice(0, issue.verifications.length);
   issue.timeline.push({
     status,
@@ -292,6 +344,14 @@ export const updateStatus: RequestHandler = async (req, res) => {
     at: new Date(),
   });
   await issue.save();
+
+  const name = issueName(issue);
+  await notify(issue.followers, status === "resolved"
+    ? { type: "resolved", title: `Fixed: ${name}`, body: "Is it really fixed? Tap to confirm or say it is still there.", issueId: id, category: issue.category }
+    : { type: "status", title: `${name} is now ${STATUS_NAME[status].toLowerCase()}`, body: note ?? undefined, issueId: id, category: issue.category },
+  user.id);
+  await audit(user, `issue.${status}`, { type: "issue", id }, `${name}: ${STATUS_NAME[previous]} → ${STATUS_NAME[status]}`, note ? { note } : undefined);
+  broadcast(await adminIds(), "refresh", { reason: "status" });
 
   const record = await loadRecord(id);
   res.json({ issue: toIssueDetailDTO(record, user.id) });
@@ -324,9 +384,14 @@ export const verifyIssue: RequestHandler = async (req, res) => {
   const reporterVotes = stillThere.filter((v) => reporterIds.has(v.user.toString())).length;
   const otherVotes = stillThere.length - reporterVotes;
 
-  if (reporterVotes >= 1 || otherVotes >= 2) {
+  const reopen = reporterVotes >= 1 || otherVotes >= 2;
+  if (reopen) {
     issue.status = "in_progress";
     issue.resolvedAt = undefined;
+    issue.lastActivityAt = new Date();
+    issue.slaDueAt = new Date(Date.now() + (slaHoursFor(issue.category) / 2) * 3_600_000);
+    issue.escalatedAt = undefined;
+    issue.slaWarnedAt = undefined;
     issue.timeline.push({
       status: "in_progress",
       note: "Reopened: citizens report the problem is still there",
@@ -336,6 +401,18 @@ export const verifyIssue: RequestHandler = async (req, res) => {
     });
   }
   await issue.save();
+
+  if (reopen) {
+    const name = issueName(issue);
+    await notify([...(await adminIds()), ...(issue.assignedTo ? [issue.assignedTo] : [])], {
+      type: "reopened",
+      title: `Reopened by citizens: ${name}`,
+      body: "Citizens say the problem is still there. It has a new, shorter fix-by time.",
+      issueId: id,
+      category: issue.category,
+    });
+    await audit(SYSTEM, "issue.reopened", { type: "issue", id }, `${name} reopened by citizen verification`);
+  }
 
   const record = await loadRecord(id);
   res.json({ issue: toIssueDetailDTO(record, user.id) });

@@ -8,6 +8,7 @@ import { useIssueActions } from "../lib/useIssueActions";
 import type { FeedItem } from "../types";
 import { ActionMenu } from "./ActionMenu";
 import { CategoryChip } from "./CategoryChip";
+import { SlaChip } from "./SlaChip";
 import { StatusBadge } from "./StatusBadge";
 
 type Props = {
@@ -92,6 +93,7 @@ export function FeedCard({ item, active, index, onHover, onChange, onHide, onFla
               <span className="inline-flex items-center gap-1 font-medium text-ink/70"><MapPin size={12} aria-hidden /> {formatDistance(item.distanceM)}</span>
               <span>{timeAgo(item.createdAt)}</span>
               <span className="tabular-nums">{item.ticket}</span>
+              {open && item.sla && <SlaChip sla={item.sla} compact />}
               <span className="sm:hidden"><StatusBadge status={item.status} /></span>
             </p>
           </div>

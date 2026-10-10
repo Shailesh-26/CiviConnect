@@ -9,6 +9,9 @@ import { deleteImage, imageStorageEnabled, uploadImage } from "../utils/cloudina
 import { normaliseLabel } from "../utils/customIcons";
 import { toIssueDTO, type IssueRecord } from "../utils/issueDto";
 import { similarity } from "../utils/textMatch";
+import { adminIds, notify } from "../services/notify";
+import { audit } from "../services/audit";
+import { issueName } from "../utils/labels";
 import type { CommentInput, FlagInput } from "../validators/community.schemas";
 
 const assigneeFields = { path: "assignedTo", select: "name department" };
@@ -205,6 +208,12 @@ export const flagIssue: RequestHandler = async (req, res) => {
     throw err;
   }
   await Issue.updateOne({ _id: issue._id }, { $inc: { flagCount: 1 } });
+  await notify(await adminIds(), {
+    type: "flag",
+    title: `Issue reported to admins: ${issueName(issue)}`,
+    body: `Reason: ${reason.replace("_", " ")}. Review it in the moderation queue.`,
+    link: "/admin?tab=moderation",
+  }, req.user!.id);
   res.status(201).json({ message: "Thanks. An admin will review it." });
 };
 
@@ -225,6 +234,12 @@ export const flagComment: RequestHandler = async (req, res) => {
   comment.flaggedBy.push(new Types.ObjectId(req.user!.id));
   if (comment.flaggedBy.length >= HIDE_AFTER_FLAGS) comment.hidden = true;
   await comment.save();
+  await notify(await adminIds(), {
+    type: "flag",
+    title: comment.hidden ? "A comment was hidden after 3 reports" : "A comment was reported to admins",
+    body: `Reason: ${reason.replace("_", " ")}. Review it in the moderation queue.`,
+    link: "/admin?tab=moderation",
+  }, req.user!.id);
   res.status(201).json({ message: "Thanks. An admin will review it.", hidden: comment.hidden });
 };
 
@@ -317,6 +332,14 @@ export const addComment: RequestHandler = async (req, res) => {
   );
 
   const record = (await Comment.findById(created._id).populate("user", authorFields).lean()) as unknown as CommentRecord;
+  await notify(issue.followers, {
+    type: "comment",
+    title: created.official ? `Official update on ${issueName(issue)}` : `New comment on ${issueName(issue)}`,
+    body: `${viewer.name}: ${body.slice(0, 140)}${body.length > 140 ? "…" : ""}`,
+    link: `/issues/${issue.id}#discussion`,
+    issueId: issue.id,
+    category: issue.category,
+  }, viewer.id);
   res.status(201).json({ comment: toCommentDTO(record, viewer) });
 };
 
@@ -337,6 +360,9 @@ export const deleteComment: RequestHandler = async (req, res) => {
   await comment.save();
   await Promise.all(photos.map((p) => deleteImage(p)));
   await Issue.updateOne({ _id: comment.issue, commentCount: { $gt: 0 } }, { $inc: { commentCount: -1 } });
+  if (comment.user.toString() !== viewer.id) {
+    await audit(viewer, "comment.deleted", { type: "comment", id }, "Deleted another user's comment");
+  }
 
   res.json({ message: "Comment deleted" });
 };

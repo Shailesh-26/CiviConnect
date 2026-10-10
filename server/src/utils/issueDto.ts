@@ -1,4 +1,5 @@
 import type { Category, Channel, Source, Status } from "../models/Issue";
+import { slaInfo } from "../services/sla";
 import { computePriority, priorityLabel } from "./priority";
 
 type Id = { toString(): string };
@@ -36,6 +37,8 @@ export type IssueRecord = {
   followers?: Id[];
   commentCount?: number;
   lastActivityAt?: Date | null;
+  slaDueAt?: Date | null;
+  escalatedAt?: Date | null;
   createdAt: Date;
   updatedAt: Date;
 };
@@ -47,6 +50,7 @@ export function toIssueDTO(issue: IssueRecord, viewerId?: string) {
     reportCount: issue.reports.length,
     supporterCount: issue.supporters.length,
     createdAt: issue.createdAt,
+    escalated: Boolean(issue.escalatedAt),
   });
 
   return {
@@ -77,6 +81,7 @@ export function toIssueDTO(issue: IssueRecord, viewerId?: string) {
     description: issue.reports[0]?.description ?? "",
     images: issue.reports.flatMap((r) => r.images.map((img) => ({ url: img.url }))).slice(0, 6),
     resolvedAt: issue.resolvedAt ?? null,
+    sla: slaInfo(issue),
     createdAt: issue.createdAt,
     updatedAt: issue.updatedAt,
   };
