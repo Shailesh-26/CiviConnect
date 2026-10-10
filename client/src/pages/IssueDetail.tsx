@@ -1,47 +1,21 @@
 import { useEffect, useState } from "react";
 import { Link, useLocation, useParams } from "react-router-dom";
-import { ArrowLeft, BadgeCheck, Check, ClipboardPen, Headset, ImagePlus, Layers, ThumbsDown, ThumbsUp, UserCheck, X } from "lucide-react";
+import { ArrowLeft, BadgeCheck, Bell, BellRing, ClipboardPen, Flag, Headset, ImagePlus, Layers, Link2, Share2, ThumbsDown, ThumbsUp, UserCheck, X } from "lucide-react";
 import { useAuth } from "../auth/useAuth";
+import { ActionMenu } from "../components/ActionMenu";
 import { CategoryChip } from "../components/CategoryChip";
+import { Discussion } from "../components/Discussion";
+import { FlagDialog } from "../components/FlagDialog";
 import { IssueMap } from "../components/IssueMap";
 import { PriorityMeter } from "../components/PriorityMeter";
 import { StatusBadge } from "../components/StatusBadge";
+import { StatusTracker } from "../components/StatusTracker";
 import { ErrorNote, Skeleton } from "../components/ui";
 import { api, ApiError } from "../lib/api";
 import { CHANNEL_META, formatDate, issueLabel, NEXT_STATUS, OPEN, SOURCE_META, STATUS_META } from "../lib/constants";
 import { useToast } from "../lib/toast-context";
+import { useIssueActions } from "../lib/useIssueActions";
 import type { IssueDetail as Detail, Status, User } from "../types";
-
-const STAGES: Status[] = ["reported", "acknowledged", "in_progress", "resolved"];
-
-// A four-step tracker so a citizen sees at a glance how far the fix has come.
-function Tracker({ status }: { status: Status }) {
-  if (status === "rejected") {
-    return <p className="rounded-xl border border-alert/30 bg-alert/10 px-4 py-3 text-sm font-medium text-alert">This issue was closed without a fix. See the timeline for the reason.</p>;
-  }
-  const current = STAGES.indexOf(status);
-  return (
-    <ol className="flex items-start">
-      {STAGES.map((stage, i) => {
-        const done = i < current || status === "resolved";
-        const active = i === current && status !== "resolved";
-        return (
-          <li key={stage} className="relative flex flex-1 flex-col items-center text-center">
-            {i > 0 && <span className={`absolute right-1/2 top-4 h-0.5 w-full ${i <= current ? "bg-resolved" : "bg-ink/15"}`} aria-hidden />}
-            <span
-              className={`relative z-10 grid size-8 place-items-center rounded-full border-2 text-xs font-bold transition-colors ${
-                done ? "border-resolved bg-resolved text-white" : active ? "border-accent bg-accent text-paper" : "border-ink/20 bg-surface text-ink/40"
-              }`}
-            >
-              {done ? <Check size={15} aria-hidden /> : i + 1}
-            </span>
-            <span className={`mt-2 text-[11px] font-medium sm:text-xs ${done || active ? "text-ink" : "text-ink/45"}`}>{STATUS_META[stage].label}</span>
-          </li>
-        );
-      })}
-    </ol>
-  );
-}
 
 export default function IssueDetail() {
   const { id } = useParams();
@@ -58,6 +32,8 @@ export default function IssueDetail() {
   const [officerId, setOfficerId] = useState("");
   const [note, setNote] = useState("");
   const [proof, setProof] = useState<File[]>([]);
+  const [flagOpen, setFlagOpen] = useState(false);
+  const actions = useIssueActions();
 
   const role = user?.role;
 
@@ -146,7 +122,7 @@ export default function IssueDetail() {
         <div className="min-w-0 space-y-6">
           <header className="card flex items-start gap-4 p-5 animate-rise">
             <CategoryChip category={issue.category} icon={issue.customIcon} size="lg" />
-            <div className="min-w-0">
+            <div className="min-w-0 flex-1">
               <h1 className="text-3xl font-semibold">{issueLabel(issue)}</h1>
               <p className="mt-1.5 flex flex-wrap items-center gap-2 text-sm text-ink/60">
                 <span className="tabular-nums">{issue.ticket}</span>
@@ -155,10 +131,37 @@ export default function IssueDetail() {
                 {issue.category === "other" && <span className="rounded-full bg-ink/6 px-2 py-0.5 text-xs">Other</span>}
               </p>
               {issue.address && <p className="mt-2 text-sm text-ink/70">{issue.address}</p>}
+              <div className="mt-4 flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={async () => {
+                    try {
+                      const following = await actions.follow(issue);
+                      setIssue({ ...issue, followedByMe: following });
+                    } catch (err) {
+                      actions.fail(err);
+                    }
+                  }}
+                  aria-pressed={issue.followedByMe}
+                  className={`btn !py-2 text-sm ${issue.followedByMe ? "btn-primary" : "btn-outline"}`}
+                >
+                  {issue.followedByMe ? <BellRing size={16} aria-hidden /> : <Bell size={16} aria-hidden />} {issue.followedByMe ? "Following" : "Follow"}
+                </button>
+                <button type="button" onClick={() => actions.share(issue)} className="btn btn-outline !py-2 text-sm">
+                  <Share2 size={16} aria-hidden /> Share
+                </button>
+                <a href="#discussion" className="btn btn-ghost !py-2 text-sm">{issue.commentCount} {issue.commentCount === 1 ? "comment" : "comments"}</a>
+              </div>
             </div>
+            <ActionMenu
+              items={[
+                { label: "Copy public link", icon: Link2, onSelect: () => actions.copyLink(issue) },
+                { label: "Report to admins", icon: Flag, onSelect: () => setFlagOpen(true), danger: true },
+              ]}
+            />
           </header>
 
-          <div className="card p-5"><Tracker status={issue.status} /></div>
+          <div className="card p-5"><StatusTracker status={issue.status} /></div>
 
           {before && after ? (
             <section className="card p-5">
@@ -208,6 +211,8 @@ export default function IssueDetail() {
           </section>
 
           <IssueMap issues={[issue]} className="h-64" zoom={16} />
+
+          <Discussion issueId={issue.id} onCountChange={(d) => setIssue((cur) => (cur ? { ...cur, commentCount: Math.max(0, cur.commentCount + d) } : cur))} />
         </div>
 
         <aside className="space-y-5">
@@ -355,6 +360,7 @@ export default function IssueDetail() {
           </section>
         </aside>
       </div>
+      <FlagDialog open={flagOpen} endpoint={`/issues/${issue.id}/flag`} what="issue" onClose={() => setFlagOpen(false)} onDone={() => setFlagOpen(false)} />
     </div>
   );
 }

@@ -1,6 +1,6 @@
 # PROJECT_STATE — CiviConnect
 
-Last updated: 2026-10-10, after Phase 6.1 (status: IMPLEMENTED, awaiting owner testing)
+Last updated: 2026-10-10, after Phase 7 (status: IMPLEMENTED, awaiting owner testing). Phase 6.1: TESTED by owner
 
 ## Stack
 - Client: React 19 + Vite + TypeScript + Tailwind v4 (`client/`), React Router, lucide-react icons, Leaflet + react-leaflet (OpenStreetMap tiles), Public Sans font, plain `fetch` wrapper
@@ -48,6 +48,10 @@ client/src/
 - GET /health; POST /auth/register, /auth/login, /auth/logout; GET /auth/me
 - PATCH /auth/me (profile: name, bio, homeArea, homeLocation, radiusKm, notify, preset avatar or null); POST /auth/me/avatar (multipart `avatar`, Cloudinary); PATCH /auth/me/password {currentPassword, newPassword} (10 per 15 min)
 - GET /admin/users; POST /admin/officers (admin)
+- GET /feed?sort=hot|new|top|unresolved|resolved&radiusKm=1|2|5|10&category=&lat=&lng=&page= (center = lat/lng or the user's home spot; 400 code NO_LOCATION when neither)
+- GET /issues/nearby?lat&lng&category&label&text (open issues within 200 m with a 0-100 match score and willMerge)
+- GET/POST /issues/:id/comments (multipart body, parentId?, photos[] up to 2); DELETE /comments/:id (own or admin); POST /comments/:id/flag; POST /issues/:id/flag {reason, note?}; POST /issues/:id/follow (toggle); POST /issues/:id/hide (toggle)
+- GET /public/issues/:ticket (no login, anonymous); GET /geo/search?q=&lat=&lng= and GET /geo/reverse?lat&lng (login; server-side OpenStreetMap Nominatim, 1 request/second, 24 h cache)
 - POST /issues (multipart: category, description, lat, lng, address?, customLabel?, customIcon?, onBehalfName?, channel?, photos[]) -> creates or merges; behaviour depends on role (see Phase 6.1)
 - GET /issues (all, ?status=&category=); GET /issues/mine; GET /issues/assigned (officer); GET /issues/:id
 - POST /issues/:id/support (toggle); PATCH /issues/:id/assign (admin); PATCH /issues/:id/status (admin or assigned officer, multipart: status, note?, photos[] up to 2); POST /issues/:id/verify (citizen, {fixed: boolean})
@@ -73,7 +77,7 @@ NODE_ENV, PORT, MONGODB_URI, CLIENT_URL, JWT_SECRET (32+ chars), JWT_EXPIRES_DAY
 - Rewritten shell: Layout.tsx (sidebar on desktop, bottom tab bar on phones); login/register are full-screen pages outside Layout; `/` is the landing page, dashboard moved to `/dashboard`
 - Server: GET /api/public/overview (anonymous, rate limited); `npm run seed:demo` / `seed:demo:clear` create or remove a fake city (46 issues, 4 officers, 8 citizens, admin@civiconnect.demo, password Demo@1234; demo photos are SVGs in client/public/demo, nothing goes to Cloudinary)
 
-## Phase 6.1 (fix-up drop) - IMPLEMENTED 2026-10-10, awaiting owner testing
+## Phase 6.1 (fix-up drop) - TESTED and committed by owner 2026-10-10
 - Roadmap 6.1 -> 7 Neighbourhood -> 8 Living system -> 9 Intelligence -> 10 CV + tests: APPROVED by owner 2026-10-10
 - Logout asks for confirmation (components/ConfirmDialog.tsx, reusable)
 - Login/register: one full-screen page, animated city map backdrop (components/CityBackdrop.tsx, lib/cityMap.ts) with one floating glass card, live activity ticker from /public/overview; no split screen
@@ -86,11 +90,25 @@ NODE_ENV, PORT, MONGODB_URI, CLIENT_URL, JWT_SECRET (32+ chars), JWT_EXPIRES_DAY
 - Demo seed: avatars, home areas for citizens, named "Other" issues
 - Verified in sandbox: server tsc, client tsc + eslint + build, validator checks, 401 checks, Playwright screenshots (desktop, phone, dark). NOT verified: anything needing Atlas or Cloudinary (create flows per role, profile save, avatar upload, password change)
 
+## Phase 7 (Neighbourhood + community + wizard) - IMPLEMENTED 2026-10-10, awaiting owner testing
+- Owner's friend's remarks recorded: analytics too basic (one chart type), /admin page is only a form + table, toasts too small, UI still bland. Decision: toasts fixed now; Analytics v2 moved from Phase 9 into Phase 8 together with the admin Command Center
+- Design direction agreed: minimal base; bento grid for dashboards/analytics/admin; glass only for floating layers (nav, menus, sheets, toasts, map overlays); spatial depth for map views; no neumorphism, no maximalism
+- Bigger toasts: title, icon tile, optional action button (Undo/Open), countdown bar, pause on hover (components/ToastProvider.tsx; toast.success(message, { title, action, duration }))
+- Neighbourhood page `/neighbourhood` (citizen nav "Neighbourhood", route open to all roles): feed within 1/2/5/10 km of home spot or current location; sorts Hot/New/Top/Unresolved/Fixed; category chips; infinite scroll; map panel with radius circle and pins that grow when the card is hovered; pulse tiles; thread cards with upvote (= support), comments, share, follow, three-dot menu (copy link, share, follow, I am also affected, hide with Undo, report to admins)
+- Hot score: (supporters + 2 x extra reports + comments + 1) x 1.5 if open / (days since last activity + 2)^1.3
+- Discussion on every issue page: comments with one level of replies, up to 2 evidence photos, official badge for officers/admins, latest official update pinned, delete own (admin any), report comment; 3 reports hide a comment until admin review; commenting auto-follows the issue
+- Issue page: Follow, Share, comment count, three-dot menu (copy public link, report)
+- Public read-only page `/i/:ticket` (no login): status tracker, before/after, map, timeline without names, "fixed in X days", join call to action. Open Graph previews need server rendering: FUTURE (deployment)
+- Report wizard: steps Photo (camera on phones) -> Problem -> Location (address search + use my location + map, reverse-geocoded place name) -> Details (landmark pre-filled) -> Review; admin gets a first "Citizen" step. Similar-issues panel with match % (50% distance, 35% same kind, 15% shared words; hand-chosen weights) and "Same problem: upvote instead"
+- Privacy fix: timeline entries written by a reporter no longer show their name
+- New models: Comment, Flag. Issue gets followers, commentCount, flagCount, lastActivityAt. User gets hiddenIssues (not sent to the client)
+- Demo seed: discussions with neighbour comments and officer updates, followers, last activity
+- Verified in sandbox: server tsc, client tsc + eslint + build, validator/similarity/throttle checks, 401 checks on every new route, Playwright screenshots (feed, menu, toasts, phone dark, thread, wizard, public page). NOT verified: anything needing Atlas (feed query, comments, flags, follow, hide), Cloudinary (comment photos), Nominatim (address search; sandbox has no internet)
+
 ## Next steps
-1. Owner runs the Phase 6.1 test list; fix failures; commit
-2. Phase 7 Neighbourhood feed (radius, upvote, comments, flag, share, three-dot menu), public issue pages, guided report wizard with address search and similar-nearby
-3. Phase 8 notifications (SSE), SLA clocks + escalation, Field Desk (officer), Command Center (admin)
-4. Phase 9 chronic spots, area report cards, analytics v2, civic score, time-lapse + demo simulator; Phase 10 Photo Assistant (CV) and tests
+1. Owner runs the Phase 7 test list; fix failures; commit
+2. Phase 8 notifications (SSE), SLA clocks + escalation, Field Desk (officer), Command Center (admin: live map, breach board, drag-to-assign, workload, moderation queue for flags, user management, audit log), Analytics v2 (server-side aggregation, bento layout, chart per data type, time range, CSV)
+3. Phase 9 chronic spots, area report cards, civic score, time-lapse + demo simulator, marker clustering, heat layer, before/after slider; Phase 10 Photo Assistant (CV) and tests
 
 ## Notes / revisit
 - Production cookies use SameSite=None; revisit CSRF protection at deployment

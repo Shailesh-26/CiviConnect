@@ -1,6 +1,6 @@
 import { Router } from "express";
 import rateLimit from "express-rate-limit";
-import { getOverview } from "../controllers/public.controller";
+import { getOverview, getPublicIssue } from "../controllers/public.controller";
 
 export const publicRouter = Router();
 
@@ -13,3 +13,4 @@ const limiter = rateLimit({
 });
 
 publicRouter.get("/overview", limiter, getOverview);
+publicRouter.get("/issues/:ticket", limiter, getPublicIssue);

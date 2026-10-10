@@ -41,6 +41,9 @@ export type Issue = {
   reportCount: number;
   supporterCount: number;
   supportedByMe: boolean;
+  followedByMe: boolean;
+  commentCount: number;
+  lastActivityAt: string;
   assignedTo: { id: string; name: string; department: string | null } | null;
   description: string;
   images: { url: string }[];
@@ -96,3 +99,60 @@ export type PublicOverview = {
     at: string;
   }[];
 };
+
+export type FeedSort = "hot" | "new" | "top" | "unresolved" | "resolved";
+
+export type FeedItem = Issue & {
+  distanceM: number;
+  flaggedByMe: boolean;
+  latestUpdate: { status: Status; note: string | null; at: string } | null;
+};
+
+export type FeedResponse = {
+  center: { lat: number; lng: number };
+  radiusKm: number;
+  sort: FeedSort;
+  total: number;
+  page: number;
+  hasMore: boolean;
+  items: FeedItem[];
+};
+
+export type NearbyItem = Issue & { distanceM: number; confidence: number; willMerge: boolean };
+
+export type FlagReason = "spam" | "duplicate" | "fake" | "abusive" | "wrong_location" | "other";
+
+export type IssueComment = {
+  id: string;
+  parentId: string | null;
+  body: string | null;
+  images: { url: string }[];
+  official: boolean;
+  deleted: boolean;
+  hidden: boolean;
+  author: { name: string; role: Role; department: string | null; avatar: Avatar | null } | null;
+  isMine: boolean;
+  canDelete: boolean;
+  flaggedByMe: boolean;
+  createdAt: string;
+};
+
+export type PublicIssue = {
+  ticket: string;
+  category: Category;
+  customLabel: string | null;
+  customIcon: string | null;
+  status: Status;
+  address: string | null;
+  location: { lat: number; lng: number };
+  reportCount: number;
+  supporterCount: number;
+  commentCount: number;
+  before: { url: string } | null;
+  after: { url: string } | null;
+  timeline: { status: Status; note: string | null; at: string }[];
+  resolvedAt: string | null;
+  createdAt: string;
+};
+
+export type Place = { label: string; full: string; lat: number; lng: number };

@@ -123,6 +123,8 @@ export const createIssue: RequestHandler = async (req, res) => {
 
   if (nearby) {
     nearby.reports.push(report);
+    if (!nearby.followers.some((f) => f.equals(userId))) nearby.followers.push(userId);
+    nearby.lastActivityAt = new Date();
     await nearby.save();
     issueId = nearby.id;
     merged = true;
@@ -160,6 +162,8 @@ export const createIssue: RequestHandler = async (req, res) => {
       assignedTo: source === "field_inspection" ? userId : undefined,
       reports: [report],
       timeline,
+      followers: [userId],
+      lastActivityAt: now,
     });
     issueId = created.id;
   }
@@ -205,7 +209,10 @@ export const supportIssue: RequestHandler = async (req, res) => {
   const userId = new Types.ObjectId(req.user!.id);
   const index = issue.supporters.findIndex((s) => s.equals(userId));
   if (index >= 0) issue.supporters.splice(index, 1);
-  else issue.supporters.push(userId);
+  else {
+    issue.supporters.push(userId);
+    issue.lastActivityAt = new Date();
+  }
   await issue.save();
 
   const record = await loadRecord(id);
@@ -227,6 +234,7 @@ export const assignIssue: RequestHandler = async (req, res) => {
   if (!officer) throw new AppError(404, "Officer not found");
 
   issue.assignedTo = officer._id;
+  issue.lastActivityAt = new Date();
   if (issue.status === "reported") issue.status = "acknowledged";
   issue.timeline.push({
     status: issue.status,
@@ -272,6 +280,7 @@ export const updateStatus: RequestHandler = async (req, res) => {
   const images = await Promise.all(files.map((f) => uploadImage(f.buffer)));
 
   issue.status = status;
+  issue.lastActivityAt = new Date();
   issue.resolvedAt = status === "resolved" ? new Date() : undefined;
   if (status === "resolved") issue.verifications.splice(0, issue.verifications.length);
   issue.timeline.push({

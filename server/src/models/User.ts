@@ -38,6 +38,8 @@ const userSchema = new Schema(
     },
     radiusKm: { type: Number, enum: RADIUS_CHOICES, default: 2 },
     notify: { type: new Schema(notifyShape, { _id: false }), default: () => ({}) },
+    // Issues this person chose to hide from their Neighbourhood feed.
+    hiddenIssues: { type: [Schema.Types.ObjectId], default: [], select: false },
   },
   { timestamps: true },
 );

@@ -1,5 +1,7 @@
 import mongoose, { Types } from "mongoose";
 import { env } from "../config/env";
+import { Comment } from "../models/Comment";
+import { Flag } from "../models/Flag";
 import { CATEGORIES, Issue, type Category, type Status } from "../models/Issue";
 import { User } from "../models/User";
 import { normaliseLabel } from "../utils/customIcons";
@@ -113,6 +115,28 @@ const AVATARS = [
   { emoji: "🌳", color: "#2e7d5b" },
 ];
 
+const NEIGHBOUR_LINES = [
+  "Same here, I pass this spot every morning and it is getting worse.",
+  "Adding to this: it is worse after rain, water collects and you cannot see it.",
+  "My father nearly slipped here yesterday. Please treat this as urgent.",
+  "Still there as of this evening. Took another look on my way back.",
+  "Shopkeepers nearby say this has been reported before too.",
+  "Thanks for reporting. I supported it, hope it gets fixed soon.",
+  "School children walk this way, so it is risky in the mornings.",
+  "Auto drivers are avoiding the lane completely because of this.",
+];
+
+const OFFICIAL_LINES = [
+  "Site inspected today. Material is arranged and the crew is scheduled for tomorrow morning.",
+  "We have raised a work order. Please avoid the left side of the lane until the work is complete.",
+  "Thank you all for the details. The team is on site now.",
+  "Work is planned for this week. We will post a photo once it is done.",
+];
+
+// Separate random stream for the discussions, so the city itself stays identical between versions.
+const talkRand = rng(77);
+const int2 = (min: number, max: number) => Math.floor(min + talkRand() * (max - min + 1));
+
 const RESOLUTION: Record<Category, string[]> = {
   pothole: ["Pothole filled with hot mix and compacted. Road surface levelled.", "Patch work completed and the surface has been sealed."],
   garbage: ["Waste cleared and the spot disinfected. Daily pickup scheduled for this lane.", "Garbage removed and a bin placed. The sanitation team will monitor this point."],
@@ -134,6 +158,10 @@ const beforeImg = (c: Category) => img(`${slug(c)}-before`);
 const afterImg = (c: Category) => img(`${slug(c)}-after`);
 
 async function clearDemo() {
+  const demoIds = (await Issue.find({ ticket: /^CC-D\d/ }).select("_id").lean()).map((i) => i._id);
+  const comments = await Comment.deleteMany({ issue: { $in: demoIds } });
+  await Flag.deleteMany({ issue: { $in: demoIds } });
+  if (comments.deletedCount) console.log(`Removed ${comments.deletedCount} demo comments.`);
   const issues = await Issue.deleteMany({ ticket: /^CC-D\d/ });
   const users = await User.deleteMany({ email: { $regex: `${DEMO_DOMAIN.replace(".", "\\.")}$` } });
   console.log(`Removed ${issues.deletedCount} demo issues and ${users.deletedCount} demo users.`);
@@ -296,6 +324,28 @@ async function main() {
       createdAt: new Date(createdAt),
       updatedAt: new Date(Math.min(t, now - 60_000)),
     });
+    // A small discussion under busier issues: neighbours add detail, the officer posts an update.
+    const talk = talkRand() < 0.6 ? int2(1, 4) : 0;
+    const followers = new Set([...reporters.map((r) => r._id.toString())]);
+    let lastActivity = new Date(Math.min(t, now - 60_000));
+    for (let k = 0; k < talk; k++) {
+      const official = k === talk - 1 && assignedTo && talkRand() < 0.7;
+      const author = official ? officer : citizens[(n + k * 3) % citizens.length];
+      const at = new Date(Math.min(now - 30 * 60_000, createdAt + (k + 1) * (now - createdAt) / (talk + 1)));
+      await new Comment({
+        issue: doc._id,
+        user: author._id,
+        body: official ? OFFICIAL_LINES[(n + k) % OFFICIAL_LINES.length] : NEIGHBOUR_LINES[(n * 3 + k) % NEIGHBOUR_LINES.length],
+        official: Boolean(official),
+        createdAt: at,
+        updatedAt: at,
+      }).save({ timestamps: false });
+      followers.add(author._id.toString());
+      if (at > lastActivity) lastActivity = at;
+    }
+    doc.commentCount = talk;
+    doc.followers = [...followers].map((id) => new Types.ObjectId(id));
+    doc.lastActivityAt = lastActivity;
     await doc.save({ timestamps: false });
   }
 

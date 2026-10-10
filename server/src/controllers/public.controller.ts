@@ -64,3 +64,54 @@ export const getOverview: RequestHandler = async (_req, res) => {
     activity,
   });
 };
+
+type PublicIssueRecord = {
+  ticket: string;
+  category: string;
+  customLabel?: string | null;
+  customIcon?: string | null;
+  status: string;
+  address?: string | null;
+  location: { coordinates: number[] };
+  reports: { images: { url: string }[] }[];
+  supporters: unknown[];
+  commentCount?: number;
+  timeline: { status: string; note?: string | null; images?: { url: string }[]; at: Date }[];
+  resolvedAt?: Date | null;
+  createdAt: Date;
+};
+
+// A shareable, read-only view of one issue for people without an account. No names at all.
+export const getPublicIssue: RequestHandler = async (req, res) => {
+  const ticket = String(req.params.ticket).toUpperCase();
+  if (!/^CC-[A-Z0-9]{4,12}$/.test(ticket)) {
+    res.status(404).json({ message: "Issue not found" });
+    return;
+  }
+  const issue = (await Issue.findOne({ ticket }).lean()) as unknown as PublicIssueRecord | null;
+  if (!issue) {
+    res.status(404).json({ message: "Issue not found" });
+    return;
+  }
+  const before = issue.reports.flatMap((r) => r.images)[0] ?? null;
+  const fix = [...issue.timeline].reverse().find((t) => t.status === "resolved" && (t.images?.length ?? 0) > 0);
+  res.json({
+    issue: {
+      ticket: issue.ticket,
+      category: issue.category,
+      customLabel: issue.category === "other" ? (issue.customLabel ?? null) : null,
+      customIcon: issue.category === "other" ? (issue.customIcon ?? null) : null,
+      status: issue.status,
+      address: issue.address ?? null,
+      location: { lat: issue.location.coordinates[1], lng: issue.location.coordinates[0] },
+      reportCount: issue.reports.length,
+      supporterCount: issue.supporters.length,
+      commentCount: issue.commentCount ?? 0,
+      before: before ? { url: before.url } : null,
+      after: issue.status === "resolved" && fix?.images?.[0] ? { url: fix.images[0].url } : null,
+      timeline: issue.timeline.map((t) => ({ status: t.status, note: t.note ?? null, at: t.at })),
+      resolvedAt: issue.resolvedAt ?? null,
+      createdAt: issue.createdAt,
+    },
+  });
+};

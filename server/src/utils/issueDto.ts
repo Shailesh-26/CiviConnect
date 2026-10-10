@@ -14,6 +14,7 @@ export type IssueRecord = {
   location: { coordinates: number[] };
   status: Status;
   reports: {
+    user?: Id;
     description: string;
     images: { url: string }[];
     source?: Source | null;
@@ -23,6 +24,7 @@ export type IssueRecord = {
   supporters: Id[];
   assignedTo?: { _id: Id; name: string; department?: string | null } | null;
   timeline: {
+    by?: Id | null;
     status: Status;
     note?: string | null;
     images?: { url: string }[];
@@ -31,6 +33,9 @@ export type IssueRecord = {
   }[];
   verifications?: { user: Id; fixed: boolean }[];
   resolvedAt?: Date | null;
+  followers?: Id[];
+  commentCount?: number;
+  lastActivityAt?: Date | null;
   createdAt: Date;
   updatedAt: Date;
 };
@@ -59,6 +64,9 @@ export function toIssueDTO(issue: IssueRecord, viewerId?: string) {
     reportCount: issue.reports.length,
     supporterCount: issue.supporters.length,
     supportedByMe: viewerId ? issue.supporters.some((s) => s.toString() === viewerId) : false,
+    followedByMe: viewerId ? (issue.followers ?? []).some((f) => f.toString() === viewerId) : false,
+    commentCount: issue.commentCount ?? 0,
+    lastActivityAt: issue.lastActivityAt ?? issue.updatedAt,
     assignedTo: issue.assignedTo
       ? {
           id: issue.assignedTo._id.toString(),
@@ -79,6 +87,8 @@ export function toIssueDTO(issue: IssueRecord, viewerId?: string) {
 export function toIssueDetailDTO(issue: IssueRecord, viewerId?: string) {
   const votes = issue.verifications ?? [];
   const mine = viewerId ? votes.find((v) => v.user.toString() === viewerId) : undefined;
+  // Never reveal who reported: hide the name on timeline entries written by a reporter.
+  const reporterIds = new Set(issue.reports.map((r) => r.user?.toString()).filter(Boolean));
 
   return {
     ...toIssueDTO(issue, viewerId),
@@ -93,7 +103,7 @@ export function toIssueDetailDTO(issue: IssueRecord, viewerId?: string) {
       status: t.status,
       note: t.note ?? null,
       images: (t.images ?? []).map((img) => ({ url: img.url })),
-      byName: t.byName ?? null,
+      byName: t.by && reporterIds.has(t.by.toString()) ? null : (t.byName ?? null),
       at: t.at,
     })),
     verification: {

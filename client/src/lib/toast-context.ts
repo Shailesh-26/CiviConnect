@@ -1,10 +1,19 @@
 import { createContext, useContext } from "react";
 
 export type ToastKind = "success" | "error" | "info";
+
+export type ToastOptions = {
+  title?: string;
+  // A button inside the toast, for example "Undo" or "Open".
+  action?: { label: string; onClick: () => void };
+  // How long it stays, in milliseconds.
+  duration?: number;
+};
+
 export type ToastApi = {
-  success: (message: string) => void;
-  error: (message: string) => void;
-  info: (message: string) => void;
+  success: (message: string, options?: ToastOptions) => void;
+  error: (message: string, options?: ToastOptions) => void;
+  info: (message: string, options?: ToastOptions) => void;
 };
 
 export const ToastContext = createContext<ToastApi | null>(null);

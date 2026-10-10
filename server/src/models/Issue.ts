@@ -88,6 +88,11 @@ const issueSchema = new Schema(
     timeline: { type: [timelineSchema], default: [] },
     verifications: { type: [verificationSchema], default: [] },
     resolvedAt: { type: Date },
+    // Community layer (Phase 7): people who get updates, discussion size, moderation signal.
+    followers: { type: [Schema.Types.ObjectId], ref: "User", default: [] },
+    commentCount: { type: Number, default: 0 },
+    flagCount: { type: Number, default: 0 },
+    lastActivityAt: { type: Date },
   },
   { timestamps: true },
 );

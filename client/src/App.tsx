@@ -10,6 +10,8 @@ import Landing from "./pages/Landing";
 import Login from "./pages/Login";
 import MapView from "./pages/MapView";
 import MyReports from "./pages/MyReports";
+import Neighbourhood from "./pages/Neighbourhood";
+import PublicIssue from "./pages/PublicIssue";
 import Profile from "./pages/Profile";
 import Register from "./pages/Register";
 import ReportIssue from "./pages/ReportIssue";
@@ -35,6 +37,7 @@ export default function App() {
       <Route path="/" element={<Landing />} />
       <Route path="/login" element={<Login />} />
       <Route path="/register" element={<Register />} />
+      <Route path="/i/:ticket" element={<PublicIssue />} />
       <Route element={<ProtectedRoute />}>
         <Route element={<Layout />}>
           <Route path="/dashboard" element={<Dashboard />} />
@@ -42,6 +45,7 @@ export default function App() {
           <Route path="/map" element={<MapView />} />
           <Route path="/issues/:id" element={<IssueDetail />} />
           <Route path="/profile" element={<Profile />} />
+          <Route path="/neighbourhood" element={<Neighbourhood />} />
           <Route element={<ProtectedRoute roles={["citizen"]} />}>
             <Route path="/my-reports" element={<MyReports />} />
           </Route>

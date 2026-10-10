@@ -23,11 +23,19 @@ type Props = {
   value: LatLng | null;
   onChange: (point: LatLng) => void;
   flyTarget: LatLng | null;
+  // Where the map opens, e.g. the user's home spot. Defaults to the whole of India.
+  start?: LatLng | null;
+  className?: string;
 };
 
-export function LocationPicker({ value, onChange, flyTarget }: Props) {
+export function LocationPicker({ value, onChange, flyTarget, start, className = "h-80" }: Props) {
+  const first = value ?? start;
   return (
-    <MapContainer center={INDIA_CENTER} zoom={5} className="z-0 h-80 w-full rounded-2xl border border-ink/15 shadow-card">
+    <MapContainer
+      center={first ? [first.lat, first.lng] : INDIA_CENTER}
+      zoom={first ? 16 : 5}
+      className={`z-0 w-full rounded-2xl border border-ink/15 shadow-card ${className}`}
+    >
       <TileLayer
         attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
         url="https://tile.openstreetmap.org/{z}/{x}/{y}.png"

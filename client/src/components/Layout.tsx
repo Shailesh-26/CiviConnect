@@ -11,6 +11,7 @@ import {
   ListChecks,
   LogOut,
   Map as MapIcon,
+  Radar,
   ShieldUser,
   type LucideIcon,
 } from "lucide-react";
@@ -76,6 +77,7 @@ export function Layout() {
 
   const items: NavItem[] = [
     { to: "/dashboard", icon: LayoutDashboard, label: "Dashboard", short: "Home" },
+    ...(user.role === "citizen" ? [{ to: "/neighbourhood", icon: Radar, label: "Neighbourhood", short: "Nearby" }] : []),
     REPORT_ITEM[user.role],
     user.role === "citizen"
       ? { to: "/my-reports", icon: ListChecks, label: "My reports", short: "Mine" }

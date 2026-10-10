@@ -30,20 +30,27 @@ export function ConfirmDialog({
 }: Props) {
   const titleId = useId();
   const cancelRef = useRef<HTMLButtonElement>(null);
+  // Kept in refs so a parent re-render does not move the focus again.
+  const cancelFn = useRef(onCancel);
+  const busyRef = useRef(busy);
+  useEffect(() => {
+    cancelFn.current = onCancel;
+    busyRef.current = busy;
+  });
 
   useEffect(() => {
     if (!open) return;
     const previous = document.activeElement as HTMLElement | null;
     cancelRef.current?.focus();
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape" && !busy) onCancel();
+      if (e.key === "Escape" && !busyRef.current) cancelFn.current();
     };
     document.addEventListener("keydown", onKey);
     return () => {
       document.removeEventListener("keydown", onKey);
       previous?.focus?.();
     };
-  }, [open, busy, onCancel]);
+  }, [open]);
 
   if (!open) return null;
 

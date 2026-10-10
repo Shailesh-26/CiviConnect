@@ -6,6 +6,7 @@ import cookieParser from "cookie-parser";
 import { env } from "./config/env";
 import { errorHandler } from "./middleware/errorHandler";
 import { adminRouter } from "./routes/admin.routes";
+import { commentRouter, feedRouter, geoRouter } from "./routes/community.routes";
 import { authRouter } from "./routes/auth.routes";
 import { healthRouter } from "./routes/health";
 import { issueRouter } from "./routes/issue.routes";
@@ -28,6 +29,9 @@ app.use("/api/auth", authRouter);
 app.use("/api/admin", adminRouter);
 app.use("/api/issues", issueRouter);
 app.use("/api/public", publicRouter);
+app.use("/api/feed", feedRouter);
+app.use("/api/comments", commentRouter);
+app.use("/api/geo", geoRouter);
 
 app.use((_req, res) => {
   res.status(404).json({ message: "Route not found" });
