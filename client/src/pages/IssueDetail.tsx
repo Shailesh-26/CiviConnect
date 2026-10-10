@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, useLocation, useParams } from "react-router-dom";
-import { ArrowLeft, BadgeCheck, Bell, BellRing, ClipboardPen, Flag, Headset, ImagePlus, Layers, Link2, Share2, ThumbsDown, ThumbsUp, UserCheck, X } from "lucide-react";
+import { Repeat, ArrowLeft, BadgeCheck, Bell, BellRing, ClipboardPen, Flag, Headset, ImagePlus, Layers, Link2, Share2, ThumbsDown, ThumbsUp, UserCheck, X } from "lucide-react";
 import { useAuth } from "../auth/useAuth";
 import { ActionMenu } from "../components/ActionMenu";
 import { CategoryChip } from "../components/CategoryChip";
@@ -9,7 +9,9 @@ import { FlagDialog } from "../components/FlagDialog";
 import { IssueMap } from "../components/IssueMap";
 import { PriorityMeter } from "../components/PriorityMeter";
 import { StatusBadge } from "../components/StatusBadge";
+import { BeforeAfter } from "../components/BeforeAfter";
 import { SlaCard } from "../components/SlaCard";
+import { confetti } from "../lib/confetti";
 import { StatusTracker } from "../components/StatusTracker";
 import { ErrorNote, Skeleton } from "../components/ui";
 import { api, ApiError } from "../lib/api";
@@ -64,15 +66,18 @@ export default function IssueDetail() {
     setActionError(null);
     try {
       const data = await request();
-      setIssue(data.issue);
+      // Action responses do not repeat the chronic-spot check, so keep the one we have.
+      setIssue((prev) => ({ ...data.issue, chronic: prev?.chronic ?? null }));
       setNote("");
       setOfficerId("");
       setProof([]);
       toast.success(success);
+      return true;
     } catch (err) {
       const message = err instanceof ApiError ? err.message : "Something went wrong. Try again.";
       setActionError(message);
       toast.error(message);
+      return false;
     } finally {
       setBusy(false);
     }
@@ -83,6 +88,9 @@ export default function IssueDetail() {
     form.append("status", next);
     if (note.trim()) form.append("note", note);
     proof.forEach((file) => form.append("photos", file));
+    if (next === "resolved") {
+      return act(() => api<{ issue: Detail }>(`/issues/${id}/status`, { method: "PATCH", body: form }), "Marked as fixed. Followers were asked to confirm.").then((ok) => ok && confetti());
+    }
     return act(() => api<{ issue: Detail }>(`/issues/${id}/status`, { method: "PATCH", body: form }), `Status changed to ${STATUS_META[next].label.toLowerCase()}.`);
   }
 
@@ -162,21 +170,26 @@ export default function IssueDetail() {
             />
           </header>
 
+          {issue.chronic && (
+            <div className="flex items-start gap-3 rounded-2xl border border-alert/30 bg-alert/8 p-4 animate-rise">
+              <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-alert/15 text-alert"><Repeat size={19} aria-hidden /></span>
+              <div className="min-w-0">
+                <p className="font-semibold text-alert">Chronic spot: report {issue.chronic.count} of this kind here since {new Date(issue.chronic.since).toLocaleDateString("en-IN", { day: "numeric", month: "short" })}</p>
+                <p className="mt-0.5 text-sm text-ink/70">
+                  {issue.chronic.recurrences > 0 ? `It came back ${issue.chronic.recurrences} ${issue.chronic.recurrences === 1 ? "time" : "times"} after being marked fixed. ` : ""}
+                  <span className="font-medium">Permanent fix suggested:</span> {issue.chronic.suggestion}
+                </p>
+              </div>
+            </div>
+          )}
+
           <div className="card p-5"><StatusTracker status={issue.status} /></div>
 
           {before && after ? (
             <section className="card p-5">
               <h2 className="text-lg font-semibold">Before and after</h2>
-              <div className="mt-3 grid grid-cols-2 gap-3">
-                {[{ label: "Before", url: before.url }, { label: "After", url: after.url }].map((item) => (
-                  <a key={item.label} href={item.url} target="_blank" rel="noreferrer" className="group block">
-                    <div className="overflow-hidden rounded-xl border border-ink/15">
-                      <img src={item.url} alt={`${item.label} the fix`} loading="lazy" className="aspect-[4/3] w-full object-cover transition-transform duration-500 group-hover:scale-105" />
-                    </div>
-                    <span className={`mt-1.5 inline-block rounded-full px-2.5 py-0.5 text-xs font-semibold ${item.label === "After" ? "bg-resolved/15 text-resolved" : "bg-alert/10 text-alert"}`}>{item.label}</span>
-                  </a>
-                ))}
-              </div>
+              <p className="text-xs text-ink/55">Drag the handle to compare.</p>
+              <div className="mt-3"><BeforeAfter before={before.url} after={after.url} /></div>
             </section>
           ) : (
             issue.images.length > 0 && (

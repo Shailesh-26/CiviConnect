@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { Link, NavLink, Outlet, useNavigate } from "react-router-dom";
+import { Link, NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import {
   BriefcaseBusiness,
   ChartColumn,
@@ -14,6 +14,8 @@ import {
   Map as MapIcon,
   Radar,
   Radio,
+  Search,
+  Award,
   ShieldUser,
   type LucideIcon,
 } from "lucide-react";
@@ -24,10 +26,11 @@ import type { Role } from "../types";
 import { Avatar } from "./Avatar";
 import { ConfirmDialog } from "./ConfirmDialog";
 import { Logo, LogoMark } from "./Logo";
+import { CommandPalette } from "./CommandPalette";
 import { NotificationBell } from "./NotificationBell";
 import { ThemeToggle } from "./ThemeToggle";
 
-type NavItem = { to: string; icon: LucideIcon; label: string; short?: string };
+type NavItem = { to: string; icon: LucideIcon; label: string; short?: string; desktopOnly?: boolean };
 
 const SIDEBAR_KEY = "cc-sidebar";
 
@@ -50,10 +53,12 @@ function Tooltip({ text, show }: { text: string; show: boolean }) {
 export function Layout() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const toast = useToast();
   const [confirming, setConfirming] = useState(false);
   const [leaving, setLeaving] = useState(false);
   const [collapsed, setCollapsed] = useState(() => readSetting(SIDEBAR_KEY) === "collapsed");
+  const [paletteOpen, setPaletteOpen] = useState(false);
 
   const toggleSidebar = useCallback(() => {
     setCollapsed((c) => {
@@ -68,6 +73,10 @@ export function Layout() {
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "b") {
         e.preventDefault();
         toggleSidebar();
+      }
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        setPaletteOpen((o) => !o);
       }
     };
     document.addEventListener("keydown", onKey);
@@ -91,6 +100,7 @@ export function Layout() {
       ? { to: "/my-reports", icon: ListChecks, label: "My reports", short: "Mine" }
       : { to: "/issues", icon: ListChecks, label: user.role === "officer" ? "My queue" : "All issues", short: "Queue" },
     { to: "/map", icon: MapIcon, label: "Map" },
+    { to: "/insights", icon: Award, label: "Insights", short: "Insights", desktopOnly: user.role !== "citizen" },
     ...(user.role !== "citizen" ? [{ to: "/analytics", icon: ChartColumn, label: "Analytics", short: "Stats" }] : []),
     ...(user.role === "admin" ? [{ to: "/admin", icon: ShieldUser, label: "Admin console", short: "Admin" }] : []),
   ];
@@ -126,7 +136,7 @@ export function Layout() {
       className="min-h-screen lg:grid lg:grid-cols-[var(--sidebar)_1fr] lg:transition-[grid-template-columns] lg:duration-300"
       style={{ "--sidebar": collapsed ? "5rem" : "16rem" } as React.CSSProperties}
     >
-      <aside className={`sticky top-0 z-[1600] hidden h-screen flex-col border-r border-ink/10 bg-surface py-6 lg:flex ${collapsed ? "px-3" : "px-4"}`}>
+      <aside className={`glass sticky top-0 z-[1600] hidden h-screen flex-col border-r border-ink/10 py-6 lg:flex ${collapsed ? "px-3" : "px-4"}`}>
         <button
           type="button"
           onClick={toggleSidebar}
@@ -147,7 +157,23 @@ export function Layout() {
           <NotificationBell placement="side" />
         </div>
 
-        <nav className="mt-10 flex flex-1 flex-col gap-1" aria-label="Main">
+        <button
+          type="button"
+          onClick={() => setPaletteOpen(true)}
+          title="Search and jump anywhere (Ctrl+K)"
+          className={`group relative mt-6 flex items-center rounded-xl border border-ink/10 bg-surface/60 text-sm text-ink/50 transition hover:border-accent/40 hover:text-ink ${collapsed ? "justify-center py-2.5" : "gap-2.5 px-3 py-2"}`}
+        >
+          <Search size={16} aria-hidden />
+          {!collapsed && (
+            <>
+              <span className="flex-1 text-left">Search…</span>
+              <kbd className="rounded-md border border-ink/15 px-1.5 text-[10px]">Ctrl K</kbd>
+            </>
+          )}
+          <Tooltip text="Search (Ctrl+K)" show={collapsed} />
+        </button>
+
+        <nav className="mt-5 flex flex-1 flex-col gap-1" aria-label="Main">
           {items.map(({ to, icon: Icon, label }) => (
             <NavLink key={to} to={to} className={sideLink} aria-label={collapsed ? label : undefined}>
               <Icon size={19} aria-hidden className="shrink-0" />
@@ -188,9 +214,12 @@ export function Layout() {
       </aside>
 
       <div className="min-w-0">
-        <header className="sticky top-0 z-[1500] flex items-center justify-between border-b border-ink/10 bg-surface/90 px-4 py-2.5 backdrop-blur lg:hidden">
+        <header className="glass sticky top-0 z-[1500] flex items-center justify-between border-b border-ink/10 px-4 py-2.5 lg:hidden">
           <Logo to="/dashboard" />
           <div className="flex items-center gap-1">
+            <button type="button" onClick={() => setPaletteOpen(true)} aria-label="Search" className="btn btn-ghost size-10 !p-0">
+              <Search size={18} aria-hidden />
+            </button>
             <NotificationBell />
             <ThemeToggle />
             <button onClick={() => setConfirming(true)} aria-label="Log out" className="btn btn-ghost size-10 !p-0">
@@ -202,18 +231,21 @@ export function Layout() {
           </div>
         </header>
         <main className="mx-auto max-w-6xl px-4 pb-28 pt-6 sm:px-8 lg:pb-12 lg:pt-10">
-          <Outlet />
+          <div key={location.pathname} className="animate-page">
+            <Outlet />
+          </div>
         </main>
       </div>
 
-      <nav className="fixed inset-x-3 bottom-3 z-[2000] flex gap-1 rounded-2xl border border-ink/10 bg-surface/95 p-1.5 shadow-lift backdrop-blur lg:hidden" aria-label="Main">
-        {items.map(({ to, icon: Icon, label, short }) => (
+      <nav className="glass fixed inset-x-3 bottom-3 z-[2000] flex gap-1 rounded-2xl p-1.5 shadow-lift lg:hidden" aria-label="Main">
+        {items.filter((i) => !i.desktopOnly).map(({ to, icon: Icon, label, short }) => (
           <NavLink key={to} to={to} className={tabClass}>
             <Icon size={20} aria-hidden /> <span className="max-w-full truncate">{short ?? label}</span>
           </NavLink>
         ))}
       </nav>
 
+      <CommandPalette open={paletteOpen} onClose={() => setPaletteOpen(false)} />
       <ConfirmDialog
         open={confirming}
         icon={LogOut}

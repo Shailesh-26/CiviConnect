@@ -22,6 +22,7 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "../auth/useAuth";
 import { Avatar } from "../components/Avatar";
 import { ConfirmDialog } from "../components/ConfirmDialog";
+import { CivicCard } from "../components/CivicCard";
 import { CountUp } from "../components/CountUp";
 import { Field } from "../components/Field";
 import { HomeAreaMap } from "../components/HomeAreaMap";
@@ -388,6 +389,8 @@ export default function Profile() {
           </div>
         </div>
       </div>
+
+      {user.role === "citizen" && <CivicCard />}
 
       <div className="grid gap-6 lg:grid-cols-[12rem_1fr]">
         <nav className="hidden lg:block" aria-label="Profile sections">

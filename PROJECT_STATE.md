@@ -1,6 +1,6 @@
 # PROJECT_STATE — CiviConnect
 
-Last updated: 2026-10-10, after Phase 8.1 (status: IMPLEMENTED, awaiting owner testing). Phases 6.1, 7 and 8: TESTED by owner
+Last updated: 2026-10-10, after Phase 9 (status: IMPLEMENTED, awaiting owner testing). Phases 6.1 to 8.1: TESTED by owner
 
 ## Stack
 - Client: React 19 + Vite + TypeScript + Tailwind v4 (`client/`), React Router, lucide-react icons, Leaflet + react-leaflet (OpenStreetMap tiles), Public Sans font, plain `fetch` wrapper
@@ -54,6 +54,8 @@ client/src/
 - Phase 8: GET /notifications, GET /notifications/stream (Server-Sent Events: events hello, notification, refresh), POST /notifications/read-all, POST /notifications/:id/read
 - Phase 8: GET /officer/desk (officer); GET /analytics?days=7|30|90|365 and GET /analytics/export.csv?days= (officer, admin)
 - Phase 8 admin: GET /admin/overview, PATCH /admin/users/:id {isActive?, role?, department?}, GET /admin/flags?status=open|closed, POST /admin/flags/resolve {targetType, targetId, action: dismiss|remove}, GET /admin/categories, PUT /admin/categories/:category {slaHours}, GET /admin/audit?action=&before=
+- Phase 9: GET /issues, /issues/mine, /issues/assigned accept `page` (+ limit, q, group, category, sort) and then return { issues, total, page, pages, limit, counts }; without `page` they keep the old capped list (map, dashboards)
+- Phase 9: GET /insights/chronic?days, /insights/areas?days=30|90|180, /insights/timeline?days, /insights/civic (citizen), GET/POST /insights/simulator {action: start|stop, everySeconds} (admin); GET /issues/:id now includes `chronic`
 - GET /public/issues/:ticket (no login, anonymous); GET /geo/search?q=&lat=&lng= and GET /geo/reverse?lat&lng (login; server-side OpenStreetMap Nominatim, 1 request/second, 24 h cache)
 - POST /issues (multipart: category, description, lat, lng, address?, customLabel?, customIcon?, onBehalfName?, channel?, photos[]) -> creates or merges; behaviour depends on role (see Phase 6.1)
 - GET /issues (all, ?status=&category=); GET /issues/mine; GET /issues/assigned (officer); GET /issues/:id
@@ -121,15 +123,30 @@ NODE_ENV, PORT, MONGODB_URI, CLIENT_URL, JWT_SECRET (32+ chars), JWT_EXPIRES_DAY
 - Demo seed v3: 150 issues over 90 days, 20 citizens, 6 officers, realistic report hours, SLA due times, escalations, discussions, open flags (some comments auto-hidden), notifications and audit entries (marked meta.demo so seed:demo:clear removes them)
 - Verified in sandbox: server tsc; client tsc + eslint + build; SLA/priority/validator unit checks; 401 checks on all new routes; Playwright screenshots against a mock API (Command Center, bell panel, Analytics light + dark, Field Desk, admin tabs, phone width). NOT verified: anything needing Atlas (aggregations, sweep, SSE delivery end to end, seed run)
 
-## Phase 8.1 (polish) - IMPLEMENTED 2026-10-10, awaiting owner testing
+## Phase 8.1 (polish) - TESTED by owner 2026-10-10
 - Command Center assignment board: Unassigned lane is fixed; only officer lanes scroll sideways, with fade edges, arrow buttons and snap; thin themed scrollbars (`.cc-scroll`) on inner lists
 - /map redesigned as "Explore the city": full-height map, glass side panel (search, Open/Fixed/All, category chips, overdue only, group pins, heat layer), list of issues in the visible area ("search as I move") synced with pins (hover grows a pin, click flies to it), own marker clustering (no new dependency: groups pins within 56 px per zoom level, red when any is overdue, badge = high-priority count), custom glass zoom/fit/locate controls, legend, preview card with Open and Share; phone: filter drawer on top, list as a bottom sheet
 - SLA chip time format fixed ("6 h 60 m" bug)
 - CV decision recorded: Phase 10a (before review) = local Python service + Photo Assistant UI + zero-shot baseline + Colab notebook; Phase 10b (after review) = fine-tune on owner's dataset and report real metrics. Owner to start collecting photos per category now
 
+## Phase 9 (Intelligence + premium motion + pagination) - IMPLEMENTED 2026-10-10, awaiting owner testing
+- Pagination: server-side search (every word across ticket/name/landmark/description), status group, category, sort and paging in one MongoDB aggregation with $facet; the priority formula is mirrored as a MongoDB expression so sorting by priority works across pages (utils/pagedIssues.ts). My reports and the queue use numbered pages (components/Pagination.tsx, lib/usePagedIssues.ts, 300 ms search debounce)
+- Chronic spots (services/insights.ts): same category within 60 m, 3+ issues in 120 days with a return after a fix (or 4+); permanent-fix suggestion per category; badge on the issue page; Insights tab with map and list
+- Area report cards: grade A-F per area = 35% fixed on time + 30% share fixed + 20% speed + 15% stayed fixed; previous-period grade, open/overdue/chronic counts; print and share
+- Civic score + 8 badges + 5 levels for citizens (report 10, confirmed by neighbours 3 each up to 15 per issue, fixed 15, verification 5, upvote 1, comment 2 up to 40); on Profile and the citizen home; confetti when a new badge appears
+- City time-lapse: 90 days replayed on a map with play/pause, scrubber and 1/2/5/10 days per second
+- Live demo simulator (services/simulator.ts, admin only, Command Center header): every few seconds a demo citizen reports/upvotes/comments, the demo admin assigns, demo officers start and fix work; all through real notifications, audit and live refresh; only touches @civiconnect.demo users and CC-D/CC-DS tickets
+- Before/after drag slider on fixed issues
+- Premium motion layer: animated aurora background behind liquid-glass sidebar, header and bottom nav; page transitions; pointer spotlight on interactive cards; 3D tilt on KPI tiles and badges; scroll reveal; shine on primary buttons; confetti on report submit / fix / new badge; print styles; all respect reduced motion
+- Command palette (Ctrl+K or the Search box): jump to any page, toggle theme, search tickets on the server
+- New nav item "Insights" (sidebar for all roles; bottom bar for citizens)
+- Demo seed: 4 chronic spots (pothole, drainage, garbage, street light); demo-ticket match tightened to CC-D#### / CC-DS####
+- Verified in sandbox: server tsc; client tsc + eslint + build; geo/regex unit checks; 401 checks; Playwright screenshots against a mock API. NOT verified: aggregations against Atlas (pagination, insights), simulator running against the real database
+
 ## Next steps
-1. Owner runs the Phase 8.1 test list; commit
-2. Phase 9 chronic spots, area report cards, civic score, time-lapse + demo simulator, marker clustering, heat layer, before/after slider; Phase 10 Photo Assistant (CV) and tests
+1. Owner runs the Phase 9 test list; commit
+2. Phase 10a: Photo Assistant (local FastAPI CV service, zero-shot baseline, Colab notebook, suggestion chip in the wizard); automated tests; README; refresh the presentation with new screenshots
+3. Phase 10b (after review): fine-tune on the owner's photo dataset, report real metrics
 
 ## Notes / revisit
 - Production cookies use SameSite=None; revisit CSRF protection at deployment

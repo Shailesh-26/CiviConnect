@@ -73,6 +73,7 @@ export type IssueDetail = Issue & {
     at: string;
   }[];
   verification: { fixed: number; notFixed: number; myVote: boolean | null };
+  chronic?: { count: number; recurrences: number; since: string; suggestion: string } | null;
 };
 
 export type PublicOverview = {
@@ -285,3 +286,64 @@ export type FlagGroup = {
 };
 
 export type CategorySla = { category: Category; slaHours: number; defaultHours: number; open: number };
+
+export type Paged<T> = {
+  issues: T[];
+  total: number;
+  page: number;
+  pages: number;
+  limit: number;
+  counts: { all: number; open: number; in_progress: number; resolved: number; rejected: number };
+};
+
+export type ChronicSpot = {
+  id: string;
+  category: Category;
+  label: string | null;
+  area: string;
+  address: string | null;
+  lat: number;
+  lng: number;
+  count: number;
+  recurrences: number;
+  open: number;
+  firstAt: string;
+  lastAt: string;
+  avgGapDays: number | null;
+  suggestion: string;
+  issues: { id: string; ticket: string; status: Status; createdAt: string }[];
+};
+
+export type Grade = "A" | "B" | "C" | "D" | "F";
+
+export type AreaCard = {
+  area: string;
+  reported: number;
+  resolved: number;
+  openNow: number;
+  overdueNow: number;
+  onTimeRate: number;
+  fixRate: number;
+  reopenRate: number;
+  avgFixHours: number | null;
+  engagement: number;
+  topCategory: Category | null;
+  score: number;
+  grade: Grade;
+  previousGrade: Grade | null;
+  chronicSpots: number;
+};
+
+export type CivicScore = {
+  score: number;
+  level: string;
+  levelIndex: number;
+  levelFloor: number;
+  nextLevel: { name: string; at: number; remaining: number } | null;
+  breakdown: { label: string; points: number; detail: string }[];
+  badges: { id: string; name: string; description: string; progress: number; goal: number; earned: boolean }[];
+};
+
+export type TimelineItem = { id: string; category: Category; lat: number; lng: number; createdAt: string; resolvedAt: string | null; rejectedAt: string | null };
+
+export type SimulatorStatus = { running: boolean; everySeconds: number; startedAt: string | null; actions: number; last: string | null };

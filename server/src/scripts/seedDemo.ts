@@ -171,6 +171,13 @@ const AVATAR_COLORS = ["#1f4e79", "#2a7f9e", "#2e7d5b", "#4f7d3a", "#c99700", "#
 const avatarFor = (i: number) =>
   i < 8 ? AVATARS[i] : { emoji: EXTRA_AVATAR_EMOJI[i % EXTRA_AVATAR_EMOJI.length], color: AVATAR_COLORS[i % AVATAR_COLORS.length] };
 
+const CHRONIC_SPOTS: { category: Category; lat: number; lng: number }[] = [
+  { category: "pothole", lat: 17.4382, lng: 78.4491 },
+  { category: "drainage", lat: 17.4952, lng: 78.4003 },
+  { category: "garbage", lat: 17.3694, lng: 78.5241 },
+  { category: "streetlight", lat: 17.4489, lng: 78.3915 },
+];
+
 const FLAG_NOTES = ["Looks like the same pothole as the one reported last week.", "This photo is from another city.", "Personal attack on a neighbour.", ""];
 const HOUR = 3_600_000;
 // Reports arrive mostly in the morning and evening (IST), which the hour-by-day heatmap shows.
@@ -179,13 +186,13 @@ const IST = 5.5 * HOUR;
 
 async function clearDemo() {
   const demoUsers = (await User.find({ email: { $regex: `${DEMO_DOMAIN.replace(".", "\\.")}$` } }).select("_id").lean()).map((u) => u._id);
-  const demoIds = (await Issue.find({ ticket: /^CC-D\d/ }).select("_id").lean()).map((i) => i._id);
+  const demoIds = (await Issue.find({ ticket: /^CC-DS?\d{4}$/ }).select("_id").lean()).map((i) => i._id);
   const comments = await Comment.deleteMany({ issue: { $in: demoIds } });
   await Flag.deleteMany({ issue: { $in: demoIds } });
   await Notification.deleteMany({ user: { $in: demoUsers } });
   await AuditLog.deleteMany({ "meta.demo": true });
   if (comments.deletedCount) console.log(`Removed ${comments.deletedCount} demo comments.`);
-  const issues = await Issue.deleteMany({ ticket: /^CC-D\d/ });
+  const issues = await Issue.deleteMany({ ticket: /^CC-DS?\d{4}$/ });
   const users = await User.deleteMany({ _id: { $in: demoUsers } });
   console.log(`Removed ${issues.deletedCount} demo issues and ${users.deletedCount} demo users.`);
 }
@@ -269,9 +276,18 @@ async function main() {
 
   for (let n = 1; n <= TOTAL; n++) {
     const area = slots[(n * 7) % slots.length];
-    const category = pick(CATEGORIES.filter((c) => c !== "other" || rand() < 0.35));
+    let category = pick(CATEGORIES.filter((c) => c !== "other" || rand() < 0.35));
     const slaH = DEFAULT_SLA_HOURS[category];
-    const point = { lat: area.lat + between(-0.0034, 0.0034), lng: area.lng + between(-0.0034, 0.0034) };
+    let point = { lat: area.lat + between(-0.0034, 0.0034), lng: area.lng + between(-0.0034, 0.0034) };
+    // A few places where the same problem keeps coming back (chronic spots).
+    const chronic = n % 11 === 0 ? CHRONIC_SPOTS[(n / 11) % CHRONIC_SPOTS.length] : null;
+    const chronicArea = chronic
+      ? AREAS.reduce((best, a) => (Math.abs(a.lat - chronic.lat) + Math.abs(a.lng - chronic.lng) < Math.abs(best.lat - chronic.lat) + Math.abs(best.lng - chronic.lng) ? a : best))
+      : null;
+    if (chronic) {
+      category = chronic.category;
+      point = { lat: chronic.lat + (rand() - 0.5) * 0.0004, lng: chronic.lng + (rand() - 0.5) * 0.0004 };
+    }
     const ticket = `CC-D${String(n).padStart(4, "0")}`;
     const otherKind = category === "other" ? OTHER_KINDS[n % OTHER_KINDS.length] : undefined;
     const label = `${otherKind?.label ?? category.replace("_", " ")} · ${ticket}`;
@@ -393,7 +409,7 @@ async function main() {
       customLabel: otherKind?.label,
       customLabelKey: otherKind ? normaliseLabel(otherKind.label) : undefined,
       customIcon: otherKind?.icon,
-      address: `${pick(area.marks)}, ${area.name}`,
+      address: chronicArea ? `${chronicArea.marks[0]}, ${chronicArea.name}` : `${pick(area.marks)}, ${area.name}`,
       location: { type: "Point", coordinates: [point.lng, point.lat] },
       status,
       reports,

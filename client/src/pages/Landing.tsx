@@ -125,7 +125,7 @@ export default function Landing() {
         {failed && <p className="mt-4 text-sm text-ink/55">Live numbers are unavailable right now. Start the server to see them.</p>}
       </section>
 
-      <section id="how" className="mx-auto max-w-6xl scroll-mt-20 px-4 py-24 sm:px-6">
+      <section id="how" className="reveal mx-auto max-w-6xl scroll-mt-20 px-4 py-24 sm:px-6">
         <div className="max-w-2xl">
           <p className="text-sm font-semibold uppercase tracking-widest text-accent">How it works</p>
           <h2 className="mt-3 text-4xl font-semibold">Not a complaint box. A closed loop.</h2>
@@ -142,7 +142,7 @@ export default function Landing() {
         </div>
       </section>
 
-      <section id="map" className="mx-auto max-w-6xl scroll-mt-20 px-4 pb-24 sm:px-6">
+      <section id="map" className="reveal mx-auto max-w-6xl scroll-mt-20 px-4 pb-24 sm:px-6">
         <div className="grid gap-6 lg:grid-cols-[1.6fr_1fr]">
           <div>
             <p className="text-sm font-semibold uppercase tracking-widest text-accent">Live map</p>
@@ -179,7 +179,7 @@ export default function Landing() {
         </div>
       </section>
 
-      <section className="mx-auto max-w-6xl px-4 pb-24 sm:px-6">
+      <section className="reveal mx-auto max-w-6xl px-4 pb-24 sm:px-6">
         <div className="relative overflow-hidden rounded-3xl bg-signboard px-6 py-14 text-center text-white sm:px-12">
           <div className="grid-paper pointer-events-none absolute inset-0 opacity-25" aria-hidden />
           <Sparkles size={28} className="relative mx-auto text-marker" aria-hidden />

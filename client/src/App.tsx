@@ -12,6 +12,7 @@ import MapView from "./pages/MapView";
 import MyReports from "./pages/MyReports";
 import Neighbourhood from "./pages/Neighbourhood";
 import PublicIssue from "./pages/PublicIssue";
+import Insights from "./pages/Insights";
 import Profile from "./pages/Profile";
 import Register from "./pages/Register";
 import ReportIssue from "./pages/ReportIssue";
@@ -46,6 +47,7 @@ export default function App() {
           <Route path="/issues/:id" element={<IssueDetail />} />
           <Route path="/profile" element={<Profile />} />
           <Route path="/neighbourhood" element={<Neighbourhood />} />
+          <Route path="/insights" element={<Insights />} />
           <Route element={<ProtectedRoute roles={["citizen"]} />}>
             <Route path="/my-reports" element={<MyReports />} />
           </Route>

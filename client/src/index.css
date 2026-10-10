@@ -213,3 +213,73 @@ h1, h2, h3 { font-family: var(--font-display); letter-spacing: -0.02em; }
   background: var(--c-marker); color: #241a00; font: 700 10px/18px var(--font-sans); font-style: normal; text-align: center; border: 2px solid #fff;
 }
 .cc-cluster:hover .cc-cluster-dot { transform: scale(1.1); }
+
+/* ===================== Premium motion layer (Phase 9) ===================== */
+
+/* Living aurora behind the whole app: gives glass surfaces something to refract. */
+body::before {
+  content: ""; position: fixed; inset: -25%; z-index: -1; pointer-events: none;
+  background:
+    radial-gradient(38% 42% at 18% 22%, color-mix(in srgb, var(--c-accent) 22%, transparent), transparent 70%),
+    radial-gradient(34% 38% at 82% 18%, color-mix(in srgb, var(--c-marker) 20%, transparent), transparent 70%),
+    radial-gradient(40% 44% at 70% 82%, color-mix(in srgb, var(--c-resolved) 16%, transparent), transparent 70%);
+  filter: blur(40px) saturate(1.1);
+  opacity: 0.55;
+  animation: cc-aurora 38s ease-in-out infinite alternate;
+}
+.dark body::before { opacity: 0.4; }
+@keyframes cc-aurora {
+  0% { transform: translate3d(0, 0, 0) rotate(0deg) scale(1); }
+  50% { transform: translate3d(4%, -3%, 0) rotate(8deg) scale(1.06); }
+  100% { transform: translate3d(-3%, 4%, 0) rotate(-6deg) scale(1.02); }
+}
+
+/* Liquid glass: blur + a thin specular edge on top. */
+.glass {
+  background: color-mix(in srgb, var(--c-surface) 62%, transparent);
+  -webkit-backdrop-filter: blur(22px) saturate(1.4);
+  backdrop-filter: blur(22px) saturate(1.4);
+  box-shadow: inset 0 1px 0 color-mix(in srgb, #fff 55%, transparent), inset 0 0 0 1px color-mix(in srgb, var(--c-ink) 7%, transparent);
+}
+.dark .glass { box-shadow: inset 0 1px 0 color-mix(in srgb, #fff 10%, transparent), inset 0 0 0 1px color-mix(in srgb, #fff 6%, transparent); }
+
+/* Pages glide in on navigation. */
+@keyframes cc-page { from { opacity: 0; transform: translateY(12px); filter: blur(6px); } to { opacity: 1; transform: none; filter: none; } }
+.animate-page { animation: cc-page 0.5s cubic-bezier(0.22, 1, 0.36, 1) both; }
+
+/* Spotlight that follows the pointer on interactive cards. */
+.card-hover, .spot { position: relative; isolation: isolate; }
+.card-hover::after, .spot::after {
+  content: ""; position: absolute; inset: 0; border-radius: inherit; pointer-events: none; z-index: -1; opacity: 0;
+  background: radial-gradient(260px circle at var(--mx, 50%) var(--my, 50%), color-mix(in srgb, var(--c-accent) 14%, transparent), transparent 65%);
+  transition: opacity 0.3s ease;
+}
+.card-hover:hover::after, .spot:hover::after { opacity: 1; }
+
+/* Gentle 3D tilt for hero numbers and tiles. */
+.tilt { transform: perspective(900px) rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg)); transition: transform 0.25s ease, box-shadow 0.25s ease; will-change: transform; }
+
+/* Sections rise in as they scroll into view. */
+.reveal { opacity: 0; transform: translateY(26px); transition: opacity 0.7s cubic-bezier(0.22, 1, 0.36, 1), transform 0.7s cubic-bezier(0.22, 1, 0.36, 1); }
+.reveal.is-in { opacity: 1; transform: none; }
+
+/* Buttons: soft shine sweep on primary actions. */
+.btn-primary, .btn-marker { position: relative; overflow: hidden; }
+.btn-primary::before, .btn-marker::before {
+  content: ""; position: absolute; inset: 0; transform: translateX(-120%);
+  background: linear-gradient(105deg, transparent 35%, rgb(255 255 255 / 0.28) 50%, transparent 65%);
+  transition: transform 0.7s ease;
+}
+.btn-primary:hover::before, .btn-marker:hover::before { transform: translateX(120%); }
+
+@media (prefers-reduced-motion: reduce) {
+  body::before { animation: none; }
+  .reveal { opacity: 1; transform: none; }
+  .tilt { transform: none !important; }
+}
+
+@media print {
+  body::before, aside, nav, header, .no-print { display: none !important; }
+  main { padding: 0 !important; max-width: none !important; }
+  .card { box-shadow: none !important; break-inside: avoid; }
+}

@@ -19,7 +19,7 @@ import type { DeskData, Issue } from "../types";
 
 function Stat({ label, value, icon: Icon, tone }: { label: string; value: number; icon: typeof Timer; tone: string }) {
   return (
-    <div className="card card-hover p-4">
+    <div className="card card-hover tilt p-4">
       <span className={`grid size-9 place-items-center rounded-xl ${tone}`}><Icon size={18} aria-hidden /></span>
       <p className="mt-3 font-display text-3xl font-bold"><CountUp value={value} /></p>
       <p className="text-xs text-ink/60">{label}</p>

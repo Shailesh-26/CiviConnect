@@ -28,6 +28,7 @@ import { api, ApiError } from "../lib/api";
 import { CATEGORIES, CATEGORY_COLOR, CHANNEL_META, issueLabel } from "../lib/constants";
 import { CUSTOM_ICONS, OTHER_SUGGESTIONS } from "../lib/customIcons";
 import { useToast } from "../lib/toast-context";
+import { confetti } from "../lib/confetti";
 import type { Category, Channel, Issue, IssueDetail, NearbyItem, Role } from "../types";
 
 type StepId = "who" | "photo" | "what" | "where" | "details" | "review";
@@ -281,6 +282,7 @@ export default function ReportIssue() {
     try {
       const data = await api<{ merged: boolean; issue: IssueDetail }>("/issues", { method: "POST", body: form });
       toast.success(data.merged ? copy.merged : copy.created, { title: data.merged ? "Merged" : "Submitted" });
+      confetti();
       navigate(`/issues/${data.issue.id}`, { state: { merged: data.merged } });
     } catch (err) {
       if (err instanceof ApiError) {

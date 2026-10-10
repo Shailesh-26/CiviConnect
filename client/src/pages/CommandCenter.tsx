@@ -21,6 +21,7 @@ import { Avatar } from "../components/Avatar";
 import { CategoryChip } from "../components/CategoryChip";
 import { CommandMap } from "../components/CommandMap";
 import { CountUp } from "../components/CountUp";
+import { SimulatorControl } from "../components/SimulatorControl";
 import { SlaChip } from "../components/SlaChip";
 import { ErrorNote, Skeleton } from "../components/ui";
 import { api, ApiError } from "../lib/api";
@@ -41,7 +42,7 @@ function Kpi({ label, value, icon: Icon, tone, to }: { label: string; value: num
       <p className="text-xs text-ink/60">{label}</p>
     </>
   );
-  return to ? <Link to={to} className="card card-hover block p-4">{body}</Link> : <div className="card p-4">{body}</div>;
+  return to ? <Link to={to} className="card card-hover tilt block p-4">{body}</Link> : <div className="card card-hover tilt p-4">{body}</div>;
 }
 
 function BoardCard({ issue, suggestion, onAssign, busy }: { issue: Issue; suggestion?: Suggestion; onAssign?: (officerId: string) => void; busy: boolean }) {
@@ -188,6 +189,8 @@ export default function CommandCenter() {
           <p className="flex items-center gap-2 text-xs font-semibold uppercase tracking-widest text-accent"><Radio size={14} aria-hidden /> Command Center</p>
           <h1 className="mt-1 text-3xl font-semibold sm:text-4xl">The city right now</h1>
         </div>
+        <div className="flex flex-wrap items-center gap-2">
+        <SimulatorControl />
         <p className="flex items-center gap-2 rounded-full border border-ink/10 bg-surface px-3 py-1.5 text-xs text-ink/60">
           <span className="relative flex size-2.5">
             {connected && <span className="absolute inline-flex size-full animate-ping rounded-full bg-resolved opacity-70" />}
@@ -195,6 +198,7 @@ export default function CommandCenter() {
           </span>
           {connected ? "Live" : "Reconnecting"} · updated {updatedAt ? timeAgo(updatedAt) : "now"}
         </p>
+        </div>
       </div>
 
       {/* Bento: KPIs */}

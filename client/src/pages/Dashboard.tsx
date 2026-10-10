@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { ArrowRight, BadgeCheck, CircleDot, FilePlus2, Hammer, Inbox, Layers } from "lucide-react";
+import { Award, Radar, ArrowRight, BadgeCheck, CircleDot, FilePlus2, Hammer, Inbox, Layers } from "lucide-react";
 import { useAuth } from "../auth/useAuth";
+import { CivicCard } from "../components/CivicCard";
 import { CountUp } from "../components/CountUp";
 import { IssueList } from "../components/IssueList";
 import { EmptyState, ErrorNote, ListSkeleton } from "../components/ui";
@@ -17,7 +18,7 @@ const heading = { citizen: "Your latest reports", officer: "Assigned to you", ad
 
 function Tile({ label, value, icon: Icon, tone, bg }: { label: string; value: number; icon: typeof Layers; tone: string; bg: string }) {
   return (
-    <div className="card card-hover p-5">
+    <div className="card card-hover tilt p-5">
       <span className={`grid size-10 place-items-center rounded-xl ${bg} ${tone}`}><Icon size={20} aria-hidden /></span>
       <p className={`mt-4 font-display text-4xl font-bold ${tone}`}><CountUp value={value} /></p>
       <p className="mt-1 text-sm text-ink/60">{label}</p>
@@ -87,7 +88,29 @@ function CitizenHome() {
         <Tile label="Resolved" value={resolved} icon={BadgeCheck} tone="text-resolved" bg="bg-resolved/15" />
       </div>
 
-      <section>
+      <div className="reveal grid gap-4 lg:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)]">
+        <CivicCard compact />
+        <div className="grid gap-4">
+          <Link to="/neighbourhood" className="card card-hover group flex items-center gap-4 p-5">
+            <span className="grid size-12 place-items-center rounded-2xl bg-accent/12 text-accent transition group-hover:scale-110"><Radar size={22} aria-hidden /></span>
+            <span className="min-w-0 flex-1">
+              <span className="block font-display text-lg font-semibold">Around you</span>
+              <span className="block text-sm text-ink/60">See and upvote what neighbours reported nearby.</span>
+            </span>
+            <ArrowRight size={18} className="text-ink/40 transition group-hover:translate-x-1 group-hover:text-accent" aria-hidden />
+          </Link>
+          <Link to="/insights" className="card card-hover group flex items-center gap-4 p-5">
+            <span className="grid size-12 place-items-center rounded-2xl bg-marker/20 text-marker-dark transition group-hover:scale-110"><Award size={22} aria-hidden /></span>
+            <span className="min-w-0 flex-1">
+              <span className="block font-display text-lg font-semibold">How is your area doing?</span>
+              <span className="block text-sm text-ink/60">A–F report cards, chronic spots and a 90-day time-lapse.</span>
+            </span>
+            <ArrowRight size={18} className="text-ink/40 transition group-hover:translate-x-1 group-hover:text-accent" aria-hidden />
+          </Link>
+        </div>
+      </div>
+
+      <section className="reveal">
         <div className="flex items-center justify-between">
           <h2 className="text-xl font-semibold">{heading[user.role]}</h2>
           <Link to={user.role === "citizen" ? "/my-reports" : "/issues"} className="inline-flex items-center gap-1 text-sm font-semibold text-accent">

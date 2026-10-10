@@ -6,6 +6,8 @@ import { AppError } from "../utils/AppError";
 import { imageStorageEnabled, uploadImage } from "../utils/cloudinary";
 import { normaliseLabel } from "../utils/customIcons";
 import { toIssueDetailDTO, toIssueDTO, type IssueRecord } from "../utils/issueDto";
+import { pagedIssues } from "../utils/pagedIssues";
+import { chronicFor } from "../services/insights";
 import { issueName, STATUS_NAME } from "../utils/labels";
 import { audit, SYSTEM } from "../services/audit";
 import { adminIds, broadcast, notify } from "../services/notify";
@@ -199,7 +201,12 @@ export const createIssue: RequestHandler = async (req, res) => {
   res.status(merged ? 200 : 201).json({ merged, issue: dto });
 };
 
+// Lists answer with one page when `page` is given (new screens), or the classic capped list.
 export const listIssues: RequestHandler = async (req, res) => {
+  if (req.query.page) {
+    res.json(await pagedIssues({}, req.query, req.user!.id));
+    return;
+  }
   const filter: Record<string, unknown> = {};
   const { status, category } = req.query;
   if (typeof status === "string" && (STATUSES as readonly string[]).includes(status)) filter.status = status;
@@ -211,17 +218,27 @@ export const listIssues: RequestHandler = async (req, res) => {
 
 export const listMine: RequestHandler = async (req, res) => {
   const filter = { "reports.user": new Types.ObjectId(req.user!.id) };
+  if (req.query.page) {
+    res.json(await pagedIssues(filter, req.query, req.user!.id, "newest"));
+    return;
+  }
   res.json({ issues: await loadList(filter, req.user!.id, false) });
 };
 
 export const listAssigned: RequestHandler = async (req, res) => {
   const filter = { assignedTo: new Types.ObjectId(req.user!.id) };
+  if (req.query.page) {
+    res.json(await pagedIssues(filter, req.query, req.user!.id));
+    return;
+  }
   res.json({ issues: await loadList(filter, req.user!.id) });
 };
 
 export const getIssue: RequestHandler = async (req, res) => {
   const record = await loadRecord(String(req.params.id));
-  res.json({ issue: toIssueDetailDTO(record, req.user!.id) });
+  // Has this kind of problem kept coming back at this spot?
+  const chronic = await chronicFor(record).catch(() => null);
+  res.json({ issue: { ...toIssueDetailDTO(record, req.user!.id), chronic } });
 };
 
 export const supportIssue: RequestHandler = async (req, res) => {

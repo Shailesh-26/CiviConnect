@@ -27,7 +27,7 @@ const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 function Tile({ label, value, sub, icon: Icon, delta, invert = false, children }: { label: string; value: ReactNode; sub?: string; icon: typeof Timer; delta?: number | null; invert?: boolean; children?: ReactNode }) {
   const good = delta === null || delta === undefined ? null : invert ? delta < 0 : delta > 0;
   return (
-    <div className="card card-hover flex flex-col p-5">
+    <div className="card card-hover tilt flex flex-col p-5">
       <p className="flex items-center gap-2 text-sm text-ink/60"><Icon size={16} aria-hidden /> {label}</p>
       <div className="mt-2 flex items-end justify-between gap-2">
         <p className="font-display text-3xl font-bold tabular-nums">{value}</p>
@@ -48,7 +48,7 @@ function Tile({ label, value, sub, icon: Icon, delta, invert = false, children }
 
 function Panel({ title, note, className = "", children, action }: { title: string; note?: string; className?: string; children: ReactNode; action?: ReactNode }) {
   return (
-    <section className={`card p-5 ${className}`}>
+    <section className={`card reveal p-5 ${className}`}>
       <div className="flex items-start justify-between gap-3">
         <div>
           <h2 className="font-display text-lg font-semibold">{title}</h2>
