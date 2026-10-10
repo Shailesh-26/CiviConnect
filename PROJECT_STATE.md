@@ -1,6 +1,6 @@
 # PROJECT_STATE — CiviConnect
 
-Last updated: after Phase 6 implementation (status: IMPLEMENTED, awaiting owner testing)
+Last updated: 2026-10-10, after Phase 6.1 (status: IMPLEMENTED, awaiting owner testing)
 
 ## Stack
 - Client: React 19 + Vite + TypeScript + Tailwind v4 (`client/`), React Router, lucide-react icons, Leaflet + react-leaflet (OpenStreetMap tiles), Public Sans font, plain `fetch` wrapper
@@ -9,7 +9,7 @@ Last updated: after Phase 6 implementation (status: IMPLEMENTED, awaiting owner 
 - Auth: JWT in httpOnly cookie (`civiconnect_token`), bcryptjs (12 rounds), roles citizen / officer / admin
 - Images: Cloudinary (server-side upload through multer memory storage, max 3 photos, 5 MB each)
 - Charts: Recharts. Hotspot map: translucent circles on Leaflet (no heat plugin)
-- Planned: Socket.IO notifications, local CV classifier (Python service), issue health score per area
+- Planned: Server-Sent Events for live notifications (APPROVED 2026-10-10, no new dependency), local CV classifier (Python service), issue health score per area
 - Not used on purpose: Kafka, Docker, Redis, external GenAI APIs
 
 ## Decisions
@@ -46,8 +46,9 @@ client/src/
 
 ## API (all under /api, all except health/auth need login)
 - GET /health; POST /auth/register, /auth/login, /auth/logout; GET /auth/me
+- PATCH /auth/me (profile: name, bio, homeArea, homeLocation, radiusKm, notify, preset avatar or null); POST /auth/me/avatar (multipart `avatar`, Cloudinary); PATCH /auth/me/password {currentPassword, newPassword} (10 per 15 min)
 - GET /admin/users; POST /admin/officers (admin)
-- POST /issues (multipart: category, description, lat, lng, address?, photos[]) -> creates or merges
+- POST /issues (multipart: category, description, lat, lng, address?, customLabel?, customIcon?, onBehalfName?, channel?, photos[]) -> creates or merges; behaviour depends on role (see Phase 6.1)
 - GET /issues (all, ?status=&category=); GET /issues/mine; GET /issues/assigned (officer); GET /issues/:id
 - POST /issues/:id/support (toggle); PATCH /issues/:id/assign (admin); PATCH /issues/:id/status (admin or assigned officer, multipart: status, note?, photos[] up to 2); POST /issues/:id/verify (citizen, {fixed: boolean})
 
@@ -72,10 +73,24 @@ NODE_ENV, PORT, MONGODB_URI, CLIENT_URL, JWT_SECRET (32+ chars), JWT_EXPIRES_DAY
 - Rewritten shell: Layout.tsx (sidebar on desktop, bottom tab bar on phones); login/register are full-screen pages outside Layout; `/` is the landing page, dashboard moved to `/dashboard`
 - Server: GET /api/public/overview (anonymous, rate limited); `npm run seed:demo` / `seed:demo:clear` create or remove a fake city (46 issues, 4 officers, 8 citizens, admin@civiconnect.demo, password Demo@1234; demo photos are SVGs in client/public/demo, nothing goes to Cloudinary)
 
+## Phase 6.1 (fix-up drop) - IMPLEMENTED 2026-10-10, awaiting owner testing
+- Roadmap 6.1 -> 7 Neighbourhood -> 8 Living system -> 9 Intelligence -> 10 CV + tests: APPROVED by owner 2026-10-10
+- Logout asks for confirmation (components/ConfirmDialog.tsx, reusable)
+- Login/register: one full-screen page, animated city map backdrop (components/CityBackdrop.tsx, lib/cityMap.ts) with one floating glass card, live activity ticker from /public/overview; no split screen
+- Collapsible sidebar: button on the sidebar edge or Ctrl+B; icons-only mode with tooltips; remembered in localStorage `cc-sidebar` (lib/storage.ts, try/catch)
+- Profile page `/profile` (all roles): emoji/colour avatar, photo upload, initials; name and bio; home area + home spot on a map + radius 1/2/5/10 km; role-specific notification switches (stored now, used in Phase 8); light/dark; change password; unsaved-changes bar
+- My reports and the officer/admin queue: search (press "/"), status tabs with counts, category filter, sort (components/IssueFilterBar.tsx, lib/issueFilters.ts)
+- Reporting by role, enforced on the server: citizen = normal report; officer = "Field inspection" (source field_inspection, auto-assigned to self, status acknowledged; if the same problem is open within 50 m the server answers 409 with the existing issue id); admin = "Register a complaint" for a citizen (source on_behalf, requires citizen name + channel phone/walk_in/email/letter; the name is never sent to other users). Labels shown in lists and on the issue page
+- "Other" category: reporter types a name (3-40 chars) and picks one of 42 icons (server/src/utils/customIcons.ts and client/src/lib/customIcons.ts must stay in sync). "Other" reports merge only when the normalised names match within 50 m
+- Data model: Issue gets customLabel, customLabelKey, customIcon, source; each report gets source and onBehalf {name, channel}. User gets avatar, bio, homeArea, homeLocation, radiusKm, notify. Old records keep working (defaults)
+- Demo seed: avatars, home areas for citizens, named "Other" issues
+- Verified in sandbox: server tsc, client tsc + eslint + build, validator checks, 401 checks, Playwright screenshots (desktop, phone, dark). NOT verified: anything needing Atlas or Cloudinary (create flows per role, profile save, avatar upload, password change)
+
 ## Next steps
-1. Owner runs the Phase 4+5 test list; fix failures; commit
-2. Phase 7 guided report wizard; Phase 8 live updates, SLA timers, before/after slider; Phase 9 map clustering, area health score
-3. Local CV classifier (Python service), then deployment (Vercel + Render) and README
+1. Owner runs the Phase 6.1 test list; fix failures; commit
+2. Phase 7 Neighbourhood feed (radius, upvote, comments, flag, share, three-dot menu), public issue pages, guided report wizard with address search and similar-nearby
+3. Phase 8 notifications (SSE), SLA clocks + escalation, Field Desk (officer), Command Center (admin)
+4. Phase 9 chronic spots, area report cards, analytics v2, civic score, time-lapse + demo simulator; Phase 10 Photo Assistant (CV) and tests
 
 ## Notes / revisit
 - Production cookies use SameSite=None; revisit CSRF protection at deployment

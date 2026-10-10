@@ -2,6 +2,7 @@ import mongoose, { Types } from "mongoose";
 import { env } from "../config/env";
 import { CATEGORIES, Issue, type Category, type Status } from "../models/Issue";
 import { User } from "../models/User";
+import { normaliseLabel } from "../utils/customIcons";
 import { hashPassword } from "../utils/password";
 
 /**
@@ -96,6 +97,22 @@ const TEXTS: Record<Category, string[]> = {
   ],
 };
 
+// Names and icons for the "other" texts above (same order), as a citizen would type them.
+const OTHER_KINDS = [
+  { label: "Bent signboard", icon: "signpost" },
+  { label: "Broken footpath", icon: "footprints" },
+  { label: "Damaged road divider", icon: "triangle-alert" },
+];
+
+// Preset avatars (emoji on a colour) so the demo people look like real users.
+const AVATARS = [
+  { emoji: "🌻", color: "#c2561f" }, { emoji: "🏏", color: "#2a7f9e" }, { emoji: "📚", color: "#6b4a8f" },
+  { emoji: "☕", color: "#8a6100" }, { emoji: "🦉", color: "#4f7d3a" }, { emoji: "🛺", color: "#1f4e79" },
+  { emoji: "🎧", color: "#b83a2e" }, { emoji: "🚲", color: "#2e7d5b" }, { emoji: "🔧", color: "#5b6b7a" },
+  { emoji: "🌙", color: "#1f4e79" }, { emoji: "🧹", color: "#4f7d3a" }, { emoji: "💡", color: "#c99700" },
+  { emoji: "🌳", color: "#2e7d5b" },
+];
+
 const RESOLUTION: Record<Category, string[]> = {
   pothole: ["Pothole filled with hot mix and compacted. Road surface levelled.", "Patch work completed and the surface has been sealed."],
   garbage: ["Waste cleared and the spot disinfected. Daily pickup scheduled for this lane.", "Garbage removed and a bin placed. The sanitation team will monitor this point."],
@@ -140,12 +157,28 @@ async function main() {
     passwordHash: hash,
     role: "admin",
     department: "Commissioner's Office",
+    avatar: AVATARS[12],
+    bio: "Commissioner's office. I watch the city's pulse and make sure nothing waits too long.",
   });
   const officers = await Promise.all(
-    OFFICERS.map((o) => User.create({ name: o.name, email: o.email, passwordHash: hash, role: "officer", department: o.department })),
+    OFFICERS.map((o, i) =>
+      User.create({ name: o.name, email: o.email, passwordHash: hash, role: "officer", department: o.department, avatar: AVATARS[8 + i] }),
+    ),
   );
   const citizens = await Promise.all(
-    CITIZENS.map((name) => User.create({ name, email: emailOf(name), passwordHash: hash, role: "citizen" })),
+    CITIZENS.map((name, i) => {
+      const home = AREAS[i % AREAS.length];
+      return User.create({
+        name,
+        email: emailOf(name),
+        passwordHash: hash,
+        role: "citizen",
+        avatar: AVATARS[i],
+        homeArea: home.name,
+        homeLocation: { lat: home.lat, lng: home.lng },
+        radiusKm: 2,
+      });
+    }),
   );
 
   const officerFor = (c: Category) => officers[OFFICERS.findIndex((o) => (o.handles as readonly string[]).includes(c))];
@@ -243,9 +276,14 @@ async function main() {
       }
     }
 
+    const otherKind = category === "other" ? OTHER_KINDS[n % OTHER_KINDS.length] : undefined;
+
     const doc = new Issue({
       ticket: `CC-D${String(n).padStart(4, "0")}`,
       category,
+      customLabel: otherKind?.label,
+      customLabelKey: otherKind ? normaliseLabel(otherKind.label) : undefined,
+      customIcon: otherKind?.icon,
       address: `${pick(area.marks)}, ${area.name}`,
       location: { type: "Point", coordinates: [point.lng, point.lat] },
       status,

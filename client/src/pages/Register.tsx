@@ -57,7 +57,7 @@ export default function Register() {
 
   return (
     <AuthShell title="Join your neighbours" subtitle="Create a free account and start fixing what is broken around you.">
-      <form onSubmit={onSubmit} className="mt-8 space-y-4">
+      <form onSubmit={onSubmit} className="mt-6 space-y-4">
         <Field label="Full name" value={name} onChange={setName} autoComplete="name" error={fieldErrors.name} icon={User} />
         <Field label="Email" type="email" value={email} onChange={setEmail} autoComplete="email" error={fieldErrors.email} icon={Mail} />
         <div>
@@ -89,7 +89,7 @@ export default function Register() {
           {submitting ? "Creating account…" : "Create account"}
         </button>
       </form>
-      <p className="mt-8 text-center text-sm text-ink/65">
+      <p className="mt-6 text-center text-sm text-ink/65">
         Already registered?{" "}
         <Link to="/login" className="font-semibold text-accent hover:underline">Log in</Link>
       </p>

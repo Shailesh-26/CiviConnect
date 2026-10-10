@@ -1,9 +1,10 @@
 import type { RequestHandler } from "express";
 import { isValidObjectId, Types } from "mongoose";
-import { CATEGORIES, Issue, OPEN_STATUSES, STATUSES, type Status } from "../models/Issue";
+import { CATEGORIES, Issue, OPEN_STATUSES, STATUSES, type Channel, type Source, type Status } from "../models/Issue";
 import { User } from "../models/User";
 import { AppError } from "../utils/AppError";
 import { imageStorageEnabled, uploadImage } from "../utils/cloudinary";
+import { normaliseLabel } from "../utils/customIcons";
 import { toIssueDetailDTO, toIssueDTO, type IssueRecord } from "../utils/issueDto";
 import type { AssignInput, CreateIssueInput, StatusInput, VerifyInput } from "../validators/issue.schemas";
 
@@ -43,10 +44,48 @@ async function loadList(filter: Record<string, unknown>, viewerId: string, byPri
   return byPriority ? issues.sort((a, b) => b.priority - a.priority) : issues;
 }
 
+const CHANNEL_LABEL: Record<Channel, string> = { phone: "phone call", walk_in: "walk-in visit", email: "email", letter: "letter" };
+
+/**
+ * Who may open an issue, and how:
+ *  - citizen: an ordinary report. Merges into an open issue of the same kind within 50 m.
+ *  - officer: a field inspection. Assigned to the officer straight away. If the problem is
+ *    already logged nearby, the officer is pointed to that issue instead of adding a report.
+ *  - admin:   a complaint registered for a citizen who phoned, walked in or wrote. Needs the
+ *    citizen's name and the channel. Merges like a citizen report.
+ */
 export const createIssue: RequestHandler = async (req, res) => {
   const user = req.user!;
-  const { category, description, lat, lng, address } = req.body as CreateIssueInput;
+  const input = req.body as CreateIssueInput;
+  const { category, description, lat, lng, address } = input;
   const files = (req.files as Express.Multer.File[] | undefined) ?? [];
+
+  const source: Source = user.role === "officer" ? "field_inspection" : user.role === "admin" ? "on_behalf" : "citizen";
+
+  let customLabel: string | undefined;
+  let customLabelKey: string | undefined;
+  let customIcon: string | undefined;
+  if (category === "other") {
+    customLabel = input.customLabel?.replace(/\s+/g, " ");
+    customLabelKey = customLabel ? normaliseLabel(customLabel) : "";
+    if (!customLabel || customLabelKey.length < 3) {
+      throw new AppError(400, "Please fix the highlighted fields", {
+        errors: [{ field: "customLabel", message: "Give the problem a short name (at least 3 letters)" }],
+      });
+    }
+    customIcon = input.customIcon ?? "circle-help";
+  }
+
+  let onBehalf: { name: string; channel: Channel } | undefined;
+  if (source === "on_behalf") {
+    const errors = [];
+    if (!input.onBehalfName || input.onBehalfName.length < 2) {
+      errors.push({ field: "onBehalfName", message: "Enter the citizen's name" });
+    }
+    if (!input.channel) errors.push({ field: "channel", message: "Choose how they contacted you" });
+    if (errors.length) throw new AppError(400, "Please fix the highlighted fields", { errors });
+    onBehalf = { name: input.onBehalfName!, channel: input.channel! };
+  }
 
   if (files.length > 0 && !imageStorageEnabled) {
     throw new AppError(503, "Photo upload is not set up on the server yet");
@@ -55,34 +94,72 @@ export const createIssue: RequestHandler = async (req, res) => {
   const point = { type: "Point" as const, coordinates: [lng, lat] };
   const userId = new Types.ObjectId(user.id);
 
+  // "Other" problems only merge when their names match, e.g. two "open manhole" reports.
   const nearby = await Issue.findOne({
     category,
+    ...(category === "other" ? { customLabelKey } : {}),
     status: { $in: OPEN_STATUSES },
     location: { $near: { $geometry: point, $maxDistance: MERGE_RADIUS_METERS } },
   });
 
-  if (nearby?.reports.some((r) => r.user.equals(userId))) {
-    throw new AppError(409, `You already reported this problem (${nearby.ticket})`);
+  if (nearby && source === "field_inspection") {
+    throw new AppError(409, `This problem is already logged as ${nearby.ticket}. Open it to update it instead.`, {
+      issueId: nearby.id,
+      ticket: nearby.ticket,
+    });
+  }
+  if (nearby && source === "citizen" && nearby.reports.some((r) => r.user.equals(userId))) {
+    throw new AppError(409, `You already reported this problem (${nearby.ticket})`, {
+      issueId: nearby.id,
+      ticket: nearby.ticket,
+    });
   }
 
   const images = await Promise.all(files.map((f) => uploadImage(f.buffer)));
+  const report = { user: userId, description, images, source, onBehalf };
 
   let issueId: string;
   let merged = false;
 
   if (nearby) {
-    nearby.reports.push({ user: userId, description, images });
+    nearby.reports.push(report);
     await nearby.save();
     issueId = nearby.id;
     merged = true;
   } else {
+    const now = new Date();
+    const firstNote =
+      source === "field_inspection"
+        ? `Logged during a field inspection by ${user.name}`
+        : source === "on_behalf"
+          ? `Complaint registered by ${user.name} for a citizen (${CHANNEL_LABEL[onBehalf!.channel]})`
+          : "Issue reported";
+    const timeline: { status: Status; note: string; by: Types.ObjectId; byName: string; at: Date }[] = [
+      { status: "reported", note: firstNote, by: userId, byName: user.name, at: now },
+    ];
+    if (source === "field_inspection") {
+      timeline.push({
+        status: "acknowledged",
+        note: `Assigned to ${user.name}${user.department ? ` (${user.department})` : ""}`,
+        by: userId,
+        byName: user.name,
+        at: now,
+      });
+    }
+
     const created = await Issue.create({
       ticket: newTicket(),
       category,
+      customLabel,
+      customLabelKey,
+      customIcon,
+      source,
       address: address || undefined,
       location: point,
-      reports: [{ user: userId, description, images }],
-      timeline: [{ status: "reported", note: "Issue reported", by: userId, byName: user.name }],
+      status: source === "field_inspection" ? "acknowledged" : "reported",
+      assignedTo: source === "field_inspection" ? userId : undefined,
+      reports: [report],
+      timeline,
     });
     issueId = created.id;
   }

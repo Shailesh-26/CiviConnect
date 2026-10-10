@@ -54,3 +54,24 @@ export function ErrorNote({ children }: { children: ReactNode }) {
     </p>
   );
 }
+
+// An on/off switch with a label and an optional one-line explanation.
+export function Switch({ checked, onChange, label, hint }: { checked: boolean; onChange: (value: boolean) => void; label: string; hint?: string }) {
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={checked}
+      onClick={() => onChange(!checked)}
+      className="flex w-full items-center justify-between gap-4 rounded-xl px-3 py-3 text-left transition hover:bg-ink/4"
+    >
+      <span className="min-w-0">
+        <span className="block text-sm font-medium">{label}</span>
+        {hint && <span className="mt-0.5 block text-xs text-ink/55">{hint}</span>}
+      </span>
+      <span className={`relative h-6 w-11 shrink-0 rounded-full transition-colors ${checked ? "bg-resolved" : "bg-ink/20"}`} aria-hidden>
+        <span className={`absolute top-0.5 size-5 rounded-full bg-white shadow transition-all ${checked ? "left-[1.375rem]" : "left-0.5"}`} />
+      </span>
+    </button>
+  );
+}

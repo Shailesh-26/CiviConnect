@@ -5,6 +5,8 @@ type PinRecord = {
   _id: { toString(): string };
   ticket: string;
   category: string;
+  customLabel?: string | null;
+  customIcon?: string | null;
   status: string;
   location: { coordinates: number[] };
   reports: unknown[];
@@ -20,7 +22,7 @@ export const getOverview: RequestHandler = async (_req, res) => {
       { $group: { _id: null, avgMs: { $avg: { $subtract: ["$resolvedAt", "$createdAt"] } } } },
     ]),
     Issue.aggregate([{ $group: { _id: "$category", count: { $sum: 1 } } }]),
-    Issue.find({}, "ticket category status location reports createdAt")
+    Issue.find({}, "ticket category customLabel customIcon status location reports createdAt")
       .sort({ createdAt: -1 })
       .limit(250)
       .lean() as unknown as Promise<PinRecord[]>,
@@ -28,7 +30,7 @@ export const getOverview: RequestHandler = async (_req, res) => {
       { $unwind: "$timeline" },
       { $sort: { "timeline.at": -1 } },
       { $limit: 8 },
-      { $project: { _id: 0, ticket: 1, category: 1, address: 1, status: "$timeline.status", at: "$timeline.at" } },
+      { $project: { _id: 0, ticket: 1, category: 1, customLabel: 1, customIcon: 1, address: 1, status: "$timeline.status", at: "$timeline.at" } },
     ]),
   ]);
 
@@ -53,6 +55,8 @@ export const getOverview: RequestHandler = async (_req, res) => {
       id: p._id.toString(),
       ticket: p.ticket,
       category: p.category,
+      customLabel: p.customLabel ?? null,
+      customIcon: p.customIcon ?? null,
       status: p.status,
       reportCount: p.reports.length,
       location: { lat: p.location.coordinates[1], lng: p.location.coordinates[0] },

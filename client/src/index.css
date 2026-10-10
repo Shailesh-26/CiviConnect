@@ -152,3 +152,29 @@ h1, h2, h3 { font-family: var(--font-display); letter-spacing: -0.02em; }
     transition-duration: 0.01ms !important; scroll-behavior: auto !important;
   }
 }
+
+/* Login and register backdrop (components/CityBackdrop.tsx) */
+@keyframes cc-drift { from { transform: translate(0, 0); } to { transform: translate(-60px, -30px); } }
+@keyframes cc-bd-pin {
+  0% { opacity: 0; transform: translateY(-22px) scale(0.6); }
+  5% { opacity: 1; transform: translateY(0) scale(1.08); }
+  8% { transform: translateY(0) scale(1); }
+  62% { opacity: 1; }
+  72%, 100% { opacity: 0; transform: translateY(0) scale(0.9); }
+}
+@keyframes cc-bd-ring { 0%, 6% { opacity: 0; transform: scale(0.6); } 10% { opacity: 0.9; } 30%, 100% { opacity: 0; transform: scale(2.6); } }
+@keyframes cc-merge-a { 0%, 15% { transform: translate(-120px, -90px); } 50%, 85% { transform: translate(0, 0); } 100% { transform: translate(-120px, -90px); } }
+@keyframes cc-merge-b { 0%, 15% { transform: translate(140px, -60px); } 50%, 85% { transform: translate(0, 0); } 100% { transform: translate(140px, -60px); } }
+@keyframes cc-merge-c { 0%, 15% { transform: translate(-40px, 110px); } 50%, 85% { transform: translate(0, 0); } 100% { transform: translate(-40px, 110px); } }
+@keyframes cc-merge-glow { 0%, 40% { transform: scale(0.3); opacity: 0; } 55% { transform: scale(1.2); opacity: 1; } 85% { transform: scale(1); opacity: 0.8; } 100% { transform: scale(0.3); opacity: 0; } }
+.cc-drift { animation: cc-drift 50s ease-in-out infinite alternate; }
+.cc-bd-pin { opacity: 0; transform-box: fill-box; transform-origin: 50% 100%; animation: cc-bd-pin 13.6s ease-out infinite; }
+.cc-bd-ring { opacity: 0; transform-box: fill-box; transform-origin: center; animation: cc-bd-ring 13.6s ease-out infinite; }
+.cc-merge-a { animation: cc-merge-a 7s ease-in-out infinite; }
+.cc-merge-b { animation: cc-merge-b 7s ease-in-out infinite; }
+.cc-merge-c { animation: cc-merge-c 7s ease-in-out infinite; }
+.cc-merge-glow { transform-box: fill-box; transform-origin: center; animation: cc-merge-glow 7s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) {
+  .cc-bd-pin { opacity: 1; }
+  .cc-merge-a, .cc-merge-b, .cc-merge-c { transform: none; }
+}

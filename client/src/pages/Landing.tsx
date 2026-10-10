@@ -10,7 +10,7 @@ import { StatusBadge } from "../components/StatusBadge";
 import { ThemeToggle } from "../components/ThemeToggle";
 import { Skeleton } from "../components/ui";
 import { api } from "../lib/api";
-import { categoryMeta } from "../lib/constants";
+import { issueLabel } from "../lib/constants";
 import { formatDuration, timeAgo } from "../lib/format";
 import type { PublicOverview } from "../types";
 
@@ -164,9 +164,9 @@ export default function Landing() {
               {data
                 ? data.activity.map((a, i) => (
                     <li key={`${a.ticket}-${i}`} className="card flex items-center gap-3 p-3">
-                      <CategoryChip category={a.category} size="sm" />
+                      <CategoryChip category={a.category} icon={a.customIcon} size="sm" />
                       <div className="min-w-0 flex-1">
-                        <p className="truncate text-sm font-semibold">{categoryMeta(a.category).label}</p>
+                        <p className="truncate text-sm font-semibold">{issueLabel(a)}</p>
                         <p className="truncate text-xs text-ink/55">{a.address ?? a.ticket} · {timeAgo(a.at)}</p>
                       </div>
                       <StatusBadge status={a.status} />

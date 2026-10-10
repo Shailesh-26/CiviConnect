@@ -9,6 +9,8 @@ import { api, ApiError } from "../lib/api";
 import { OPEN } from "../lib/constants";
 import type { Issue } from "../types";
 
+const REPORT_CTA = { citizen: "Report an issue", officer: "Log field inspection", admin: "Register a complaint" };
+
 const heading = { citizen: "Your latest reports", officer: "Assigned to you", admin: "Highest priority right now" };
 
 function Tile({ label, value, icon: Icon, tone, bg }: { label: string; value: number; icon: typeof Layers; tone: string; bg: string }) {
@@ -63,7 +65,7 @@ export default function Dashboard() {
             </p>
           </div>
           <Link to="/report" className="btn btn-marker !px-5 !py-3">
-            <FilePlus2 size={18} aria-hidden /> Report an issue
+            <FilePlus2 size={18} aria-hidden /> {REPORT_CTA[user.role]}
           </Link>
         </div>
       </div>

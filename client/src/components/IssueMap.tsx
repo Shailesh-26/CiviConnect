@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import L from "leaflet";
 import { MapContainer, Marker, Popup, TileLayer, useMap } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
-import { categoryMeta, PRIORITY_META, STATUS_META } from "../lib/constants";
+import { issueLabel, PRIORITY_META, STATUS_META } from "../lib/constants";
 import { makePin } from "../lib/pins";
 import type { Issue } from "../types";
 
@@ -32,10 +32,10 @@ export function IssueMap({ issues, className = "h-[28rem]", zoom = 5 }: Props) {
       />
       <FitToIssues issues={issues} />
       {issues.map((issue) => (
-        <Marker key={issue.id} position={[issue.location.lat, issue.location.lng]} icon={makePin(issue.category, pinColor(issue))}>
+        <Marker key={issue.id} position={[issue.location.lat, issue.location.lng]} icon={makePin(issue.category, pinColor(issue), 34, issue.customIcon)}>
           <Popup>
             <div className="text-sm">
-              <p className="font-display text-base font-semibold">{categoryMeta(issue.category).label}</p>
+              <p className="font-display text-base font-semibold">{issueLabel(issue)}</p>
               <p className="mt-0.5 text-xs text-ink/60">
                 {issue.ticket} · {STATUS_META[issue.status].label} · {issue.reportCount} {issue.reportCount === 1 ? "report" : "reports"}
               </p>

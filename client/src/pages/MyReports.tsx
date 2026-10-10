@@ -1,14 +1,19 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { FilePlus2, Inbox } from "lucide-react";
+import { FilePlus2, Inbox, SearchX } from "lucide-react";
+import { IssueFilterBar } from "../components/IssueFilterBar";
 import { IssueList } from "../components/IssueList";
 import { EmptyState, ErrorNote, ListSkeleton, PageHeader } from "../components/ui";
 import { api, ApiError } from "../lib/api";
+import { applyFilters, groupCounts, type IssueFilters } from "../lib/issueFilters";
 import type { Issue } from "../types";
+
+const START: IssueFilters = { q: "", group: "all", category: "", sort: "newest" };
 
 export default function MyReports() {
   const [issues, setIssues] = useState<Issue[] | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [filters, setFilters] = useState<IssueFilters>(START);
 
   useEffect(() => {
     let active = true;
@@ -19,6 +24,11 @@ export default function MyReports() {
       active = false;
     };
   }, []);
+
+  const all = useMemo(() => issues ?? [], [issues]);
+  // Tab counts follow the search box and category, so they always add up to what you can see.
+  const counts = useMemo(() => groupCounts(applyFilters(all, { ...filters, group: "all" })), [all, filters]);
+  const visible = useMemo(() => applyFilters(all, filters), [all, filters]);
 
   return (
     <div className="space-y-6">
@@ -34,7 +44,19 @@ export default function MyReports() {
       ) : issues.length === 0 ? (
         <EmptyState icon={Inbox} title="You have not reported anything yet" text="Your reports and their progress will show up here." action={<Link to="/report" className="btn btn-primary">Report your first issue</Link>} />
       ) : (
-        <IssueList issues={issues} empty="" />
+        <>
+          <IssueFilterBar value={filters} onChange={setFilters} counts={counts} shown={visible.length} total={all.length} />
+          {visible.length === 0 ? (
+            <EmptyState
+              icon={SearchX}
+              title="No reports match"
+              text="Try another word, or clear the filters to see all your reports."
+              action={<button type="button" onClick={() => setFilters(START)} className="btn btn-outline">Clear filters</button>}
+            />
+          ) : (
+            <IssueList issues={visible} empty="" />
+          )}
+        </>
       )}
     </div>
   );

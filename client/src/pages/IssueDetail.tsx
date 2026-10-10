@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, useLocation, useParams } from "react-router-dom";
-import { ArrowLeft, BadgeCheck, Check, ImagePlus, Layers, ThumbsDown, ThumbsUp, UserCheck, X } from "lucide-react";
+import { ArrowLeft, BadgeCheck, Check, ClipboardPen, Headset, ImagePlus, Layers, ThumbsDown, ThumbsUp, UserCheck, X } from "lucide-react";
 import { useAuth } from "../auth/useAuth";
 import { CategoryChip } from "../components/CategoryChip";
 import { IssueMap } from "../components/IssueMap";
@@ -8,7 +8,7 @@ import { PriorityMeter } from "../components/PriorityMeter";
 import { StatusBadge } from "../components/StatusBadge";
 import { ErrorNote, Skeleton } from "../components/ui";
 import { api, ApiError } from "../lib/api";
-import { categoryMeta, formatDate, NEXT_STATUS, OPEN, STATUS_META } from "../lib/constants";
+import { CHANNEL_META, formatDate, issueLabel, NEXT_STATUS, OPEN, SOURCE_META, STATUS_META } from "../lib/constants";
 import { useToast } from "../lib/toast-context";
 import type { IssueDetail as Detail, Status, User } from "../types";
 
@@ -145,13 +145,14 @@ export default function IssueDetail() {
       <div className="grid gap-8 lg:grid-cols-[1fr_21rem]">
         <div className="min-w-0 space-y-6">
           <header className="card flex items-start gap-4 p-5 animate-rise">
-            <CategoryChip category={issue.category} size="lg" />
+            <CategoryChip category={issue.category} icon={issue.customIcon} size="lg" />
             <div className="min-w-0">
-              <h1 className="text-3xl font-semibold">{categoryMeta(issue.category).label}</h1>
+              <h1 className="text-3xl font-semibold">{issueLabel(issue)}</h1>
               <p className="mt-1.5 flex flex-wrap items-center gap-2 text-sm text-ink/60">
                 <span className="tabular-nums">{issue.ticket}</span>
                 <StatusBadge status={issue.status} />
                 <span>{issue.reportCount} {issue.reportCount === 1 ? "report" : "reports"}</span>
+                {issue.category === "other" && <span className="rounded-full bg-ink/6 px-2 py-0.5 text-xs">Other</span>}
               </p>
               {issue.address && <p className="mt-2 text-sm text-ink/70">{issue.address}</p>}
             </div>
@@ -186,12 +187,21 @@ export default function IssueDetail() {
           )}
 
           <section>
-            <h2 className="text-lg font-semibold">What citizens reported</h2>
+            <h2 className="text-lg font-semibold">What was reported</h2>
             <ul className="mt-3 space-y-3">
               {issue.reports.map((report, index) => (
                 <li key={index} className="card p-4 text-sm">
                   <p>{report.description}</p>
-                  <p className="mt-2 text-xs text-ink/50">{formatDate(report.createdAt)}</p>
+                  <p className="mt-2 flex flex-wrap items-center gap-2 text-xs text-ink/50">
+                    {formatDate(report.createdAt)}
+                    {SOURCE_META[report.source] && (
+                      <span className="inline-flex items-center gap-1 rounded-full bg-accent/10 px-2 py-0.5 font-medium text-accent">
+                        {report.source === "field_inspection" ? <ClipboardPen size={11} aria-hidden /> : <Headset size={11} aria-hidden />}
+                        {SOURCE_META[report.source]!.short}
+                        {report.channel && ` · ${CHANNEL_META[report.channel]}`}
+                      </span>
+                    )}
+                  </p>
                 </li>
               ))}
             </ul>

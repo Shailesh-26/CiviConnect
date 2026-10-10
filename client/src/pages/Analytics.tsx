@@ -4,7 +4,7 @@ import { useAuth } from "../auth/useAuth";
 import { HotspotMap } from "../components/HotspotMap";
 import { ErrorNote, PageHeader, Skeleton } from "../components/ui";
 import { api, ApiError } from "../lib/api";
-import { CATEGORIES, categoryMeta, OPEN, STATUS_META } from "../lib/constants";
+import { CATEGORIES, issueLabel, OPEN, STATUS_META } from "../lib/constants";
 import { averageResolutionHours, formatDuration } from "../lib/format";
 import type { Issue, Status } from "../types";
 
@@ -161,7 +161,7 @@ export default function Analytics() {
         <p className="mb-3 text-sm text-ink/60">
           Darker areas have more open issues close together. Red is high priority, amber is medium and blue is low.
           {worst &&
-            ` The most reported open problem is ${categoryMeta(worst.category).label.toLowerCase()} ${worst.ticket} with ${worst.reportCount} reports.`}
+            ` The most reported open problem is ${issueLabel(worst).toLowerCase()} ${worst.ticket} with ${worst.reportCount} reports.`}
         </p>
         <HotspotMap issues={issues} />
         <p className="mt-3 text-sm text-ink/60">

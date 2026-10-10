@@ -7,7 +7,7 @@ import {
   TreeDeciduous,
   type LucideIcon,
 } from "lucide-react";
-import type { Category, PriorityLabel, Status } from "../types";
+import type { Category, Channel, PriorityLabel, Source, Status } from "../types";
 
 export const CATEGORIES: { value: Category; label: string; icon: LucideIcon }[] = [
   { value: "pothole", label: "Pothole", icon: Construction },
@@ -30,6 +30,24 @@ export const CATEGORY_COLOR: Record<Category, string> = {
 
 export const categoryMeta = (value: Category) =>
   CATEGORIES.find((c) => c.value === value) ?? CATEGORIES[CATEGORIES.length - 1];
+
+// The name shown for an issue: the category, or the reporter's own name for an "Other" problem.
+export const issueLabel = (item: { category: Category; customLabel?: string | null }) =>
+  item.category === "other" && item.customLabel ? item.customLabel : categoryMeta(item.category).label;
+
+// How a report reached the city. Citizen reports carry no extra label.
+export const SOURCE_META: Record<Source, { label: string; short: string } | null> = {
+  citizen: null,
+  field_inspection: { label: "Logged during a field inspection", short: "Field inspection" },
+  on_behalf: { label: "Registered by the office for a citizen", short: "On behalf" },
+};
+
+export const CHANNEL_META: Record<Channel, string> = {
+  phone: "Phone call",
+  walk_in: "Walk-in",
+  email: "Email",
+  letter: "Letter",
+};
 
 export const STATUS_META: Record<Status, { label: string; badge: string; hex: string }> = {
   reported: { label: "Reported", badge: "bg-ink/10 text-ink", hex: "#6b7280" },

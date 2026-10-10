@@ -40,7 +40,7 @@ export default function Login() {
 
   return (
     <AuthShell title="Welcome back" subtitle="Log in to track your reports and see what has been fixed.">
-      <form onSubmit={onSubmit} className="mt-8 space-y-4">
+      <form onSubmit={onSubmit} className="mt-6 space-y-4">
         <Field label="Email" type="email" value={email} onChange={setEmail} autoComplete="email" icon={Mail} />
         <Field label="Password" type="password" value={password} onChange={setPassword} autoComplete="current-password" icon={Lock} />
         {error && (
@@ -52,7 +52,7 @@ export default function Login() {
       </form>
 
       {import.meta.env.DEV && (
-        <div className="mt-6 rounded-2xl border border-dashed border-ink/20 p-4">
+        <div className="mt-5 rounded-2xl border border-dashed border-ink/20 p-3.5">
           <p className="text-xs font-semibold uppercase tracking-wider text-ink/50">Demo accounts</p>
           <div className="mt-3 grid grid-cols-3 gap-2">
             {DEMO_ACCOUNTS.map(({ label, email: demoEmail, icon: Icon }) => (
@@ -70,7 +70,7 @@ export default function Login() {
         </div>
       )}
 
-      <p className="mt-8 text-center text-sm text-ink/65">
+      <p className="mt-6 text-center text-sm text-ink/65">
         No account yet?{" "}
         <Link to="/register" className="font-semibold text-accent hover:underline">Create one</Link>
       </p>

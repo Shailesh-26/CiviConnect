@@ -1,83 +1,114 @@
-import type { ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { ArrowLeft, Camera, Layers, ShieldCheck } from "lucide-react";
+import { api } from "../lib/api";
+import { issueLabel, STATUS_META } from "../lib/constants";
+import { timeAgo } from "../lib/format";
+import type { PublicOverview } from "../types";
+import { CategoryChip } from "./CategoryChip";
+import { CityBackdrop } from "./CityBackdrop";
 import { Logo } from "./Logo";
 import { ThemeToggle } from "./ThemeToggle";
 
 const points = [
-  { icon: Camera, text: "Report a problem with a photo and a pin on the map." },
-  { icon: Layers, text: "Reports of the same problem nearby merge, so the fix climbs the priority list." },
-  { icon: ShieldCheck, text: "Every fix needs proof, and citizens confirm it before the issue stays closed." },
+  { icon: Camera, text: "Photo and a pin" },
+  { icon: Layers, text: "Nearby reports merge" },
+  { icon: ShieldCheck, text: "Proof before it closes" },
 ];
 
-// Three separate reports drift together and become one issue: the core idea of the product.
-function MergeAnimation() {
-  const pin = (x: number, y: number) => (
-    <circle r="9" fill="#e0a100" stroke="#fff" strokeWidth="3">
-      <animate attributeName="cx" values={`${x};${x};200;200;${x}`} keyTimes="0;0.15;0.5;0.85;1" dur="7s" repeatCount="indefinite" />
-      <animate attributeName="cy" values={`${y};${y};120;120;${y}`} keyTimes="0;0.15;0.5;0.85;1" dur="7s" repeatCount="indefinite" />
-    </circle>
-  );
+const VERB: Record<string, string> = {
+  reported: "reported",
+  acknowledged: "picked up",
+  in_progress: "being fixed",
+  resolved: "fixed",
+  rejected: "closed",
+};
+
+// Real, anonymous activity from the city, cycling under the card.
+function LiveTicker() {
+  const [items, setItems] = useState<PublicOverview["activity"]>([]);
+  const [index, setIndex] = useState(0);
+
+  useEffect(() => {
+    let active = true;
+    api<PublicOverview>("/public/overview")
+      .then((data) => active && setItems(data.activity))
+      .catch(() => undefined);
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (items.length < 2) return;
+    const timer = window.setInterval(() => setIndex((i) => (i + 1) % items.length), 4000);
+    return () => window.clearInterval(timer);
+  }, [items.length]);
+
+  const item = items[index];
+  if (!item) return null;
+
   return (
-    <svg viewBox="0 0 400 240" className="w-full max-w-md" role="img" aria-label="Three nearby reports merging into one issue">
-      <g stroke="#fff" strokeOpacity=".14" strokeWidth="1">
-        {Array.from({ length: 11 }, (_, i) => <path key={`v${i}`} d={`M${i * 40} 0V240`} />)}
-        {Array.from({ length: 7 }, (_, i) => <path key={`h${i}`} d={`M0 ${i * 40}H400`} />)}
-      </g>
-      <path d="M0 150 C100 110 160 190 260 130 S360 100 400 120" stroke="#fff" strokeOpacity=".25" strokeWidth="14" fill="none" />
-      <circle cx="200" cy="120" r="28" fill="#e0a100" opacity=".18">
-        <animate attributeName="r" values="12;38;12" dur="7s" repeatCount="indefinite" />
-      </circle>
-      {pin(70, 60)}
-      {pin(330, 70)}
-      {pin(110, 190)}
-      <text x="200" y="228" textAnchor="middle" fill="#fff" fillOpacity=".7" fontSize="13">
-        3 reports → 1 issue, higher priority
-      </text>
-    </svg>
+    <div className="mx-auto mt-5 flex w-full max-w-md items-center gap-3 rounded-2xl border border-ink/10 bg-surface/75 px-3 py-2.5 shadow-card backdrop-blur-xl" aria-live="polite">
+      <span className="relative flex size-2.5 shrink-0">
+        <span className="absolute inline-flex size-full animate-ping rounded-full bg-resolved opacity-70" />
+        <span className="relative inline-flex size-2.5 rounded-full bg-resolved" />
+      </span>
+      <div key={`${item.ticket}-${index}`} className="flex min-w-0 flex-1 items-center gap-2.5 animate-fade">
+        <CategoryChip category={item.category} icon={item.customIcon} size="sm" />
+        <p className="min-w-0 flex-1 truncate text-xs text-ink/70">
+          <span className="font-semibold text-ink">{issueLabel(item)}</span>{" "}
+          <span style={{ color: STATUS_META[item.status].hex }} className="font-medium">{VERB[item.status]}</span>
+          {item.address ? ` · ${item.address}` : ""}
+        </p>
+        <span className="shrink-0 text-[11px] text-ink/50">{timeAgo(item.at)}</span>
+      </div>
+    </div>
   );
 }
 
+// Full-screen auth layout: a living city map fills the screen and one glass card floats on top.
 export function AuthShell({ title, subtitle, children }: { title: string; subtitle: string; children: ReactNode }) {
   return (
-    <div className="grid min-h-screen lg:grid-cols-[1.05fr_1fr]">
-      <aside className="relative hidden overflow-hidden bg-signboard p-10 text-white lg:flex lg:flex-col">
-        <div className="grid-paper pointer-events-none absolute inset-0 opacity-30 [mask-image:linear-gradient(to_bottom,black,transparent_70%)]" aria-hidden />
-        <div className="relative"><Logo light /></div>
-        <div className="relative my-auto py-10">
-          <h2 className="max-w-md font-display text-4xl font-semibold leading-[1.1]">
-            Fix your street,
-            <br />
-            <span className="text-marker">not just complain</span> about it.
-          </h2>
-          <div className="mt-8"><MergeAnimation /></div>
-          <ul className="mt-8 max-w-md space-y-4">
-            {points.map(({ icon: Icon, text }) => (
-              <li key={text} className="flex gap-3 text-sm text-white/85">
-                <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-white/10">
-                  <Icon size={16} className="text-marker" aria-hidden />
-                </span>
-                <span className="pt-1">{text}</span>
-              </li>
-            ))}
-          </ul>
-        </div>
-      </aside>
+    <div className="relative min-h-screen overflow-hidden bg-paper">
+      <CityBackdrop />
+      <div
+        className="pointer-events-none absolute inset-0"
+        style={{
+          background:
+            "radial-gradient(ellipse 60% 70% at 50% 50%, color-mix(in srgb, var(--c-paper) 88%, transparent) 0%, color-mix(in srgb, var(--c-paper) 35%, transparent) 60%, transparent 100%)",
+        }}
+        aria-hidden
+      />
 
-      <main className="relative flex flex-col px-5 py-6 sm:px-10">
-        <div className="flex items-center justify-between">
-          <Link to="/" className="btn btn-ghost !px-3 text-sm">
-            <ArrowLeft size={16} aria-hidden /> Home
-          </Link>
-          <ThemeToggle />
-        </div>
-        <div className="mx-auto my-auto w-full max-w-sm py-10 animate-rise">
-          <div className="mb-8 lg:hidden"><Logo /></div>
-          <h1 className="text-3xl font-semibold">{title}</h1>
-          <p className="mt-2 text-sm text-ink/60">{subtitle}</p>
-          {children}
-        </div>
-      </main>
+      <div className="relative z-10 flex min-h-screen flex-col px-4 py-4 sm:px-8 sm:py-6">
+        <header className="flex items-center justify-between">
+          <Logo />
+          <div className="flex items-center gap-1 rounded-2xl border border-ink/10 bg-surface/70 p-1 backdrop-blur">
+            <Link to="/" className="btn btn-ghost !px-3 !py-2 text-sm">
+              <ArrowLeft size={16} aria-hidden /> Home
+            </Link>
+            <ThemeToggle />
+          </div>
+        </header>
+
+        <main className="flex flex-1 flex-col justify-center py-8">
+          <div className="mx-auto w-full max-w-md animate-pop rounded-3xl border border-ink/10 bg-surface/85 p-6 shadow-lift backdrop-blur-xl sm:p-8">
+            <h1 className="text-3xl font-semibold">{title}</h1>
+            <p className="mt-2 text-sm text-ink/60">{subtitle}</p>
+            {children}
+          </div>
+          <LiveTicker />
+        </main>
+
+        <footer className="mx-auto flex flex-wrap justify-center gap-x-5 gap-y-2 pb-2 text-xs text-ink/60">
+          {points.map(({ icon: Icon, text }) => (
+            <span key={text} className="inline-flex items-center gap-1.5">
+              <Icon size={14} className="text-marker-dark" aria-hidden /> {text}
+            </span>
+          ))}
+        </footer>
+      </div>
     </div>
   );
 }
