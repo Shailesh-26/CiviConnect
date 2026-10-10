@@ -2,12 +2,27 @@ import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
 import { ImagePlus, LocateFixed, X } from "lucide-react";
 import { LocationPicker, type LatLng } from "../components/LocationPicker";
+import { PageHeader } from "../components/ui";
 import { api, ApiError } from "../lib/api";
-import { CATEGORIES } from "../lib/constants";
+import { CATEGORIES, CATEGORY_COLOR } from "../lib/constants";
+import { useToast } from "../lib/toast-context";
 import type { Category, IssueDetail } from "../types";
+
+function Step({ n, title, children }: { n: number; title: string; children: React.ReactNode }) {
+  return (
+    <section className="card p-5 sm:p-6">
+      <h2 className="flex items-center gap-3 text-lg font-semibold">
+        <span className="grid size-8 place-items-center rounded-full bg-accent font-display text-sm font-bold text-paper">{n}</span>
+        {title}
+      </h2>
+      <div className="mt-4">{children}</div>
+    </section>
+  );
+}
 
 export default function ReportIssue() {
   const navigate = useNavigate();
+  const toast = useToast();
 
   const [category, setCategory] = useState<Category | "">("");
   const [description, setDescription] = useState("");
@@ -64,6 +79,7 @@ export default function ReportIssue() {
     if (!point) problems.location = "Tap the map or use your location";
     if (Object.keys(problems).length > 0) {
       setFieldErrors(problems);
+      toast.error("Please fix the highlighted fields.");
       return;
     }
 
@@ -78,13 +94,17 @@ export default function ReportIssue() {
     setSubmitting(true);
     try {
       const data = await api<{ merged: boolean; issue: IssueDetail }>("/issues", { method: "POST", body: form });
+      toast.success(data.merged ? "Your report was merged into an existing issue." : "Report submitted. Thank you!");
       navigate(`/issues/${data.issue.id}`, { state: { merged: data.merged } });
     } catch (err) {
       if (err instanceof ApiError) {
         const errors = { ...err.fieldErrors };
         if (errors.lat || errors.lng) errors.location = errors.lat ?? errors.lng;
         setFieldErrors(errors);
-        if (Object.keys(err.fieldErrors).length === 0) setError(err.message);
+        if (Object.keys(err.fieldErrors).length === 0) {
+          setError(err.message);
+          toast.error(err.message);
+        }
       } else {
         setError("Something went wrong. Try again.");
       }
@@ -94,105 +114,90 @@ export default function ReportIssue() {
   }
 
   return (
-    <div className="max-w-3xl">
-      <h1 className="text-2xl font-semibold tracking-tight">Report an issue</h1>
-      <p className="mt-1 text-sm text-ink/60">
-        If someone nearby already reported the same problem, yours is added to it and raises its priority.
-      </p>
+    <div className="max-w-3xl space-y-6">
+      <PageHeader
+        title="Report an issue"
+        subtitle="If someone nearby already reported the same problem, yours is added to it and raises its priority."
+      />
 
-      <form onSubmit={onSubmit} className="mt-8 space-y-8">
-        <section>
-          <h2 className="text-sm font-medium">1. What is the problem?</h2>
-          <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3">
-            {CATEGORIES.map(({ value, label, icon: Icon }) => (
-              <button
-                key={value}
-                type="button"
-                onClick={() => setCategory(value)}
-                aria-pressed={category === value}
-                className={`flex items-center gap-3 rounded-lg border px-3 py-3 text-left text-sm ${
-                  category === value
-                    ? "border-signboard bg-signboard/10 font-medium text-signboard"
-                    : "border-ink/20 bg-white hover:border-ink/40"
-                }`}
-              >
-                <Icon size={20} aria-hidden /> {label}
-              </button>
-            ))}
+      <form onSubmit={onSubmit} className="space-y-5">
+        <Step n={1} title="What is the problem?">
+          <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3">
+            {CATEGORIES.map(({ value, label, icon: Icon }) => {
+              const active = category === value;
+              const color = CATEGORY_COLOR[value];
+              return (
+                <button
+                  key={value}
+                  type="button"
+                  onClick={() => setCategory(value)}
+                  aria-pressed={active}
+                  style={active ? { borderColor: color, background: `${color}1a` } : undefined}
+                  className="flex items-center gap-3 rounded-xl border border-ink/15 bg-surface px-3.5 py-3.5 text-left text-sm font-medium transition hover:-translate-y-0.5 hover:border-ink/35"
+                >
+                  <span className="grid size-9 place-items-center rounded-lg" style={{ background: `${color}22`, color }}>
+                    <Icon size={19} aria-hidden />
+                  </span>
+                  {label}
+                </button>
+              );
+            })}
           </div>
           {fieldErrors.category && <p className="mt-2 text-sm text-alert">{fieldErrors.category}</p>}
-        </section>
+        </Step>
 
-        <section>
-          <h2 className="text-sm font-medium">2. Where is it?</h2>
-          <div className="mt-3">
-            <button
-              type="button"
-              onClick={useMyLocation}
-              disabled={locating}
-              className="mb-3 inline-flex items-center gap-2 rounded-md border border-ink/25 bg-white px-3 py-2 text-sm hover:border-ink/50 disabled:opacity-60"
-            >
-              <LocateFixed size={17} aria-hidden /> {locating ? "Finding you…" : "Use my location"}
-            </button>
-            <LocationPicker value={point} onChange={setPoint} flyTarget={flyTarget} />
-            <p className="mt-2 text-xs text-ink/60">
-              {point
-                ? `Selected: ${point.lat.toFixed(5)}, ${point.lng.toFixed(5)}. Tap the map to adjust.`
-                : "Tap the exact spot on the map."}
-            </p>
-            {geoError && <p className="mt-1 text-sm text-alert">{geoError}</p>}
-            {fieldErrors.location && <p className="mt-1 text-sm text-alert">{fieldErrors.location}</p>}
-          </div>
+        <Step n={2} title="Where is it?">
+          <button type="button" onClick={useMyLocation} disabled={locating} className="btn btn-outline mb-3 !py-2 text-sm">
+            <LocateFixed size={17} aria-hidden /> {locating ? "Finding you…" : "Use my location"}
+          </button>
+          <LocationPicker value={point} onChange={setPoint} flyTarget={flyTarget} />
+          <p className="mt-2 text-xs text-ink/60">
+            {point ? `Selected: ${point.lat.toFixed(5)}, ${point.lng.toFixed(5)}. Tap the map to adjust.` : "Tap the exact spot on the map."}
+          </p>
+          {geoError && <p className="mt-1 text-sm text-alert">{geoError}</p>}
+          {fieldErrors.location && <p className="mt-1 text-sm text-alert">{fieldErrors.location}</p>}
           <div className="mt-4">
             <label htmlFor="landmark" className="block text-sm font-medium">
               Landmark <span className="font-normal text-ink/50">(optional)</span>
             </label>
-            <input
-              id="landmark"
-              value={address}
-              onChange={(e) => setAddress(e.target.value)}
-              placeholder="Near the bus stop on Station Road"
-              className="mt-1 w-full rounded border border-ink/25 bg-white px-3 py-2 focus:outline-2 focus:outline-signboard"
-            />
+            <input id="landmark" value={address} onChange={(e) => setAddress(e.target.value)} placeholder="Near the bus stop on Station Road" className="input mt-1.5" />
           </div>
-        </section>
+        </Step>
 
-        <section>
-          <h2 className="text-sm font-medium">3. Describe it</h2>
+        <Step n={3} title="Describe it">
           <textarea
             value={description}
             onChange={(e) => setDescription(e.target.value)}
             rows={4}
             maxLength={1000}
+            aria-invalid={fieldErrors.description ? true : undefined}
             placeholder="What is wrong, how big is it, and why does it matter?"
-            className="mt-3 w-full rounded border border-ink/25 bg-white px-3 py-2 focus:outline-2 focus:outline-signboard"
+            className="input"
           />
-          {fieldErrors.description && <p className="mt-1 text-sm text-alert">{fieldErrors.description}</p>}
-        </section>
+          <div className="mt-1 flex justify-between text-xs">
+            <span className="text-alert">{fieldErrors.description}</span>
+            <span className="text-ink/45">{description.length}/1000</span>
+          </div>
+        </Step>
 
-        <section>
-          <h2 className="text-sm font-medium">
-            4. Add photos <span className="font-normal text-ink/50">(up to 3)</span>
-          </h2>
-          <div className="mt-3 flex flex-wrap gap-3">
+        <Step n={4} title="Add photos">
+          <div className="flex flex-wrap gap-3">
             {previews.map((src, index) => (
-              <div key={src} className="relative size-24 overflow-hidden rounded-md border border-ink/20">
+              <div key={src} className="relative size-24 animate-pop overflow-hidden rounded-xl border border-ink/15">
                 <img src={src} alt={`Photo ${index + 1}`} className="size-full object-cover" />
                 <button
                   type="button"
                   aria-label={`Remove photo ${index + 1}`}
                   onClick={() => setFiles((prev) => prev.filter((_, i) => i !== index))}
-                  className="absolute right-1 top-1 grid size-6 place-items-center rounded-full bg-ink/80 text-white"
+                  className="absolute right-1 top-1 grid size-6 place-items-center rounded-full bg-black/70 text-white"
                 >
                   <X size={14} aria-hidden />
                 </button>
               </div>
             ))}
             {files.length < 3 && (
-              <label className="grid size-24 cursor-pointer place-items-center rounded-md border border-dashed border-ink/30 text-xs text-ink/60 hover:border-signboard hover:text-signboard">
-                <span className="flex flex-col items-center gap-1">
-                  <ImagePlus size={20} aria-hidden /> Add photo
-                </span>
+              <label className="grid size-24 cursor-pointer place-items-center rounded-xl border-2 border-dashed border-ink/25 text-xs text-ink/60 transition hover:border-accent hover:text-accent">
+                <span className="flex flex-col items-center gap-1"><ImagePlus size={22} aria-hidden /> Add photo</span>
                 <input
                   type="file"
                   accept="image/jpeg,image/png,image/webp"
@@ -206,14 +211,11 @@ export default function ReportIssue() {
               </label>
             )}
           </div>
-        </section>
+          <p className="mt-2 text-xs text-ink/55">Up to 3 photos. A clear photo helps officers find and fix it faster.</p>
+        </Step>
 
-        {error && <p className="text-sm text-alert">{error}</p>}
-        <button
-          type="submit"
-          disabled={submitting}
-          className="rounded-md bg-signboard px-5 py-2.5 font-medium text-white hover:bg-signboard/90 disabled:opacity-60"
-        >
+        {error && <p role="alert" className="rounded-xl border border-alert/30 bg-alert/10 px-4 py-3 text-sm text-alert">{error}</p>}
+        <button type="submit" disabled={submitting} className="btn btn-primary !px-8 !py-3.5 text-base">
           {submitting ? "Submitting…" : "Submit report"}
         </button>
       </form>

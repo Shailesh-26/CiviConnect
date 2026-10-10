@@ -21,7 +21,7 @@ export function HotspotMap({ issues }: { issues: Issue[] }) {
   const open = issues.filter((i) => i.status !== "resolved" && i.status !== "rejected");
 
   return (
-    <MapContainer center={INDIA_CENTER} zoom={5} className="h-[26rem] w-full rounded-lg border border-ink/20">
+    <MapContainer center={INDIA_CENTER} zoom={5} className="z-0 h-[26rem] w-full rounded-2xl border border-ink/15 shadow-card">
       <TileLayer
         attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
         url="https://tile.openstreetmap.org/{z}/{x}/{y}.png"
@@ -34,7 +34,7 @@ export function HotspotMap({ issues }: { issues: Issue[] }) {
           radius={90 + issue.reportCount * 25}
           pathOptions={{
             stroke: false,
-            fillColor: issue.priorityLabel === "high" ? "#b83a2e" : issue.priorityLabel === "medium" ? "#e0a100" : "#1f4e79",
+            fillColor: issue.priorityLabel === "high" ? "#b83a2e" : issue.priorityLabel === "medium" ? "#e0a100" : "#2f73b3",
             fillOpacity: 0.22,
           }}
         />

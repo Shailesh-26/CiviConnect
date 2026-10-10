@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Bar, BarChart, CartesianGrid, Cell, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { useAuth } from "../auth/useAuth";
 import { HotspotMap } from "../components/HotspotMap";
+import { ErrorNote, PageHeader, Skeleton } from "../components/ui";
 import { api, ApiError } from "../lib/api";
 import { CATEGORIES, categoryMeta, OPEN, STATUS_META } from "../lib/constants";
 import { averageResolutionHours, formatDuration } from "../lib/format";
@@ -9,9 +10,9 @@ import type { Issue, Status } from "../types";
 
 function Tile({ label, value, note }: { label: string; value: string; note?: string }) {
   return (
-    <div className="rounded-lg border border-ink/15 bg-white p-4">
+    <div className="card card-hover p-5">
       <p className="text-sm text-ink/60">{label}</p>
-      <p className="mt-1 text-2xl font-semibold tabular-nums">{value}</p>
+      <p className="mt-1 font-display text-3xl font-bold tabular-nums">{value}</p>
       {note && <p className="mt-1 text-xs text-ink/50">{note}</p>}
     </div>
   );
@@ -19,14 +20,14 @@ function Tile({ label, value, note }: { label: string; value: string; note?: str
 
 function Panel({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <section className="rounded-lg border border-ink/15 bg-white p-4">
-      <h2 className="text-sm font-medium">{title}</h2>
+    <section className="card p-5">
+      <h2 className="text-lg font-semibold">{title}</h2>
       <div className="mt-4">{children}</div>
     </section>
   );
 }
 
-const axis = { fontSize: 12, fill: "#1b2430" };
+const axis = { fontSize: 12, fill: "currentColor" };
 
 export default function Analytics() {
   const { user } = useAuth();
@@ -90,8 +91,15 @@ export default function Analytics() {
     };
   }, [issues]);
 
-  if (error) return <p className="text-sm text-alert">{error}</p>;
-  if (!issues) return <p className="text-sm text-ink/60">Loading…</p>;
+  if (error) return <ErrorNote>{error}</ErrorNote>;
+  if (!issues)
+    return (
+      <div className="space-y-6">
+        <Skeleton className="h-12 w-64" />
+        <div className="grid grid-cols-2 gap-3 md:grid-cols-4">{[0, 1, 2, 3].map((i) => <Skeleton key={i} className="h-28 !rounded-2xl" />)}</div>
+        <Skeleton className="h-72 w-full !rounded-2xl" />
+      </div>
+    );
 
   const worst = [...issues]
     .filter((i) => OPEN.includes(i.status))
@@ -99,12 +107,10 @@ export default function Analytics() {
 
   return (
     <div className="space-y-8">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Analytics</h1>
-        <p className="mt-1 text-sm text-ink/60">
-          {isOfficer ? "Based on the issues assigned to you." : "Based on every issue reported on the platform."}
-        </p>
-      </div>
+      <PageHeader
+        title="Analytics"
+        subtitle={isOfficer ? "Based on the issues assigned to you." : "Based on every issue reported on the platform."}
+      />
 
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
         <Tile label="Total issues" value={String(stats.total)} />
@@ -118,14 +124,14 @@ export default function Analytics() {
           {stats.byCategory.length === 0 ? (
             <p className="text-sm text-ink/60">No data yet.</p>
           ) : (
-            <div className="h-64">
+            <div className="h-64 text-ink">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={stats.byCategory}>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#1b243022" />
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="currentColor" strokeOpacity={0.12} />
                   <XAxis dataKey="name" tick={axis} />
                   <YAxis allowDecimals={false} tick={axis} />
-                  <Tooltip cursor={{ fill: "#1b243010" }} />
-                  <Bar dataKey="count" name="Issues" fill="#1f4e79" radius={[4, 4, 0, 0]} />
+                  <Tooltip cursor={{ fill: "currentColor", fillOpacity: 0.06 }} contentStyle={{ borderRadius: 12, border: "1px solid rgba(128,128,128,.25)", background: "var(--c-surface)", color: "var(--c-ink)" }} />
+                  <Bar dataKey="count" name="Issues" fill="#2f73b3" radius={[4, 4, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             </div>
@@ -133,13 +139,13 @@ export default function Analytics() {
         </Panel>
 
         <Panel title="Issues by status">
-          <div className="h-64">
+          <div className="h-64 text-ink">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={stats.byStatus}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#1b243022" />
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="currentColor" strokeOpacity={0.12} />
                 <XAxis dataKey="name" tick={axis} />
                 <YAxis allowDecimals={false} tick={axis} />
-                <Tooltip cursor={{ fill: "#1b243010" }} />
+                <Tooltip cursor={{ fill: "currentColor", fillOpacity: 0.06 }} contentStyle={{ borderRadius: 12, border: "1px solid rgba(128,128,128,.25)", background: "var(--c-surface)", color: "var(--c-ink)" }} />
                 <Bar dataKey="count" name="Issues" radius={[4, 4, 0, 0]}>
                   {stats.byStatus.map((row) => (
                     <Cell key={row.name} fill={row.color} />
@@ -168,7 +174,7 @@ export default function Analytics() {
           {stats.officers.length === 0 ? (
             <p className="text-sm text-ink/60">No issues have been assigned yet.</p>
           ) : (
-            <div className="overflow-x-auto">
+            <div className="overflow-x-auto text-ink">
               <table className="w-full text-left text-sm">
                 <thead className="border-b border-ink/20 text-ink/60">
                   <tr>

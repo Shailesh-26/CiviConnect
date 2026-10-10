@@ -44,3 +44,23 @@ export type IssueDetail = Issue & {
   }[];
   verification: { fixed: number; notFixed: number; myVote: boolean | null };
 };
+
+export type PublicOverview = {
+  stats: {
+    total: number;
+    open: number;
+    resolved: number;
+    reports: number;
+    avgResolutionHours: number | null;
+    byCategory: { category: Category; count: number }[];
+  };
+  pins: {
+    id: string;
+    ticket: string;
+    category: Category;
+    status: Status;
+    reportCount: number;
+    location: { lat: number; lng: number };
+  }[];
+  activity: { ticket: string; category: Category; address?: string; status: Status; at: string }[];
+};

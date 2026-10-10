@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { IssueMap } from "../components/IssueMap";
+import { ErrorNote, PageHeader, Skeleton } from "../components/ui";
 import { api, ApiError } from "../lib/api";
 import { PRIORITY_META } from "../lib/constants";
 import type { Issue } from "../types";
@@ -26,20 +27,16 @@ export default function MapView() {
   }, []);
 
   return (
-    <div>
-      <h1 className="text-2xl font-semibold tracking-tight">Issue map</h1>
-      <p className="mt-1 text-sm text-ink/60">Larger pins have more merged reports.</p>
-      <ul className="mt-4 flex flex-wrap gap-x-5 gap-y-1 text-sm">
+    <div className="space-y-5">
+      <PageHeader title="Issue map" subtitle="Pins show the problem type and are coloured by priority. Tap a pin to open the issue." />
+      <ul className="flex flex-wrap gap-x-5 gap-y-2 text-sm">
         {legend.map((item) => (
           <li key={item.label} className="flex items-center gap-2">
-            <span className="size-3 rounded-full" style={{ background: item.color }} aria-hidden />
-            {item.label}
+            <span className="size-3 rounded-full" style={{ background: item.color }} aria-hidden /> {item.label}
           </li>
         ))}
       </ul>
-      <div className="mt-4">
-        {error ? <p className="text-sm text-alert">{error}</p> : <IssueMap issues={issues ?? []} className="h-[32rem]" />}
-      </div>
+      {error ? <ErrorNote>{error}</ErrorNote> : issues === null ? <Skeleton className="h-[32rem] w-full !rounded-2xl" /> : <IssueMap issues={issues} className="h-[34rem]" />}
     </div>
   );
 }

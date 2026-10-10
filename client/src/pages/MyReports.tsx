@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
+import { FilePlus2, Inbox } from "lucide-react";
 import { IssueList } from "../components/IssueList";
+import { EmptyState, ErrorNote, ListSkeleton, PageHeader } from "../components/ui";
 import { api, ApiError } from "../lib/api";
 import type { Issue } from "../types";
 
@@ -19,24 +21,20 @@ export default function MyReports() {
   }, []);
 
   return (
-    <div>
-      <h1 className="text-2xl font-semibold tracking-tight">My reports</h1>
-      <div className="mt-6">
-        {error ? (
-          <p className="text-sm text-alert">{error}</p>
-        ) : issues === null ? (
-          <p className="text-sm text-ink/60">Loading…</p>
-        ) : (
-          <IssueList
-            issues={issues}
-            empty="You have not reported anything yet."
-          />
-        )}
-      </div>
-      {issues?.length === 0 && (
-        <Link to="/report" className="mt-4 inline-block text-sm font-medium text-signboard underline">
-          Report your first issue
-        </Link>
+    <div className="space-y-6">
+      <PageHeader
+        title="My reports"
+        subtitle="Every problem you have reported, with its live status."
+        action={<Link to="/report" className="btn btn-primary"><FilePlus2 size={17} aria-hidden /> New report</Link>}
+      />
+      {error ? (
+        <ErrorNote>{error}</ErrorNote>
+      ) : issues === null ? (
+        <ListSkeleton />
+      ) : issues.length === 0 ? (
+        <EmptyState icon={Inbox} title="You have not reported anything yet" text="Your reports and their progress will show up here." action={<Link to="/report" className="btn btn-primary">Report your first issue</Link>} />
+      ) : (
+        <IssueList issues={issues} empty="" />
       )}
     </div>
   );

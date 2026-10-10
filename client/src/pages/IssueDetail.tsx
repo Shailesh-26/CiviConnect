@@ -1,21 +1,53 @@
 import { useEffect, useState } from "react";
 import { Link, useLocation, useParams } from "react-router-dom";
-import { ArrowLeft, BadgeCheck, ImagePlus, Layers, ThumbsDown, ThumbsUp, UserCheck, X } from "lucide-react";
+import { ArrowLeft, BadgeCheck, Check, ImagePlus, Layers, ThumbsDown, ThumbsUp, UserCheck, X } from "lucide-react";
 import { useAuth } from "../auth/useAuth";
-import { CategoryIcon } from "../components/CategoryIcon";
+import { CategoryChip } from "../components/CategoryChip";
 import { IssueMap } from "../components/IssueMap";
 import { PriorityMeter } from "../components/PriorityMeter";
 import { StatusBadge } from "../components/StatusBadge";
+import { ErrorNote, Skeleton } from "../components/ui";
 import { api, ApiError } from "../lib/api";
 import { categoryMeta, formatDate, NEXT_STATUS, OPEN, STATUS_META } from "../lib/constants";
+import { useToast } from "../lib/toast-context";
 import type { IssueDetail as Detail, Status, User } from "../types";
 
-const selectClass = "w-full rounded border border-ink/25 bg-white px-3 py-2 text-sm focus:outline-2 focus:outline-signboard";
+const STAGES: Status[] = ["reported", "acknowledged", "in_progress", "resolved"];
+
+// A four-step tracker so a citizen sees at a glance how far the fix has come.
+function Tracker({ status }: { status: Status }) {
+  if (status === "rejected") {
+    return <p className="rounded-xl border border-alert/30 bg-alert/10 px-4 py-3 text-sm font-medium text-alert">This issue was closed without a fix. See the timeline for the reason.</p>;
+  }
+  const current = STAGES.indexOf(status);
+  return (
+    <ol className="flex items-start">
+      {STAGES.map((stage, i) => {
+        const done = i < current || status === "resolved";
+        const active = i === current && status !== "resolved";
+        return (
+          <li key={stage} className="relative flex flex-1 flex-col items-center text-center">
+            {i > 0 && <span className={`absolute right-1/2 top-4 h-0.5 w-full ${i <= current ? "bg-resolved" : "bg-ink/15"}`} aria-hidden />}
+            <span
+              className={`relative z-10 grid size-8 place-items-center rounded-full border-2 text-xs font-bold transition-colors ${
+                done ? "border-resolved bg-resolved text-white" : active ? "border-accent bg-accent text-paper" : "border-ink/20 bg-surface text-ink/40"
+              }`}
+            >
+              {done ? <Check size={15} aria-hidden /> : i + 1}
+            </span>
+            <span className={`mt-2 text-[11px] font-medium sm:text-xs ${done || active ? "text-ink" : "text-ink/45"}`}>{STATUS_META[stage].label}</span>
+          </li>
+        );
+      })}
+    </ol>
+  );
+}
 
 export default function IssueDetail() {
   const { id } = useParams();
   const { user } = useAuth();
   const location = useLocation();
+  const toast = useToast();
   const merged = (location.state as { merged?: boolean } | null)?.merged;
 
   const [issue, setIssue] = useState<Detail | null>(null);
@@ -50,7 +82,7 @@ export default function IssueDetail() {
     };
   }, [role]);
 
-  async function act(request: () => Promise<{ issue: Detail }>) {
+  async function act(request: () => Promise<{ issue: Detail }>, success: string) {
     setBusy(true);
     setActionError(null);
     try {
@@ -59,8 +91,11 @@ export default function IssueDetail() {
       setNote("");
       setOfficerId("");
       setProof([]);
+      toast.success(success);
     } catch (err) {
-      setActionError(err instanceof ApiError ? err.message : "Something went wrong. Try again.");
+      const message = err instanceof ApiError ? err.message : "Something went wrong. Try again.";
+      setActionError(message);
+      toast.error(message);
     } finally {
       setBusy(false);
     }
@@ -71,11 +106,18 @@ export default function IssueDetail() {
     form.append("status", next);
     if (note.trim()) form.append("note", note);
     proof.forEach((file) => form.append("photos", file));
-    return act(() => api<{ issue: Detail }>(`/issues/${id}/status`, { method: "PATCH", body: form }));
+    return act(() => api<{ issue: Detail }>(`/issues/${id}/status`, { method: "PATCH", body: form }), `Status changed to ${STATUS_META[next].label.toLowerCase()}.`);
   }
 
-  if (error) return <p className="text-sm text-alert">{error}</p>;
-  if (!issue || !user) return <p className="text-sm text-ink/60">Loading…</p>;
+  if (error) return <ErrorNote>{error}</ErrorNote>;
+  if (!issue || !user)
+    return (
+      <div className="space-y-6">
+        <Skeleton className="h-8 w-24" />
+        <Skeleton className="h-16 w-2/3 !rounded-2xl" />
+        <Skeleton className="h-72 w-full !rounded-2xl" />
+      </div>
+    );
 
   const isOpen = OPEN.includes(issue.status);
   const canUpdate = role === "admin" || (role === "officer" && issue.assignedTo?.id === user.id);
@@ -86,16 +128,13 @@ export default function IssueDetail() {
   const after = issue.status === "resolved" ? resolution?.images[0] : undefined;
 
   return (
-    <div>
-      <Link
-        to={role === "citizen" ? "/my-reports" : "/issues"}
-        className="inline-flex items-center gap-1 text-sm text-ink/60 hover:text-ink"
-      >
+    <div className="space-y-6">
+      <Link to={role === "citizen" ? "/my-reports" : "/issues"} className="inline-flex items-center gap-1 text-sm font-medium text-ink/60 hover:text-ink">
         <ArrowLeft size={15} aria-hidden /> Back
       </Link>
 
       {merged !== undefined && (
-        <p className="mt-4 flex items-start gap-2 rounded-lg border border-signboard/30 bg-signboard/10 px-4 py-3 text-sm text-signboard">
+        <p className="flex animate-pop items-start gap-2.5 rounded-2xl border border-accent/30 bg-accent/10 px-4 py-3 text-sm text-accent">
           <Layers size={18} className="mt-0.5 shrink-0" aria-hidden />
           {merged
             ? `Someone nearby had already reported this. Your report was added to it, and it now has ${issue.reportCount} reports.`
@@ -103,42 +142,33 @@ export default function IssueDetail() {
         </p>
       )}
 
-      <div className="mt-6 grid gap-8 lg:grid-cols-[1fr_20rem]">
-        <div className="space-y-8">
-          <header className="flex items-start gap-4">
-            <span className="grid size-12 shrink-0 place-items-center rounded-lg bg-signboard/10 text-signboard">
-              <CategoryIcon category={issue.category} size={24} />
-            </span>
-            <div>
-              <h1 className="text-2xl font-semibold tracking-tight">{categoryMeta(issue.category).label}</h1>
-              <p className="mt-1 flex flex-wrap items-center gap-2 text-sm text-ink/60">
+      <div className="grid gap-8 lg:grid-cols-[1fr_21rem]">
+        <div className="min-w-0 space-y-6">
+          <header className="card flex items-start gap-4 p-5 animate-rise">
+            <CategoryChip category={issue.category} size="lg" />
+            <div className="min-w-0">
+              <h1 className="text-3xl font-semibold">{categoryMeta(issue.category).label}</h1>
+              <p className="mt-1.5 flex flex-wrap items-center gap-2 text-sm text-ink/60">
                 <span className="tabular-nums">{issue.ticket}</span>
                 <StatusBadge status={issue.status} />
-                <span>
-                  {issue.reportCount} {issue.reportCount === 1 ? "report" : "reports"}
-                </span>
+                <span>{issue.reportCount} {issue.reportCount === 1 ? "report" : "reports"}</span>
               </p>
+              {issue.address && <p className="mt-2 text-sm text-ink/70">{issue.address}</p>}
             </div>
           </header>
 
-          {issue.address && <p className="text-sm text-ink/70">Landmark: {issue.address}</p>}
+          <div className="card p-5"><Tracker status={issue.status} /></div>
 
           {before && after ? (
-            <section>
-              <h2 className="text-sm font-medium text-ink/60">Before and after</h2>
+            <section className="card p-5">
+              <h2 className="text-lg font-semibold">Before and after</h2>
               <div className="mt-3 grid grid-cols-2 gap-3">
-                {[
-                  { label: "Before", url: before.url },
-                  { label: "After", url: after.url },
-                ].map((item) => (
-                  <a key={item.label} href={item.url} target="_blank" rel="noreferrer" className="block">
-                    <img
-                      src={item.url}
-                      alt={`${item.label} the fix`}
-                      loading="lazy"
-                      className="aspect-[4/3] w-full rounded-md border border-ink/15 object-cover"
-                    />
-                    <span className="mt-1 block text-xs font-medium text-ink/60">{item.label}</span>
+                {[{ label: "Before", url: before.url }, { label: "After", url: after.url }].map((item) => (
+                  <a key={item.label} href={item.url} target="_blank" rel="noreferrer" className="group block">
+                    <div className="overflow-hidden rounded-xl border border-ink/15">
+                      <img src={item.url} alt={`${item.label} the fix`} loading="lazy" className="aspect-[4/3] w-full object-cover transition-transform duration-500 group-hover:scale-105" />
+                    </div>
+                    <span className={`mt-1.5 inline-block rounded-full px-2.5 py-0.5 text-xs font-semibold ${item.label === "After" ? "bg-resolved/15 text-resolved" : "bg-alert/10 text-alert"}`}>{item.label}</span>
                   </a>
                 ))}
               </div>
@@ -147,13 +177,8 @@ export default function IssueDetail() {
             issue.images.length > 0 && (
               <div className="flex flex-wrap gap-3">
                 {issue.images.map((img) => (
-                  <a key={img.url} href={img.url} target="_blank" rel="noreferrer">
-                    <img
-                      src={img.url}
-                      alt="Reported problem"
-                      loading="lazy"
-                      className="h-36 rounded-md border border-ink/15 object-cover"
-                    />
+                  <a key={img.url} href={img.url} target="_blank" rel="noreferrer" className="overflow-hidden rounded-xl border border-ink/15">
+                    <img src={img.url} alt="Reported problem" loading="lazy" className="h-40 object-cover transition-transform duration-500 hover:scale-105" />
                   </a>
                 ))}
               </div>
@@ -161,10 +186,10 @@ export default function IssueDetail() {
           )}
 
           <section>
-            <h2 className="text-sm font-medium text-ink/60">What citizens reported</h2>
+            <h2 className="text-lg font-semibold">What citizens reported</h2>
             <ul className="mt-3 space-y-3">
               {issue.reports.map((report, index) => (
-                <li key={index} className="rounded-lg border border-ink/15 bg-white p-4 text-sm">
+                <li key={index} className="card p-4 text-sm">
                   <p>{report.description}</p>
                   <p className="mt-2 text-xs text-ink/50">{formatDate(report.createdAt)}</p>
                 </li>
@@ -175,29 +200,22 @@ export default function IssueDetail() {
           <IssueMap issues={[issue]} className="h-64" zoom={16} />
         </div>
 
-        <aside className="space-y-6">
-          <div className="rounded-lg border border-ink/15 bg-white p-4">
+        <aside className="space-y-5">
+          <div className="card p-5">
             <PriorityMeter score={issue.priority} label={issue.priorityLabel} />
             <p className="mt-3 text-xs text-ink/60">
-              Based on how hazardous the problem is, how many people reported it, citizen support and how long it has
-              been open.
+              Based on how hazardous the problem is, how many people reported it, citizen support and how long it has been open.
             </p>
             <p className="mt-3 flex items-center gap-2 text-sm">
               <UserCheck size={16} className="text-ink/50" aria-hidden />
-              {issue.assignedTo
-                ? `${issue.assignedTo.name}${issue.assignedTo.department ? `, ${issue.assignedTo.department}` : ""}`
-                : "Not assigned yet"}
+              {issue.assignedTo ? `${issue.assignedTo.name}${issue.assignedTo.department ? `, ${issue.assignedTo.department}` : ""}` : "Not assigned yet"}
             </p>
             {isOpen && (
               <button
                 disabled={busy}
-                onClick={() => act(() => api(`/issues/${issue.id}/support`, { method: "POST" }))}
+                onClick={() => act(() => api(`/issues/${issue.id}/support`, { method: "POST" }), issue.supportedByMe ? "Support removed." : "Thanks for supporting this issue.")}
                 aria-pressed={issue.supportedByMe}
-                className={`mt-4 flex w-full items-center justify-center gap-2 rounded-md border px-3 py-2 text-sm font-medium disabled:opacity-60 ${
-                  issue.supportedByMe
-                    ? "border-signboard bg-signboard text-white"
-                    : "border-ink/25 bg-white hover:border-signboard"
-                }`}
+                className={`btn mt-4 w-full ${issue.supportedByMe ? "btn-primary" : "btn-outline"}`}
               >
                 <ThumbsUp size={16} aria-hidden />
                 {issue.supportedByMe ? "Supported" : "This affects me too"} · {issue.supporterCount}
@@ -206,9 +224,9 @@ export default function IssueDetail() {
           </div>
 
           {issue.status === "resolved" && (
-            <div className="rounded-lg border border-resolved/40 bg-resolved/10 p-4">
-              <h2 className="flex items-center gap-2 text-sm font-medium text-resolved">
-                <BadgeCheck size={17} aria-hidden /> Marked as resolved
+            <div className="rounded-2xl border border-resolved/40 bg-resolved/10 p-5">
+              <h2 className="flex items-center gap-2 text-base font-semibold text-resolved">
+                <BadgeCheck size={18} aria-hidden /> Marked as resolved
               </h2>
               <p className="mt-2 text-sm text-ink/70">
                 {issue.verification.fixed} confirmed fixed · {issue.verification.notFixed} say it is still there
@@ -225,14 +243,8 @@ export default function IssueDetail() {
                         key={label}
                         disabled={busy}
                         aria-pressed={issue.verification.myVote === fixed}
-                        onClick={() =>
-                          act(() => api(`/issues/${issue.id}/verify`, { method: "POST", body: { fixed } }))
-                        }
-                        className={`flex flex-1 items-center justify-center gap-1.5 rounded-md border px-2 py-1.5 text-sm disabled:opacity-60 ${
-                          issue.verification.myVote === fixed
-                            ? "border-signboard bg-signboard text-white"
-                            : "border-ink/25 bg-white hover:border-signboard"
-                        }`}
+                        onClick={() => act(() => api(`/issues/${issue.id}/verify`, { method: "POST", body: { fixed } }), "Thanks, your answer was recorded.")}
+                        className={`btn flex-1 !px-2 !py-2 text-sm ${issue.verification.myVote === fixed ? "btn-primary" : "btn-outline"}`}
                       >
                         <Icon size={15} aria-hidden /> {label}
                       </button>
@@ -244,9 +256,9 @@ export default function IssueDetail() {
           )}
 
           {role === "admin" && isOpen && (
-            <div className="rounded-lg border border-ink/15 bg-white p-4">
-              <h2 className="text-sm font-medium">Assign to officer</h2>
-              <select value={officerId} onChange={(e) => setOfficerId(e.target.value)} className={`${selectClass} mt-3`}>
+            <div className="card p-5">
+              <h2 className="text-base font-semibold">Assign to officer</h2>
+              <select value={officerId} onChange={(e) => setOfficerId(e.target.value)} className="input mt-3 !py-2 text-sm">
                 <option value="">Choose an officer</option>
                 {officers.map((o) => (
                   <option key={o.id} value={o.id}>
@@ -257,8 +269,8 @@ export default function IssueDetail() {
               </select>
               <button
                 disabled={busy || !officerId}
-                onClick={() => act(() => api(`/issues/${issue.id}/assign`, { method: "PATCH", body: { officerId } }))}
-                className="mt-3 w-full rounded-md bg-signboard px-3 py-2 text-sm font-medium text-white hover:bg-signboard/90 disabled:opacity-50"
+                onClick={() => act(() => api(`/issues/${issue.id}/assign`, { method: "PATCH", body: { officerId } }), "Officer assigned.")}
+                className="btn btn-primary mt-3 w-full"
               >
                 Assign
               </button>
@@ -266,17 +278,11 @@ export default function IssueDetail() {
           )}
 
           {canUpdate && nextStatuses.length > 0 && (
-            <div className="rounded-lg border border-ink/15 bg-white p-4">
-              <h2 className="text-sm font-medium">Update status</h2>
-              <textarea
-                value={note}
-                onChange={(e) => setNote(e.target.value)}
-                rows={3}
-                placeholder="Note (required to resolve or reject)"
-                className={`${selectClass} mt-3`}
-              />
+            <div className="card p-5">
+              <h2 className="text-base font-semibold">Update status</h2>
+              <textarea value={note} onChange={(e) => setNote(e.target.value)} rows={3} placeholder="Note (required to resolve or reject)" className="input mt-3 text-sm" />
               <div className="mt-3">
-                <label className="inline-flex cursor-pointer items-center gap-2 text-sm text-signboard">
+                <label className="inline-flex cursor-pointer items-center gap-2 text-sm font-medium text-accent">
                   <ImagePlus size={16} aria-hidden />
                   {proof.length > 0 ? "Add another proof photo" : "Add proof photo (needed to resolve)"}
                   <input
@@ -294,57 +300,42 @@ export default function IssueDetail() {
                 {proof.map((file, index) => (
                   <p key={index} className="mt-1 flex items-center justify-between gap-2 text-xs text-ink/70">
                     <span className="truncate">{file.name}</span>
-                    <button
-                      type="button"
-                      aria-label={`Remove ${file.name}`}
-                      onClick={() => setProof((prev) => prev.filter((_, i) => i !== index))}
-                    >
+                    <button type="button" aria-label={`Remove ${file.name}`} onClick={() => setProof((prev) => prev.filter((_, i) => i !== index))}>
                       <X size={14} aria-hidden />
                     </button>
                   </p>
                 ))}
               </div>
-              <div className="mt-3 flex flex-wrap gap-2">
+              <div className="mt-4 flex flex-wrap gap-2">
                 {nextStatuses.map((next) => (
-                  <button
-                    key={next}
-                    disabled={busy}
-                    onClick={() => changeStatus(next)}
-                    className="rounded-md border border-ink/25 bg-white px-3 py-1.5 text-sm hover:border-signboard disabled:opacity-50"
-                  >
-                    {next === "in_progress" && issue.status === "resolved"
-                      ? "Reopen"
-                      : `Mark ${STATUS_META[next].label.toLowerCase()}`}
+                  <button key={next} disabled={busy} onClick={() => changeStatus(next)} className="btn btn-outline !px-3 !py-1.5 text-sm">
+                    {next === "in_progress" && issue.status === "resolved" ? "Reopen" : `Mark ${STATUS_META[next].label.toLowerCase()}`}
                   </button>
                 ))}
               </div>
             </div>
           )}
 
-          {actionError && <p className="text-sm text-alert">{actionError}</p>}
+          {actionError && <ErrorNote>{actionError}</ErrorNote>}
 
-          <section>
-            <h2 className="text-sm font-medium text-ink/60">Timeline</h2>
-            <ol className="mt-3 space-y-4 border-l border-ink/20 pl-4">
+          <section className="card p-5">
+            <h2 className="text-base font-semibold">Timeline</h2>
+            <ol className="mt-4 space-y-5 border-l-2 border-ink/12 pl-5">
               {[...issue.timeline].reverse().map((step, index) => (
                 <li key={index} className="relative text-sm">
-                  <span
-                    className="absolute -left-[1.4rem] top-1 size-2.5 rounded-full ring-4 ring-paper"
-                    style={{ background: STATUS_META[step.status].hex }}
-                    aria-hidden
-                  />
-                  <p className="font-medium">{STATUS_META[step.status].label}</p>
-                  {step.note && <p className="text-ink/70">{step.note}</p>}
+                  <span className="absolute -left-[1.78rem] top-1 size-3 rounded-full ring-4 ring-surface" style={{ background: STATUS_META[step.status].hex }} aria-hidden />
+                  <p className="font-semibold">{STATUS_META[step.status].label}</p>
+                  {step.note && <p className="mt-0.5 text-ink/70">{step.note}</p>}
                   {step.images.length > 0 && (
                     <div className="mt-2 flex gap-2">
                       {step.images.map((img) => (
                         <a key={img.url} href={img.url} target="_blank" rel="noreferrer">
-                          <img src={img.url} alt="Proof" loading="lazy" className="size-16 rounded border border-ink/15 object-cover" />
+                          <img src={img.url} alt="Proof" loading="lazy" className="size-16 rounded-lg border border-ink/15 object-cover" />
                         </a>
                       ))}
                     </div>
                   )}
-                  <p className="text-xs text-ink/50">
+                  <p className="mt-1 text-xs text-ink/50">
                     {formatDate(step.at)}
                     {step.byName ? ` · ${step.byName}` : ""}
                   </p>

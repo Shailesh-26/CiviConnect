@@ -1,6 +1,6 @@
 # PROJECT_STATE — CiviConnect
 
-Last updated: after Phase 4 + 5 implementation (status: IMPLEMENTED, awaiting owner testing)
+Last updated: after Phase 6 implementation (status: IMPLEMENTED, awaiting owner testing)
 
 ## Stack
 - Client: React 19 + Vite + TypeScript + Tailwind v4 (`client/`), React Router, lucide-react icons, Leaflet + react-leaflet (OpenStreetMap tiles), Public Sans font, plain `fetch` wrapper
@@ -66,9 +66,15 @@ NODE_ENV, PORT, MONGODB_URI, CLIENT_URL, JWT_SECRET (32+ chars), JWT_EXPIRES_DAY
 - Phase 4 resolution proof (photo + before/after) and citizen verification with auto-reopen: IMPLEMENTED
 - Phase 5 analytics page (tiles, category/status charts, hotspot map, officer performance): IMPLEMENTED
 
+## Phase 6 (new look, landing, demo data)
+- Design system in client/src/index.css: theme tokens (light + dark via `.dark`), `.card .btn .input .skeleton` classes, Bricolage Grotesque display font + Public Sans, toasts, skeletons, empty states
+- New: pages/Landing.tsx (public, live counters + map + activity from GET /api/public/overview), theme/ (ThemeProvider), components/ToastProvider, ui.tsx, Logo, CategoryChip, CountUp, PublicMap, lib/pins.ts (teardrop pins)
+- Rewritten shell: Layout.tsx (sidebar on desktop, bottom tab bar on phones); login/register are full-screen pages outside Layout; `/` is the landing page, dashboard moved to `/dashboard`
+- Server: GET /api/public/overview (anonymous, rate limited); `npm run seed:demo` / `seed:demo:clear` create or remove a fake city (46 issues, 4 officers, 8 citizens, admin@civiconnect.demo, password Demo@1234; demo photos are SVGs in client/public/demo, nothing goes to Cloudinary)
+
 ## Next steps
 1. Owner runs the Phase 4+5 test list; fix failures; commit
-2. Notifications (Socket.IO + email) and issue health score per area
+2. Phase 7 guided report wizard; Phase 8 live updates, SLA timers, before/after slider; Phase 9 map clustering, area health score
 3. Local CV classifier (Python service), then deployment (Vercel + Render) and README
 
 ## Notes / revisit

@@ -9,6 +9,7 @@ import { adminRouter } from "./routes/admin.routes";
 import { authRouter } from "./routes/auth.routes";
 import { healthRouter } from "./routes/health";
 import { issueRouter } from "./routes/issue.routes";
+import { publicRouter } from "./routes/public.routes";
 
 export const app = express();
 
@@ -26,6 +27,7 @@ app.use("/api/health", healthRouter);
 app.use("/api/auth", authRouter);
 app.use("/api/admin", adminRouter);
 app.use("/api/issues", issueRouter);
+app.use("/api/public", publicRouter);
 
 app.use((_req, res) => {
   res.status(404).json({ message: "Route not found" });

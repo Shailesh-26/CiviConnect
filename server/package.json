@@ -5,6 +5,9 @@
   "main": "index.js",
   "scripts": {
     "dev": "tsx watch src/server.ts",
+    "seed:admin": "tsx src/scripts/seedAdmin.ts",
+    "seed:demo": "tsx src/scripts/seedDemo.ts",
+    "seed:demo:clear": "tsx src/scripts/seedDemo.ts --clear",
     "build": "tsc",
     "start": "node dist/server.js"
   },

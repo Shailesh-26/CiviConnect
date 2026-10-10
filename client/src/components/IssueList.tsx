@@ -1,44 +1,53 @@
 import { Link } from "react-router-dom";
+import { Clock, Layers, ThumbsUp } from "lucide-react";
 import { categoryMeta } from "../lib/constants";
+import { daysOpen } from "../lib/format";
 import type { Issue } from "../types";
-import { CategoryIcon } from "./CategoryIcon";
+import { CategoryChip } from "./CategoryChip";
 import { PriorityMeter } from "./PriorityMeter";
 import { StatusBadge } from "./StatusBadge";
 
 export function IssueList({ issues, empty }: { issues: Issue[]; empty: string }) {
   if (issues.length === 0) {
-    return (
-      <p className="rounded-lg border border-dashed border-ink/20 px-4 py-10 text-center text-sm text-ink/60">
-        {empty}
-      </p>
-    );
+    return <p className="card border-dashed px-4 py-12 text-center text-sm text-ink/60 shadow-none">{empty}</p>;
   }
 
   return (
-    <ul className="divide-y divide-ink/10 overflow-hidden rounded-lg border border-ink/15 bg-white">
-      {issues.map((issue) => (
-        <li key={issue.id}>
-          <Link to={`/issues/${issue.id}`} className="flex items-center gap-4 px-4 py-3 hover:bg-paper">
-            <span className="grid size-10 shrink-0 place-items-center rounded-md bg-signboard/10 text-signboard">
-              <CategoryIcon category={issue.category} />
-            </span>
-            <span className="min-w-0 flex-1">
-              <span className="flex items-baseline gap-2">
-                <span className="font-medium">{categoryMeta(issue.category).label}</span>
-                <span className="text-xs tabular-nums text-ink/50">{issue.ticket}</span>
+    <ul className="space-y-3">
+      {issues.map((issue, index) => {
+        const open = issue.status !== "resolved" && issue.status !== "rejected";
+        return (
+          <li key={issue.id} className="animate-rise" style={{ animationDelay: `${Math.min(index, 8) * 40}ms` }}>
+            <Link to={`/issues/${issue.id}`} className="card card-hover flex items-center gap-4 p-4">
+              <CategoryChip category={issue.category} />
+              <span className="min-w-0 flex-1">
+                <span className="flex flex-wrap items-baseline gap-x-2">
+                  <span className="font-display text-base font-semibold">{categoryMeta(issue.category).label}</span>
+                  <span className="text-xs tabular-nums text-ink/45">{issue.ticket}</span>
+                </span>
+                <span className="mt-0.5 block truncate text-sm text-ink/65">{issue.address || issue.description}</span>
+                <span className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-ink/55">
+                  <span className="inline-flex items-center gap-1">
+                    <Layers size={13} aria-hidden /> {issue.reportCount} {issue.reportCount === 1 ? "report" : "reports"}
+                  </span>
+                  <span className="inline-flex items-center gap-1">
+                    <ThumbsUp size={13} aria-hidden /> {issue.supporterCount}
+                  </span>
+                  {open && (
+                    <span className="inline-flex items-center gap-1">
+                      <Clock size={13} aria-hidden /> {daysOpen(issue.createdAt)}d open
+                    </span>
+                  )}
+                </span>
               </span>
-              <span className="block truncate text-sm text-ink/70">{issue.address || issue.description}</span>
-            </span>
-            <span className="hidden w-28 shrink-0 sm:block">
-              <PriorityMeter score={issue.priority} label={issue.priorityLabel} />
-            </span>
-            <span className="hidden w-20 shrink-0 text-xs text-ink/60 md:block">
-              {issue.reportCount} {issue.reportCount === 1 ? "report" : "reports"}
-            </span>
-            <StatusBadge status={issue.status} />
-          </Link>
-        </li>
-      ))}
+              <span className="hidden w-32 shrink-0 sm:block">
+                <PriorityMeter score={issue.priority} label={issue.priorityLabel} />
+              </span>
+              <StatusBadge status={issue.status} />
+            </Link>
+          </li>
+        );
+      })}
     </ul>
   );
 }

@@ -1,23 +1,154 @@
 @import "tailwindcss";
 @import "@fontsource-variable/public-sans";
+@import "@fontsource-variable/bricolage-grotesque";
+
+@custom-variant dark (&:where(.dark, .dark *));
 
 @theme {
   --font-sans: "Public Sans Variable", ui-sans-serif, system-ui, sans-serif;
-  --color-paper: #f5f6f3;
-  --color-ink: #1b2430;
-  --color-signboard: #1f4e79;
-  --color-marker: #e0a100;
-  --color-marker-dark: #8a6100;
-  --color-resolved: #2e7d5b;
-  --color-alert: #b83a2e;
+  --font-display: "Bricolage Grotesque Variable", "Public Sans Variable", ui-sans-serif, sans-serif;
+
+  /* Real values live in :root and .dark below, so every colour switches with the theme. */
+  --color-paper: var(--c-paper);
+  --color-surface: var(--c-surface);
+  --color-ink: var(--c-ink);
+  --color-signboard: var(--c-signboard);
+  --color-accent: var(--c-accent);
+  --color-marker: var(--c-marker);
+  --color-marker-dark: var(--c-marker-dark);
+  --color-resolved: var(--c-resolved);
+  --color-alert: var(--c-alert);
+
+  --shadow-card: 0 1px 2px rgb(16 24 40 / 0.05), 0 8px 24px -12px rgb(16 24 40 / 0.18);
+  --shadow-lift: 0 2px 4px rgb(16 24 40 / 0.06), 0 18px 40px -16px rgb(16 24 40 / 0.35);
+
+  --animate-rise: rise 0.55s cubic-bezier(0.22, 1, 0.36, 1) both;
+  --animate-fade: fade 0.4s ease both;
+  --animate-pop: pop 0.35s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+  --animate-pulse-ring: pulse-ring 2.2s ease-out infinite;
+  --animate-float: float 6s ease-in-out infinite;
 }
+
+:root {
+  --c-paper: #f4f5f1;
+  --c-surface: #ffffff;
+  --c-ink: #17202b;
+  --c-signboard: #1f4e79;
+  --c-accent: #1f4e79;
+  --c-marker: #e0a100;
+  --c-marker-dark: #8a6100;
+  --c-resolved: #2e7d5b;
+  --c-alert: #b83a2e;
+}
+
+.dark {
+  --c-paper: #0c1219;
+  --c-surface: #131b25;
+  --c-ink: #e7edf3;
+  --c-signboard: #2c68a3;
+  --c-accent: #86b9ea;
+  --c-marker: #f0b429;
+  --c-marker-dark: #f0c35e;
+  --c-resolved: #4cc38a;
+  --c-alert: #f0786b;
+}
+
+@keyframes rise { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
+@keyframes fade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes pop { from { opacity: 0; transform: scale(0.92) translateY(8px); } to { opacity: 1; transform: none; } }
+@keyframes pulse-ring { 0% { transform: scale(0.6); opacity: 0.7; } 100% { transform: scale(2.4); opacity: 0; } }
+@keyframes float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-8px); } }
+@keyframes shimmer { to { background-position: -200% 0; } }
+
+html { scroll-behavior: smooth; -webkit-tap-highlight-color: transparent; }
 
 body {
-  background: var(--color-paper);
-  color: var(--color-ink);
+  background: var(--c-paper);
+  color: var(--c-ink);
   font-family: var(--font-sans);
+  transition: background-color 0.25s ease, color 0.25s ease;
 }
 
-.leaflet-container {
-  font-family: var(--font-sans);
+h1, h2, h3 { font-family: var(--font-display); letter-spacing: -0.02em; }
+::selection { background: color-mix(in srgb, var(--c-marker) 40%, transparent); }
+:focus-visible { outline: 2px solid var(--c-accent); outline-offset: 2px; }
+
+@layer components {
+  .card {
+    background: var(--c-surface);
+    border: 1px solid color-mix(in srgb, var(--c-ink) 11%, transparent);
+    border-radius: 1rem;
+    box-shadow: var(--shadow-card);
+  }
+  .card-hover { transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease; }
+  .card-hover:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-lift);
+    border-color: color-mix(in srgb, var(--c-accent) 35%, transparent);
+  }
+
+  .btn {
+    display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem;
+    border-radius: 0.75rem; padding: 0.6rem 1.05rem; font-size: 0.9rem; font-weight: 600; line-height: 1.2;
+    cursor: pointer;
+    transition: transform 0.15s ease, background-color 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease, opacity 0.15s ease, filter 0.15s ease;
+  }
+  .btn:active:not(:disabled) { transform: scale(0.97); }
+  .btn:disabled { opacity: 0.55; cursor: not-allowed; }
+  .btn-primary { background: var(--c-signboard); color: #fff; box-shadow: 0 6px 16px -8px color-mix(in srgb, var(--c-signboard) 80%, black); }
+  .btn-primary:hover:not(:disabled) { filter: brightness(1.1); }
+  .btn-marker { background: var(--c-marker); color: #241a00; }
+  .btn-marker:hover:not(:disabled) { filter: brightness(1.06); }
+  .btn-outline { background: var(--c-surface); color: var(--c-ink); border: 1px solid color-mix(in srgb, var(--c-ink) 22%, transparent); }
+  .btn-outline:hover:not(:disabled) { border-color: var(--c-accent); color: var(--c-accent); }
+  .btn-ghost { color: color-mix(in srgb, var(--c-ink) 75%, transparent); }
+  .btn-ghost:hover:not(:disabled) { background: color-mix(in srgb, var(--c-ink) 7%, transparent); color: var(--c-ink); }
+
+  .input {
+    width: 100%; border-radius: 0.75rem; border: 1px solid color-mix(in srgb, var(--c-ink) 22%, transparent);
+    background: var(--c-surface); color: var(--c-ink); padding: 0.65rem 0.85rem;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  }
+  .input::placeholder { color: color-mix(in srgb, var(--c-ink) 40%, transparent); }
+  .input:focus { outline: none; border-color: var(--c-accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--c-accent) 25%, transparent); }
+  .input[aria-invalid="true"] { border-color: var(--c-alert); }
+
+  .skeleton {
+    border-radius: 0.5rem;
+    background: linear-gradient(100deg,
+      color-mix(in srgb, var(--c-ink) 7%, transparent) 30%,
+      color-mix(in srgb, var(--c-ink) 14%, transparent) 50%,
+      color-mix(in srgb, var(--c-ink) 7%, transparent) 70%);
+    background-size: 200% 100%;
+    animation: shimmer 1.4s linear infinite;
+  }
+
+  .grid-paper {
+    background-image:
+      linear-gradient(color-mix(in srgb, var(--c-ink) 6%, transparent) 1px, transparent 1px),
+      linear-gradient(90deg, color-mix(in srgb, var(--c-ink) 6%, transparent) 1px, transparent 1px);
+    background-size: 36px 36px;
+  }
+}
+
+/* Leaflet */
+.leaflet-container { font-family: var(--font-sans); background: var(--c-paper); }
+.dark .leaflet-tile-pane { filter: invert(1) hue-rotate(180deg) brightness(0.92) contrast(0.88) saturate(0.8); }
+.leaflet-popup-content-wrapper { border-radius: 0.85rem; background: var(--c-surface); color: var(--c-ink); box-shadow: var(--shadow-lift); }
+.leaflet-popup-tip { background: var(--c-surface); }
+.leaflet-popup-content { margin: 0.8rem 0.95rem; }
+.cc-pin { background: none; border: none; }
+.cc-pin .pin {
+  display: grid; place-items: center; width: 34px; height: 34px; border-radius: 50% 50% 50% 0;
+  transform: rotate(-45deg); border: 2px solid #fff; box-shadow: 0 6px 14px -4px rgb(0 0 0 / 0.45);
+  transition: transform 0.2s ease;
+}
+.cc-pin .pin > span { transform: rotate(45deg); display: grid; place-items: center; color: #fff; }
+.cc-pin:hover .pin { transform: rotate(-45deg) scale(1.15); }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important; animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important; scroll-behavior: auto !important;
+  }
 }

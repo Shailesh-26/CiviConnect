@@ -27,7 +27,7 @@ type Props = {
 
 export function LocationPicker({ value, onChange, flyTarget }: Props) {
   return (
-    <MapContainer center={INDIA_CENTER} zoom={5} className="h-80 w-full rounded-lg border border-ink/20">
+    <MapContainer center={INDIA_CENTER} zoom={5} className="z-0 h-80 w-full rounded-2xl border border-ink/15 shadow-card">
       <TileLayer
         attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
         url="https://tile.openstreetmap.org/{z}/{x}/{y}.png"
@@ -38,7 +38,7 @@ export function LocationPicker({ value, onChange, flyTarget }: Props) {
         <CircleMarker
           center={[value.lat, value.lng]}
           radius={10}
-          pathOptions={{ color: "#ffffff", weight: 3, fillColor: "#1f4e79", fillOpacity: 1 }}
+          pathOptions={{ color: "#ffffff", weight: 3, fillColor: "#e0a100", fillOpacity: 1 }}
         />
       )}
     </MapContainer>

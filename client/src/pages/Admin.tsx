@@ -1,11 +1,14 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { Field } from "../components/Field";
+import { PageHeader } from "../components/ui";
+import { useToast } from "../lib/toast-context";
 import { api, ApiError } from "../lib/api";
 import type { User } from "../types";
 
 const emptyForm = { name: "", email: "", password: "", department: "" };
 
 export default function Admin() {
+  const toast = useToast();
   const [users, setUsers] = useState<User[]>([]);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [reloadKey, setReloadKey] = useState(0);
@@ -44,6 +47,7 @@ export default function Admin() {
     try {
       const data = await api<{ user: User }>("/admin/officers", { method: "POST", body: form });
       setCreated(`Officer account created for ${data.user.email}`);
+      toast.success(`Officer account created for ${data.user.name}`);
       setForm(emptyForm);
       setReloadKey((k) => k + 1);
     } catch (err) {
@@ -59,9 +63,11 @@ export default function Admin() {
   }
 
   return (
-    <div className="grid gap-12 lg:grid-cols-[20rem_1fr]">
-      <section>
-        <h1 className="text-2xl font-semibold tracking-tight">Create officer</h1>
+    <div className="space-y-8">
+      <PageHeader title="Admin" subtitle="Create officer accounts and see everyone on the platform." />
+      <div className="grid gap-8 lg:grid-cols-[22rem_1fr]">
+      <section className="card self-start p-6">
+        <h2 className="text-xl font-semibold">Create officer</h2>
         <form onSubmit={onSubmit} className="mt-6 space-y-4">
           <Field label="Full name" value={form.name} onChange={set("name")} error={fieldErrors.name} />
           <Field
@@ -92,19 +98,19 @@ export default function Admin() {
           <button
             type="submit"
             disabled={submitting}
-            className="rounded bg-signboard px-4 py-2 font-medium text-white hover:bg-signboard/90 disabled:opacity-60"
+            className="btn btn-primary w-full"
           >
             {submitting ? "Creating…" : "Create officer"}
           </button>
         </form>
       </section>
 
-      <section>
-        <h2 className="text-2xl font-semibold tracking-tight">All users</h2>
+      <section className="card p-6">
+        <h2 className="text-xl font-semibold">All users</h2>
         {loadError && <p className="mt-4 text-sm text-alert">{loadError}</p>}
         <div className="mt-4 overflow-x-auto">
           <table className="w-full text-left text-sm">
-            <thead className="border-b border-ink/20 text-ink/60">
+            <thead className="border-b border-ink/15 text-ink/60">
               <tr>
                 <th className="py-2 pr-4 font-medium">Name</th>
                 <th className="py-2 pr-4 font-medium">Email</th>
@@ -118,7 +124,7 @@ export default function Admin() {
                 <tr key={u.id} className="border-b border-ink/10">
                   <td className="py-2 pr-4">{u.name}</td>
                   <td className="py-2 pr-4">{u.email}</td>
-                  <td className="py-2 pr-4 capitalize">{u.role}</td>
+                  <td className="py-2 pr-4 capitalize"><span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${u.role === "admin" ? "bg-alert/12 text-alert" : u.role === "officer" ? "bg-marker/20 text-marker-dark" : "bg-accent/12 text-accent"}`}>{u.role}</span></td>
                   <td className="py-2 pr-4">{u.department ?? "—"}</td>
                   <td className="py-2">{new Date(u.createdAt).toLocaleDateString("en-IN")}</td>
                 </tr>
@@ -127,6 +133,7 @@ export default function Admin() {
           </table>
         </div>
       </section>
+      </div>
     </div>
   );
 }
