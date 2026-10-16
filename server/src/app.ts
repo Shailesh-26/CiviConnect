@@ -14,6 +14,7 @@ import { authRouter } from "./routes/auth.routes";
 import { healthRouter } from "./routes/health";
 import { issueRouter } from "./routes/issue.routes";
 import { publicRouter } from "./routes/public.routes";
+import { visionRouter } from "./routes/vision.routes";
 
 export const app = express();
 
@@ -39,6 +40,7 @@ app.use("/api/notifications", notificationRouter);
 app.use("/api/officer", officerRouter);
 app.use("/api/analytics", analyticsRouter);
 app.use("/api/insights", insightsRouter);
+app.use("/api/vision", visionRouter);
 
 app.use((_req, res) => {
   res.status(404).json({ message: "Route not found" });

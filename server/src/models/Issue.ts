@@ -16,6 +16,10 @@ export type Source = (typeof SOURCES)[number];
 export const CHANNELS = ["phone", "walk_in", "email", "letter"] as const;
 export type Channel = (typeof CHANNELS)[number];
 
+// Photo Assistant outcomes (see ml/app/main.py).
+export const AI_VERDICTS = ["confident", "unsure", "not_civic"] as const;
+export const AI_MODES = ["zero-shot", "trained"] as const;
+
 const imageSchema = new Schema(
   {
     url: { type: String, required: true },
@@ -36,6 +40,19 @@ const reportSchema = new Schema({
       {
         name: { type: String, trim: true, maxlength: 80 },
         channel: { type: String, enum: CHANNELS },
+      },
+      { _id: false },
+    ),
+    default: undefined,
+  },
+  // What the Photo Assistant suggested for this report's photo, kept to measure real-world accuracy.
+  ai: {
+    type: new Schema(
+      {
+        verdict: { type: String, enum: AI_VERDICTS },
+        category: { type: String, enum: CATEGORIES },
+        confidence: { type: Number, min: 0, max: 1 },
+        mode: { type: String, enum: AI_MODES },
       },
       { _id: false },
     ),

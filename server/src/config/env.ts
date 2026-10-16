@@ -14,6 +14,8 @@ const schema = z.object({
   CLOUDINARY_CLOUD_NAME: z.string().optional(),
   CLOUDINARY_API_KEY: z.string().optional(),
   CLOUDINARY_API_SECRET: z.string().optional(),
+  // The local Photo Assistant (ml/ folder). Leave empty to use http://localhost:8000.
+  VISION_URL: z.preprocess((v) => (v === "" ? undefined : v), z.string().url().default("http://localhost:8000")),
 });
 
 export const env = schema.parse(process.env);

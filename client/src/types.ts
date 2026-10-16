@@ -347,3 +347,44 @@ export type CivicScore = {
 export type TimelineItem = { id: string; category: Category; lat: number; lng: number; createdAt: string; resolvedAt: string | null; rejectedAt: string | null };
 
 export type SimulatorStatus = { running: boolean; everySeconds: number; startedAt: string | null; actions: number; last: string | null };
+
+// Photo Assistant (ml/ service, proxied by the server at /api/vision)
+export type VisionMode = "zero-shot" | "trained";
+export type VisionResult = {
+  verdict: "confident" | "unsure" | "not_civic";
+  category: Category | null;
+  confidence: number;
+  civic: number;
+  top: { category: Category; score: number }[];
+  quality: { sharpness: number; brightness: number; blurry: boolean; dark: boolean };
+  model: { name: string; mode: VisionMode };
+  ms: number;
+};
+export type VisionMetrics = {
+  encoder: string;
+  method: string;
+  classes: string[];
+  accuracy: number;
+  macroF1: number;
+  zeroShotAccuracy: number;
+  zeroShotMacroF1: number;
+  perClass: Record<string, { precision: number; recall: number; f1: number; support: number }>;
+  confusion: { labels: string[]; matrix: number[][] };
+  nPhotos: number;
+  nTrain: number;
+  nTest: number;
+  trainedAt: string;
+};
+export type VisionStatus =
+  | { available: false }
+  | { available: true; loadSeconds: number | null; model: { name: string; mode: VisionMode; classes: string[]; metrics: VisionMetrics | null } };
+type Agreement = { n: number; agreed: number; rate: number | null };
+export type VisionStats = {
+  total: number;
+  civic: Agreement;
+  confident: Agreement;
+  unsure: Agreement;
+  notCivic: number;
+  byMode: Record<VisionMode, Agreement>;
+  byCategory: ({ category: Category } & Agreement)[];
+};

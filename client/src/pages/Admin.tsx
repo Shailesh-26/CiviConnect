@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react
 import { createPortal } from "react-dom";
 import { Link, useSearchParams } from "react-router-dom";
 import {
+  BrainCircuit,
   Bot,
   CheckCircle2,
   Flag,
@@ -23,6 +24,7 @@ import { Avatar } from "../components/Avatar";
 import { CategoryChip } from "../components/CategoryChip";
 import { ConfirmDialog } from "../components/ConfirmDialog";
 import { Field } from "../components/Field";
+import { ModelCard } from "../components/ModelCard";
 import { StatusBadge } from "../components/StatusBadge";
 import { EmptyState, ErrorNote, ListSkeleton, PageHeader, Switch } from "../components/ui";
 import { api, ApiError } from "../lib/api";
@@ -32,12 +34,13 @@ import { timeAgo } from "../lib/format";
 import { useToast } from "../lib/toast-context";
 import type { AdminUser, AuditEntry, CategorySla, FlagGroup, Role } from "../types";
 
-type Tab = "people" | "moderation" | "sla" | "audit";
+type Tab = "people" | "moderation" | "sla" | "audit" | "ai";
 const TABS: { id: Tab; label: string; icon: LucideIcon }[] = [
   { id: "people", label: "People", icon: Users },
   { id: "moderation", label: "Moderation", icon: Flag },
   { id: "sla", label: "Categories & SLA", icon: Timer },
   { id: "audit", label: "Audit log", icon: History },
+  { id: "ai", label: "Photo Assistant", icon: BrainCircuit },
 ];
 
 function Drawer({ open, title, onClose, children }: { open: boolean; title: string; onClose: () => void; children: React.ReactNode }) {
@@ -568,6 +571,7 @@ export default function Admin() {
         {tab === "moderation" && <Moderation />}
         {tab === "sla" && <SlaSettings />}
         {tab === "audit" && <AuditLog />}
+        {tab === "ai" && <ModelCard />}
       </div>
     </div>
   );

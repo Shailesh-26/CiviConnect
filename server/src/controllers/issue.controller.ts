@@ -122,7 +122,10 @@ export const createIssue: RequestHandler = async (req, res) => {
   }
 
   const images = await Promise.all(files.map((f) => uploadImage(f.buffer)));
-  const report = { user: userId, description, images, source, onBehalf };
+  const ai = input.aiVerdict
+    ? { verdict: input.aiVerdict, category: input.aiCategory, confidence: input.aiConfidence, mode: input.aiMode }
+    : undefined;
+  const report = { user: userId, description, images, source, onBehalf, ai };
 
   let issueId: string;
   let merged = false;

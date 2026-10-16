@@ -23,12 +23,14 @@ import { useAuth } from "../auth/useAuth";
 import { AddressSearch } from "../components/AddressSearch";
 import { CategoryChip } from "../components/CategoryChip";
 import { LocationPicker, type LatLng } from "../components/LocationPicker";
+import { PhotoAssistantCard, PhotoScan } from "../components/PhotoAssistantCard";
 import { SimilarIssues } from "../components/SimilarIssues";
 import { api, ApiError } from "../lib/api";
 import { CATEGORIES, CATEGORY_COLOR, CHANNEL_META, issueLabel } from "../lib/constants";
 import { CUSTOM_ICONS, OTHER_SUGGESTIONS } from "../lib/customIcons";
 import { useToast } from "../lib/toast-context";
 import { confetti } from "../lib/confetti";
+import { usePhotoAssistant } from "../lib/usePhotoAssistant";
 import type { Category, Channel, Issue, IssueDetail, NearbyItem, Role } from "../types";
 
 type StepId = "who" | "photo" | "what" | "where" | "details" | "review";
@@ -123,6 +125,11 @@ export default function ReportIssue() {
   const [similar, setSimilar] = useState<NearbyItem[] | null>(null);
   const [similarLoading, setSimilarLoading] = useState(false);
   const [supportingId, setSupportingId] = useState<string | null>(null);
+
+  // The Photo Assistant looks at the first photo and pre-selects the problem when it is confident.
+  const assistant = usePhotoAssistant(files[0] ?? null, (r) => {
+    if (r.verdict === "confident" && r.category) setCategory((c) => c || r.category!);
+  });
 
   const previews = useMemo(() => files.map((f) => URL.createObjectURL(f)), [files]);
   useEffect(() => () => previews.forEach((url) => URL.revokeObjectURL(url)), [previews]);
@@ -277,6 +284,12 @@ export default function ReportIssue() {
       form.append("channel", channel);
     }
     files.forEach((f) => form.append("photos", f));
+    if (assistant.result) {
+      form.append("aiVerdict", assistant.result.verdict);
+      form.append("aiCategory", assistant.result.top[0]?.category ?? "");
+      form.append("aiConfidence", String(assistant.result.top[0]?.score ?? ""));
+      form.append("aiMode", assistant.result.model.mode);
+    }
 
     setSubmitting(true);
     try {
@@ -317,6 +330,7 @@ export default function ReportIssue() {
   const progress = ((stepIndex + 1) / steps.length) * 100;
   const label = category ? issueLabel({ category, customLabel: isOther ? customLabel.trim() || "Something else" : null }) : "";
   const willMerge = similar?.find((s) => s.willMerge);
+  const suggested = assistant.result && assistant.result.verdict !== "not_civic" ? assistant.result.top[0]?.category : undefined;
 
   return (
     <div className="mx-auto max-w-3xl space-y-5">
@@ -415,6 +429,7 @@ export default function ReportIssue() {
               {previews.map((src, index) => (
                 <div key={src} className="relative aspect-square animate-pop overflow-hidden rounded-2xl border border-ink/15">
                   <img src={src} alt={`Photo ${index + 1}`} className="size-full object-cover" />
+                  {index === 0 && <PhotoScan loading={assistant.loading} result={assistant.result} />}
                   <button type="button" aria-label={`Remove photo ${index + 1}`} onClick={() => setFiles((prev) => prev.filter((_, i) => i !== index))} className="absolute right-2 top-2 grid size-7 place-items-center rounded-full bg-black/70 text-white">
                     <X size={15} aria-hidden />
                   </button>
@@ -428,15 +443,28 @@ export default function ReportIssue() {
               )}
             </div>
           )}
+          {files.length > 0 && (
+            <PhotoAssistantCard
+              loading={assistant.loading}
+              offline={assistant.offline}
+              result={assistant.result}
+              selected={category}
+              onPick={(c) => {
+                setCategory(c);
+                setFieldErrors((e) => ({ ...e, category: "" }));
+              }}
+            />
+          )}
         </StepCard>
       )}
 
       {step === "what" && (
-        <StepCard title="What kind of problem is it?">
+        <StepCard title="What kind of problem is it?" hint={suggested ? "The Photo Assistant's suggestion is marked. Change it if it's wrong." : undefined}>
           <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3">
             {CATEGORIES.map(({ value, label: text, icon: Icon }) => {
               const active = category === value;
               const color = CATEGORY_COLOR[value];
+              const isSuggested = suggested === value;
               return (
                 <button
                   key={value}
@@ -444,8 +472,13 @@ export default function ReportIssue() {
                   onClick={() => setCategory(value)}
                   aria-pressed={active}
                   style={active ? { borderColor: color, background: `${color}1a` } : undefined}
-                  className="flex flex-col items-start gap-3 rounded-2xl border border-ink/15 bg-surface p-4 text-left text-sm font-semibold transition hover:-translate-y-0.5 hover:border-ink/35 hover:shadow-card"
+                  className="relative flex flex-col items-start gap-3 rounded-2xl border border-ink/15 bg-surface p-4 text-left text-sm font-semibold transition hover:-translate-y-0.5 hover:border-ink/35 hover:shadow-card"
                 >
+                  {isSuggested && (
+                    <span className="absolute right-2.5 top-2.5 inline-flex items-center gap-1 rounded-full bg-accent/12 px-2 py-0.5 text-[10px] font-semibold text-accent animate-pop">
+                      <Sparkles size={11} aria-hidden /> Suggested
+                    </span>
+                  )}
                   <span className="grid size-11 place-items-center rounded-xl" style={{ background: `${color}22`, color }}>
                     <Icon size={22} aria-hidden />
                   </span>

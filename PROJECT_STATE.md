@@ -1,6 +1,6 @@
 # PROJECT_STATE — CiviConnect
 
-Last updated: 2026-10-10, after Phase 9 (status: IMPLEMENTED, awaiting owner testing). Phases 6.1 to 8.1: TESTED by owner
+Last updated: 2026-10-10, after Phase 9 (status: TESTED by owner). Phases 6.1 to 9: TESTED by owner. Work paused by owner on 2026-10-10 15:13 IST
 
 ## Stack
 - Client: React 19 + Vite + TypeScript + Tailwind v4 (`client/`), React Router, lucide-react icons, Leaflet + react-leaflet (OpenStreetMap tiles), Public Sans font, plain `fetch` wrapper
@@ -129,7 +129,7 @@ NODE_ENV, PORT, MONGODB_URI, CLIENT_URL, JWT_SECRET (32+ chars), JWT_EXPIRES_DAY
 - SLA chip time format fixed ("6 h 60 m" bug)
 - CV decision recorded: Phase 10a (before review) = local Python service + Photo Assistant UI + zero-shot baseline + Colab notebook; Phase 10b (after review) = fine-tune on owner's dataset and report real metrics. Owner to start collecting photos per category now
 
-## Phase 9 (Intelligence + premium motion + pagination) - IMPLEMENTED 2026-10-10, awaiting owner testing
+## Phase 9 (Intelligence + premium motion + pagination) - TESTED by owner 2026-10-10
 - Pagination: server-side search (every word across ticket/name/landmark/description), status group, category, sort and paging in one MongoDB aggregation with $facet; the priority formula is mirrored as a MongoDB expression so sorting by priority works across pages (utils/pagedIssues.ts). My reports and the queue use numbered pages (components/Pagination.tsx, lib/usePagedIssues.ts, 300 ms search debounce)
 - Chronic spots (services/insights.ts): same category within 60 m, 3+ issues in 120 days with a return after a fix (or 4+); permanent-fix suggestion per category; badge on the issue page; Insights tab with map and list
 - Area report cards: grade A-F per area = 35% fixed on time + 30% share fixed + 20% speed + 15% stayed fixed; previous-period grade, open/overdue/chronic counts; print and share
@@ -143,10 +143,31 @@ NODE_ENV, PORT, MONGODB_URI, CLIENT_URL, JWT_SECRET (32+ chars), JWT_EXPIRES_DAY
 - Demo seed: 4 chronic spots (pothole, drainage, garbage, street light); demo-ticket match tightened to CC-D#### / CC-DS####
 - Verified in sandbox: server tsc; client tsc + eslint + build; geo/regex unit checks; 401 checks; Playwright screenshots against a mock API. NOT verified: aggregations against Atlas (pagination, insights), simulator running against the real database
 
+## Phase 9.5 (SaaS landing page + smoothness) - delivered 2026-10-16, owner loved it ("I love this makeover")
+- Landing rebuilt from components in client/src/components/landing/: floating island header (shrinks to a glass pill on scroll, scroll-progress line, sliding hover pill, active-section underline, Product mega menu, animated burger + mobile sheet), hero with rotating problem word, marker-underline and a scripted live product preview (one pothole going Reported -> merged -> assigned -> in progress -> fixed, real priority formula and 72 h clock, pointer parallax, clickable steps), live activity ticker (pauses on hover), features bento (interactive priority playground using the exact server formula, merge animation, SLA clock that warns and escalates, live notification stack, draggable before/after proof slider, area grade weights), role tabs (citizen / officer / admin, auto-advance with timer, animated mini screens), scroll-driven "how it works" with sticky visual, live city section (map, counters, category bars, activity; refreshes every 30 s while visible), "under the hood" tech section, FAQ accordion, magnetic CTA, multi-column footer with server status
+- No testimonials or invented numbers: all numbers come from /api/public/overview
+- Smoothness: animations use transform/opacity only and pause when off screen (useInView, .cc-paused); removed the CSS blur filter from the global aurora background, which was the main cause of dropped frames on every page (headless test: 26 -> ~116 frames per 2 s idle)
+- .reveal now uses the `translate` property so hover lift and tilt still work on revealed cards; per-item delay via --rd
+- New lib/useInView.ts (useInView, useInterval)
+- Verified in sandbox: client tsc + eslint + build; Playwright screenshots desktop/dark/mobile against the mock API; frame-timing check
+
+## Phase 10a (Photo Assistant + tests + README) - delivered 2026-10-16, awaiting owner test
+- ml/ (Python, FastAPI): CLIP ViT-B/32 via transformers, local (one-time ~600 MB download, no external AI API). Zero-shot with prompt ensembles per category plus a not_civic class (labels.py); verdict confident (>=0.55 among civic classes) / unsure / not_civic (civic prob < 0.5); blur (Laplacian variance < 60) and dark (mean < 45) checks; EXIF rotation; 8 MB limit; model runs off the event loop. Trained mode auto-loads models/civic_head.npz (+ metrics.json)
+- notebooks/train_civic_classifier.ipynb (Colab): Drive dataset folders, CLIP embeddings, stratified 80/20 split, zero-shot baseline vs logistic-regression linear probe (GridSearch C, balanced classes), report, confusion matrix, misclassified photos, export npz + metrics.json. Verified end-to-end in sandbox with a tiny random CLIP and synthetic photos
+- Server: /api/vision/status, /api/vision/classify (auth, 60 per 10 min, proxies to VISION_URL, 503 when offline), /api/vision/stats (admin: agreement of suggestion vs reported category, by verdict/mode/category). Reports store ai {verdict, category, confidence, mode}; invalid ai fields are ignored, never block a report
+- Client: wizard Photo step scans the first photo (scan line, then category-coloured corner lock), Photo Assistant card (confident -> pre-selects category if none chosen; unsure -> top 3 tappable bars; not_civic warning; blurry/dark hints; offline note); "Suggested" badge on the Problem step; Admin tab "Photo Assistant" model card (status, test accuracy vs zero-shot, per-class F1, confusion matrix, real-use agreement)
+- Tests: server `npm test` (node:test via tsx, 30 tests: priority, SLA, geo/text, validators, vision client with a stub service, 401 on private routes); ml `python -m pytest -q` (10 tests, fake encoder). Found and fixed: blank lat/lng was coerced to 0
+- README.md (project) and ml/README.md (setup) written
+- Not verified in sandbox: real CLIP weights (Hugging Face blocked here); code path verified with a randomly initialised CLIP of the same API
+
+## Phase 10a.1 (2026-10-16)
+- Owner ran the service on Windows with Python 3.14 (works; model loaded in 60 s). Load safetensors only (no double 600 MB download), hide HF symlink warning, PowerShell activation command in docs and the Admin model card
+
 ## Next steps
-1. Owner runs the Phase 9 test list; commit
-2. Phase 10a: Photo Assistant (local FastAPI CV service, zero-shot baseline, Colab notebook, suggestion chip in the wizard); automated tests; README; refresh the presentation with new screenshots
-3. Phase 10b (after review): fine-tune on the owner's photo dataset, report real metrics
+1. Owner tests 10a; collects 100-300 photos per category + not_civic for 10b
+2. Owner to choose extra features (offered 2026-10-16): auto-blur faces/number plates, same-photo duplicate check, AI fix check on proof photos, Telugu/Hindi, PWA offline, email alerts
+3. Phase 10b: train on owner's photos with the notebook, report real metrics
+4. Presentation only when the owner asks
 
 ## Notes / revisit
 - Production cookies use SameSite=None; revisit CSRF protection at deployment
