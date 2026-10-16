@@ -85,7 +85,7 @@ export function ModelCard() {
           <pre className="cc-scroll mt-3 overflow-x-auto rounded-xl bg-ink/[0.05] p-4 text-xs leading-relaxed">{`cd ml
 Set-ExecutionPolicy -Scope Process -ExecutionPolicy RemoteSigned; .venv\\Scripts\\Activate.ps1
 uvicorn app.main:app --port 8000`}</pre>
-          <p className="mt-2 text-xs text-ink/55">First-time setup is in ml/README.md.</p>
+          <p className="mt-2 text-xs text-ink/55">First-time setup is in the project README, under "Photo Assistant".</p>
         </div>
       )}
 

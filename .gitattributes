@@ -1,0 +1,6 @@
+# Keep line endings consistent (LF) on every computer, so Git stops warning about CRLF on Windows.
+* text=auto eol=lf
+*.png binary
+*.jpg binary
+*.ico binary
+*.npz binary

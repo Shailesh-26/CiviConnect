@@ -170,6 +170,11 @@ NODE_ENV, PORT, MONGODB_URI, CLIENT_URL, JWT_SECRET (32+ chars), JWT_EXPIRES_DAY
 - Removed Vite leftovers: client/README.md, client/src/assets/
 - Owner's push of 10a was rejected because origin/main had a newer commit (from the second laptop); told to pull then push
 
+## Phase 10a.3 (2026-10-16) - repo housekeeping
+- Owner's GitHub is in sync with this work copy (verified by cloning; only line-ending differences). His pull hit a README conflict because he had pasted the new README on GitHub; resolved
+- One README only: ml/README.md merged into the root README (setup, daily run with 3 terminals, Photo Assistant, training, tests) and deleted
+- .gitattributes (text=auto eol=lf) to stop CRLF warnings on Windows
+
 ## Next steps
 1. Owner tests 10a; collects 100-300 photos per category + not_civic for 10b
 2. Phase 11 (owner left the choice to me, 2026-10-16): forgot-password by email (dev fallback prints the link), emergency reports (4 h clock, instant admin alert), officer on-leave with automatic reassignment, privacy blur of faces in uploaded photos (local OpenCV)

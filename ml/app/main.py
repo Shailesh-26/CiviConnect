@@ -1,6 +1,6 @@
 """CiviConnect Photo Assistant: a small local HTTP service.
 
-Run:  uvicorn app.main:app --port 8000        (from the ml/ folder, with the virtual environment active)
+Run:  uvicorn app.main:app --port 8000        (from the ml/ folder, with the virtual environment active; setup in README.md)
 Docs: http://localhost:8000/docs
 """
 
