@@ -163,9 +163,16 @@ NODE_ENV, PORT, MONGODB_URI, CLIENT_URL, JWT_SECRET (32+ chars), JWT_EXPIRES_DAY
 ## Phase 10a.1 (2026-10-16)
 - Owner ran the service on Windows with Python 3.14 (works; model loaded in 60 s). Load safetensors only (no double 600 MB download), hide HF symlink warning, PowerShell activation command in docs and the Admin model card
 
+## Phase 10a.2 (2026-10-16)
+- Owner tested 10a: everything works (service ran on Windows, Python 3.14)
+- Report wizard: drag and drop photos anywhere on the page (full-screen drop overlay, portalled), paste with Ctrl+V, one validation path (type, 5 MB, max 3) with clear toasts; dropping on a later step jumps back to the Photo step
+- Fix: cards vanished on hover in Insights > Chronic spots. Cause: the scroll-reveal flag was a class that React wiped when it re-rendered className; it is now a data-in attribute (lib/motion.ts, index.css)
+- Removed Vite leftovers: client/README.md, client/src/assets/
+- Owner's push of 10a was rejected because origin/main had a newer commit (from the second laptop); told to pull then push
+
 ## Next steps
 1. Owner tests 10a; collects 100-300 photos per category + not_civic for 10b
-2. Owner to choose extra features (offered 2026-10-16): auto-blur faces/number plates, same-photo duplicate check, AI fix check on proof photos, Telugu/Hindi, PWA offline, email alerts
+2. Phase 11 (owner left the choice to me, 2026-10-16): forgot-password by email (dev fallback prints the link), emergency reports (4 h clock, instant admin alert), officer on-leave with automatic reassignment, privacy blur of faces in uploaded photos (local OpenCV)
 3. Phase 10b: train on owner's photos with the notebook, report real metrics
 4. Presentation only when the owner asks
 

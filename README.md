@@ -50,7 +50,11 @@ server/  Express 5 + TypeScript + Mongoose + Zod                              (p
 ## Running locally
 
 Needs Node.js 20+, a MongoDB Atlas connection string, and (for photos) a Cloudinary account.
+<<<<<<< HEAD
 The Photo Assistant also needs Python 3.10 to 3.14.
+=======
+The Photo Assistant also needs Python 3.10 to 3.13.
+>>>>>>> 3371677e2556725f0ec57af115a4677006a5b843
 
 1. **Server:** `cd server`, `npm install`, copy `.env.example` to `.env` and fill it in, then `npm run dev`
 2. **Demo data (optional):** in `server`, run `npm run seed:demo`. It prints the demo logins.

@@ -268,7 +268,9 @@ body::before {
   transition: opacity 0.7s cubic-bezier(0.22, 1, 0.36, 1), translate 0.7s cubic-bezier(0.22, 1, 0.36, 1), transform 0.25s ease, box-shadow 0.25s ease, border-color 0.2s ease;
   transition-delay: var(--rd, 0ms), var(--rd, 0ms), 0ms, 0ms, 0ms;
 }
-.reveal.is-in { opacity: 1; translate: none; }
+/* A data attribute, not a class: React rewrites className on every re-render (e.g. a hover highlight),
+   which used to wipe the "revealed" flag and make cards vanish. React leaves unknown attributes alone. */
+.reveal[data-in] { opacity: 1; translate: none; }
 
 /* Buttons: soft shine sweep on primary actions. */
 .btn-primary, .btn-marker { position: relative; overflow: hidden; }
@@ -448,3 +450,7 @@ body::before {
 .cc-lock i:nth-child(4) { right: 0; bottom: 0; border-right-width: 3px; border-bottom-width: 3px; border-bottom-right-radius: 12px; }
 @keyframes cc-lock { from { opacity: 0; transform: scale(1.35); } to { opacity: 1; transform: none; } }
 @media (prefers-reduced-motion: reduce) { .cc-scan::before { animation: none; } }
+
+/* Report wizard: drag and drop overlay */
+@keyframes cc-bob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-8px); } }
+.cc-bob { animation: cc-bob 1.1s ease-in-out infinite; }

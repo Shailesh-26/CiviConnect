@@ -43,14 +43,14 @@ export function installMotion() {
     (entries) => {
       for (const entry of entries) {
         if (entry.isIntersecting) {
-          entry.target.classList.add("is-in");
+          entry.target.setAttribute("data-in", "");
           io.unobserve(entry.target);
         }
       }
     },
     { rootMargin: "0px 0px -8% 0px", threshold: 0.08 },
   );
-  const scan = (root: ParentNode) => root.querySelectorAll?.(".reveal:not(.is-in)").forEach((el) => io.observe(el));
+  const scan = (root: ParentNode) => root.querySelectorAll?.(".reveal:not([data-in])").forEach((el) => io.observe(el));
   scan(document);
   const mo = new MutationObserver((records) => {
     for (const r of records) r.addedNodes.forEach((n) => n instanceof HTMLElement && (n.matches(".reveal") ? io.observe(n) : scan(n)));

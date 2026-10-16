@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 import { Link, useNavigate } from "react-router-dom";
 import {
   ArrowLeft,
@@ -71,6 +72,9 @@ const COPY: Record<Role, { title: string; subtitle: string; submit: string; busy
   },
 };
 
+const PHOTO_TYPES = ["image/jpeg", "image/png", "image/webp"];
+const MAX_PHOTO_BYTES = 5 * 1024 * 1024;
+
 const CHANNEL_ICON: Record<Channel, LucideIcon> = { phone: Phone, walk_in: UserRound, email: Mail, letter: MailOpen };
 
 function StepCard({ title, hint, children }: { title: string; hint?: string; children: ReactNode }) {
@@ -125,6 +129,7 @@ export default function ReportIssue() {
   const [similar, setSimilar] = useState<NearbyItem[] | null>(null);
   const [similarLoading, setSimilarLoading] = useState(false);
   const [supportingId, setSupportingId] = useState<string | null>(null);
+  const [dragging, setDragging] = useState(false);
 
   // The Photo Assistant looks at the first photo and pre-selects the problem when it is confident.
   const assistant = usePhotoAssistant(files[0] ?? null, (r) => {
@@ -181,12 +186,66 @@ export default function ReportIssue() {
     };
   }, [point, category, customLabel, isOther, description]);
 
-  function addFiles(list: FileList | null) {
+  // One entry point for photos from the file picker, drag and drop, or paste. Checks type, size and the limit of 3.
+  function addFiles(list: FileList | File[] | null, how: "picked" | "dropped" | "pasted" = "picked") {
     if (!list) return;
     // Copy the files now: the input is cleared right after this runs.
-    const picked = Array.from(list);
-    setFiles((prev) => [...prev, ...picked].slice(0, 3));
+    const all = Array.from(list);
+    const images = all.filter((f) => PHOTO_TYPES.includes(f.type));
+    const fitting = images.filter((f) => f.size <= MAX_PHOTO_BYTES);
+    const room = Math.max(0, 3 - files.length);
+    const added = fitting.slice(0, room);
+    if (all.length > images.length) toast.error("Only JPEG, PNG or WebP photos can be added.", { title: "Not a photo" });
+    if (images.length > fitting.length) toast.error(`${images.length - fitting.length === 1 ? "A photo was" : `${images.length - fitting.length} photos were`} larger than 5 MB and skipped.`);
+    if (fitting.length > room) toast.error(room === 0 ? "You already have 3 photos. Remove one to add another." : `Only ${room} more ${room === 1 ? "photo fits" : "photos fit"}, so the rest were skipped.`);
+    if (!added.length) return;
+    setFiles((prev) => [...prev, ...added].slice(0, 3));
+    if (how !== "picked") toast.success(`${added.length} ${added.length === 1 ? "photo" : "photos"} ${how}.`, { duration: 2200 });
+    if (step !== "photo") setStepIndex(steps.indexOf("photo"));
   }
+
+  // Drag photos from the desktop onto the page, or paste a screenshot with Ctrl+V, on any step of the wizard.
+  useEffect(() => {
+    const hasFiles = (e: DragEvent) => Array.from(e.dataTransfer?.types ?? []).includes("Files");
+    const onEnter = (e: DragEvent) => {
+      if (!hasFiles(e)) return;
+      e.preventDefault();
+      setDragging(true);
+    };
+    const onOver = (e: DragEvent) => {
+      if (!hasFiles(e)) return;
+      e.preventDefault();
+      if (e.dataTransfer) e.dataTransfer.dropEffect = "copy";
+    };
+    const onLeave = (e: DragEvent) => {
+      // relatedTarget is null only when the pointer leaves the browser window.
+      if (e.relatedTarget === null) setDragging(false);
+    };
+    const onDrop = (e: DragEvent) => {
+      if (!hasFiles(e)) return;
+      e.preventDefault();
+      setDragging(false);
+      addFiles(e.dataTransfer?.files ?? null, "dropped");
+    };
+    const onPaste = (e: ClipboardEvent) => {
+      const pasted = Array.from(e.clipboardData?.files ?? []);
+      if (!pasted.length) return;
+      e.preventDefault();
+      addFiles(pasted, "pasted");
+    };
+    window.addEventListener("dragenter", onEnter);
+    window.addEventListener("dragover", onOver);
+    window.addEventListener("dragleave", onLeave);
+    window.addEventListener("drop", onDrop);
+    window.addEventListener("paste", onPaste);
+    return () => {
+      window.removeEventListener("dragenter", onEnter);
+      window.removeEventListener("dragover", onOver);
+      window.removeEventListener("dragleave", onLeave);
+      window.removeEventListener("drop", onDrop);
+      window.removeEventListener("paste", onPaste);
+    };
+  });
 
   function pick(p: LatLng) {
     setPoint(p);
@@ -334,6 +393,16 @@ export default function ReportIssue() {
 
   return (
     <div className="mx-auto max-w-3xl space-y-5">
+      {dragging && createPortal(
+        <div className="pointer-events-none fixed inset-0 z-[2500] grid place-items-center bg-ink/30 p-6 backdrop-blur-sm animate-fade">
+          <div className="cc-dropzone grid w-full max-w-lg place-items-center gap-3 rounded-[2rem] border-[3px] border-dashed border-accent bg-surface/95 px-8 py-14 text-center shadow-lift animate-pop">
+            <span className="grid size-20 place-items-center rounded-3xl bg-accent/12 text-accent cc-bob"><ImagePlus size={38} aria-hidden /></span>
+            <p className="font-display text-2xl font-semibold">Drop your photos anywhere</p>
+            <p className="text-sm text-ink/60">{files.length >= 3 ? "You already have 3 photos. Remove one first." : `JPEG, PNG or WebP · up to 5 MB each · ${3 - files.length} more ${3 - files.length === 1 ? "fits" : "fit"}`}</p>
+          </div>
+        </div>,
+        document.body,
+      )}
       <div className="animate-rise">
         <h1 className="text-3xl font-semibold leading-tight">{copy.title}</h1>
         <p className="mt-1.5 text-sm text-ink/60">{copy.subtitle}</p>
@@ -421,7 +490,7 @@ export default function ReportIssue() {
                 <Camera size={30} aria-hidden />
               </span>
               <span className="font-display text-lg font-semibold">Take a photo or choose one</span>
-              <span className="text-sm text-ink/55">JPEG, PNG or WebP, up to 5 MB each</span>
+              <span className="text-sm text-ink/55"><span className="hidden sm:inline">or drag photos here, or paste with Ctrl+V · </span>JPEG, PNG or WebP, up to 5 MB each</span>
               <input type="file" accept="image/jpeg,image/png,image/webp" multiple capture="environment" className="sr-only" onChange={(e) => { addFiles(e.target.files); e.target.value = ""; }} />
             </label>
           ) : (
@@ -437,7 +506,7 @@ export default function ReportIssue() {
               ))}
               {files.length < 3 && (
                 <label className="grid aspect-square cursor-pointer place-items-center rounded-2xl border-2 border-dashed border-ink/20 text-sm text-ink/55 transition hover:border-accent hover:text-accent">
-                  <span className="flex flex-col items-center gap-1.5"><ImagePlus size={24} aria-hidden /> Add another</span>
+                  <span className="flex flex-col items-center gap-1.5 text-center"><ImagePlus size={24} aria-hidden /> Add another<span className="hidden text-[11px] text-ink/40 sm:block">or drop it here</span></span>
                   <input type="file" accept="image/jpeg,image/png,image/webp" multiple className="sr-only" onChange={(e) => { addFiles(e.target.files); e.target.value = ""; }} />
                 </label>
               )}
