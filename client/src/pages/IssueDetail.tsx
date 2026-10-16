@@ -4,6 +4,8 @@ import { Repeat, ArrowLeft, BadgeCheck, Bell, BellRing, ClipboardPen, Flag, Head
 import { useAuth } from "../auth/useAuth";
 import { ActionMenu } from "../components/ActionMenu";
 import { CategoryChip } from "../components/CategoryChip";
+import { EmergencyBadge } from "../components/EmergencyBadge";
+import { EmergencyControl } from "../components/EmergencyControl";
 import { Discussion } from "../components/Discussion";
 import { FlagDialog } from "../components/FlagDialog";
 import { IssueMap } from "../components/IssueMap";
@@ -136,6 +138,7 @@ export default function IssueDetail() {
               <p className="mt-1.5 flex flex-wrap items-center gap-2 text-sm text-ink/60">
                 <span className="tabular-nums">{issue.ticket}</span>
                 <StatusBadge status={issue.status} />
+                {OPEN.includes(issue.status) && <EmergencyBadge emergency={issue.emergency} size="md" />}
                 <span>{issue.reportCount} {issue.reportCount === 1 ? "report" : "reports"}</span>
                 {issue.category === "other" && <span className="rounded-full bg-ink/6 px-2 py-0.5 text-xs">Other</span>}
               </p>
@@ -286,15 +289,29 @@ export default function IssueDetail() {
             </div>
           )}
 
+          {(role === "admin" || canUpdate) && isOpen && (
+            <EmergencyControl
+              emergency={issue.emergency}
+              busy={busy}
+              onSet={(emergency, kind) =>
+                act(
+                  () => api(`/issues/${issue.id}/emergency`, { method: "PATCH", body: { emergency, kind } }),
+                  emergency ? "Marked as an emergency. Admins were alerted." : "Emergency cleared. The normal fix-by time applies.",
+                )
+              }
+            />
+          )}
+
           {role === "admin" && isOpen && (
             <div className="card p-5">
               <h2 className="text-base font-semibold">Assign to officer</h2>
               <select value={officerId} onChange={(e) => setOfficerId(e.target.value)} className="input mt-3 !py-2 text-sm">
                 <option value="">Choose an officer</option>
                 {officers.map((o) => (
-                  <option key={o.id} value={o.id}>
+                  <option key={o.id} value={o.id} disabled={Boolean(o.onLeave)}>
                     {o.name}
                     {o.department ? ` · ${o.department}` : ""}
+                    {o.onLeave ? " · on leave" : ""}
                   </option>
                 ))}
               </select>

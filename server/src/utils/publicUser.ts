@@ -14,6 +14,7 @@ export type PublicUser = {
   homeLocation: { lat: number; lng: number } | null;
   radiusKm: number;
   notify: Record<NotifyKey, boolean>;
+  onLeave: { since: Date; until: Date | null } | null;
   createdAt: Date;
 };
 
@@ -29,6 +30,8 @@ type UserLike = {
   homeLocation?: { lat?: number | null; lng?: number | null } | null;
   radiusKm?: number | null;
   notify?: Partial<Record<NotifyKey, boolean | null>> | null;
+  onLeaveSince?: Date | null;
+  onLeaveUntil?: Date | null;
   createdAt: Date;
 };
 
@@ -52,6 +55,7 @@ export function toPublicUser(user: UserLike): PublicUser {
     homeLocation: loc && typeof loc.lat === "number" && typeof loc.lng === "number" ? { lat: loc.lat, lng: loc.lng } : null,
     radiusKm: user.radiusKm ?? 2,
     notify: Object.fromEntries(NOTIFY_KEYS.map((key) => [key, user.notify?.[key] ?? true])) as Record<NotifyKey, boolean>,
+    onLeave: user.onLeaveSince ? { since: user.onLeaveSince, until: user.onLeaveUntil ?? null } : null,
     createdAt: user.createdAt,
   };
 }

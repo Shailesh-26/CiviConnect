@@ -2,6 +2,8 @@ import { Router } from "express";
 import rateLimit from "express-rate-limit";
 import {
   changePassword,
+  forgotPassword,
+  resetPassword,
   login,
   logout,
   me,
@@ -12,7 +14,7 @@ import {
 import { authenticate } from "../middleware/auth";
 import { upload } from "../middleware/upload";
 import { validateBody } from "../middleware/validate";
-import { changePasswordSchema, loginSchema, registerSchema, updateProfileSchema } from "../validators/auth.schemas";
+import { changePasswordSchema, forgotSchema, loginSchema, registerSchema, resetSchema, updateProfileSchema } from "../validators/auth.schemas";
 
 export const authRouter = Router();
 
@@ -32,9 +34,20 @@ const passwordLimiter = rateLimit({
   message: { message: "Too many password attempts. Please try again in a few minutes." },
 });
 
+// Few requests per person: each one sends an email.
+const forgotLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { message: "Too many reset requests. Please try again in 15 minutes." },
+});
+
 authRouter.post("/register", attemptLimiter, validateBody(registerSchema), register);
 authRouter.post("/login", attemptLimiter, validateBody(loginSchema), login);
 authRouter.post("/logout", logout);
+authRouter.post("/forgot", forgotLimiter, validateBody(forgotSchema), forgotPassword);
+authRouter.post("/reset", passwordLimiter, validateBody(resetSchema), resetPassword);
 authRouter.get("/me", authenticate, me);
 authRouter.patch("/me", authenticate, validateBody(updateProfileSchema), updateProfile);
 authRouter.post("/me/avatar", authenticate, upload.single("avatar"), uploadAvatar);

@@ -2,8 +2,9 @@ import { Types } from "mongoose";
 import { CATEGORIES, Issue, OPEN_STATUSES } from "../models/Issue";
 import { issueName } from "../utils/labels";
 import { audit, SYSTEM } from "./audit";
+import { endExpiredLeave } from "./leave";
 import { adminIds, broadcast, notify } from "./notify";
-import { dueFrom, slaHoursFor } from "./sla";
+import { dueFrom, EMERGENCY_SLA_HOURS, hoursForIssue, slaHoursFor } from "./sla";
 
 const HOUR = 3_600_000;
 // An issue nobody has picked up for this long is raised to the admins.
@@ -16,7 +17,8 @@ let running = false;
  *  1. gives older issues a fix-by time if they have none,
  *  2. warns the assigned officer when less than a quarter of the time is left,
  *  3. escalates overdue issues: timeline entry, priority boost, officer + admins told,
- *  4. tells admins about issues still unassigned after 12 hours.
+ *  4. brings officers back from leave when their end date has passed,
+ *  5. tells admins about issues still unassigned after 12 hours.
  */
 export async function runSweep(now = new Date()) {
   if (running) return;
@@ -33,10 +35,10 @@ export async function runSweep(now = new Date()) {
     }
 
     // 2. Warnings, per category because each has its own allowed time.
-    for (const category of CATEGORIES) {
-      const quarter = slaHoursFor(category) * 0.25 * HOUR;
+    for (const category of [...CATEGORIES, "emergency" as const]) {
+      const quarter = (category === "emergency" ? EMERGENCY_SLA_HOURS : slaHoursFor(category)) * 0.25 * HOUR;
       const soon = await Issue.find({
-        category,
+        ...(category === "emergency" ? { emergency: true } : { category, emergency: { $ne: true } }),
         status: { $in: OPEN_STATUSES },
         assignedTo: { $ne: null },
         slaWarnedAt: null,
@@ -65,7 +67,7 @@ export async function runSweep(now = new Date()) {
       issue.lastActivityAt = now;
       issue.timeline.push({
         status: issue.status,
-        note: `Escalated automatically: the ${slaHoursFor(issue.category)}-hour fix-by time has passed. Priority raised.`,
+        note: `Escalated automatically: the ${hoursForIssue(issue)}-hour ${issue.emergency ? "emergency " : ""}fix-by time has passed. Priority raised.`,
         images: [],
         byName: "CiviConnect",
         at: now,
@@ -82,7 +84,10 @@ export async function runSweep(now = new Date()) {
       await audit(SYSTEM, "issue.escalated", { type: "issue", id: issue.id }, `${name} escalated after missing its fix-by time`);
     }
 
-    // 4. Unassigned for too long.
+    // 4. Leave that has reached its end date.
+    await endExpiredLeave(now);
+
+    // 5. Unassigned for too long.
     const waiting = await Issue.find({
       status: "reported",
       assignedTo: null,

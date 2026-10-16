@@ -1,4 +1,4 @@
-import { Check, CloudOff, Moon, ScanSearch, Sparkles, TriangleAlert, Waves } from "lucide-react";
+import { Check, CloudOff, Moon, ScanSearch, ShieldCheck, Sparkles, TriangleAlert, Waves } from "lucide-react";
 import { CATEGORY_COLOR, issueLabel } from "../lib/constants";
 import type { Category, VisionResult } from "../types";
 import { CategoryChip } from "./CategoryChip";
@@ -114,6 +114,12 @@ export function PhotoAssistantCard({ loading, offline, result, selected, onPick 
             })}
           </ul>
         </>
+      )}
+
+      {result && (
+        <p className="mt-3 flex items-center gap-1.5 text-[11px] text-ink/50">
+          <ShieldCheck size={12} aria-hidden /> Faces in your photos are blurred automatically before saving.
+        </p>
       )}
 
       {result && (result.quality.blurry || result.quality.dark) && (

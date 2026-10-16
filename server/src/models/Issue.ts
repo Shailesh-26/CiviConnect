@@ -16,6 +16,10 @@ export type Source = (typeof SOURCES)[number];
 export const CHANNELS = ["phone", "walk_in", "email", "letter"] as const;
 export type Channel = (typeof CHANNELS)[number];
 
+// Emergencies: dangerous right now. 4-hour fix-by clock, +25 priority, admins alerted instantly.
+export const EMERGENCY_KINDS = ["live_wire", "open_manhole", "road_blocked", "flooding", "other_danger"] as const;
+export type EmergencyKind = (typeof EMERGENCY_KINDS)[number];
+
 // Photo Assistant outcomes (see ml/app/main.py).
 export const AI_VERDICTS = ["confident", "unsure", "not_civic"] as const;
 export const AI_MODES = ["zero-shot", "trained"] as const;
@@ -114,6 +118,9 @@ const issueSchema = new Schema(
     slaDueAt: { type: Date, index: true },
     slaWarnedAt: { type: Date },
     escalatedAt: { type: Date },
+    emergency: { type: Boolean, default: false, index: true },
+    emergencyKind: { type: String, enum: EMERGENCY_KINDS },
+    emergencyAt: { type: Date },
     unassignedAlertAt: { type: Date },
   },
   { timestamps: true },

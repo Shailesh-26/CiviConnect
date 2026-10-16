@@ -498,7 +498,23 @@ async function main() {
   if (allNotes.length) await Notification.collection.insertMany(allNotes);
   if (audits.length) await AuditLog.collection.insertMany(audits);
 
-  console.log(`\nDemo city created: ${TOTAL} issues (${resolvedCount} resolved, ${escalatedCount} escalated), ${officers.length} officers, ${citizens.length} citizens.`);
+  // 9. Two live emergencies, so the red badges and the 4-hour clock show up in the demo.
+  const emergencyPicks: [Category, "live_wire" | "open_manhole", string][] = [
+    ["streetlight", "live_wire", "Live wire"],
+    ["drainage", "open_manhole", "Open manhole"],
+  ];
+  let emergencies = 0;
+  for (const [category, kind, label] of emergencyPicks) {
+    const target = await Issue.findOne({ ticket: /^CC-D\d{4}$/, category, status: { $in: ["reported", "acknowledged"] } }).sort({ createdAt: -1 });
+    if (!target) continue;
+    const at = new Date(Date.now() - 70 * 60_000);
+    target.set({ emergency: true, emergencyKind: kind, emergencyAt: at, slaDueAt: new Date(at.getTime() + 4 * 3_600_000), escalatedAt: undefined, slaWarnedAt: undefined });
+    target.timeline.push({ status: target.status, note: `Marked as an emergency: ${label}. 4-hour fix-by time.`, images: [], byName: "Citizen report", at });
+    await target.save({ timestamps: false });
+    emergencies++;
+  }
+
+  console.log(`\nDemo city created: ${TOTAL} issues (${resolvedCount} resolved, ${escalatedCount} escalated, ${emergencies} emergencies), ${officers.length} officers, ${citizens.length} citizens.`);
   console.log(`Also: ${flagDocs.length} flags, ${allNotes.length} notifications, ${audits.length} audit entries.\n`);
   console.log(`All demo accounts use the password: ${DEMO_PASSWORD}`);
   console.log(`  Admin    admin${DEMO_DOMAIN}`);

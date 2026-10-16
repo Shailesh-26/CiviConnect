@@ -6,6 +6,7 @@ import { CATEGORIES, Issue, OPEN_STATUSES, type Category } from "../models/Issue
 import { RADIUS_CHOICES, User } from "../models/User";
 import { AppError } from "../utils/AppError";
 import { deleteImage, imageStorageEnabled, uploadImage } from "../utils/cloudinary";
+import { blurFaces } from "../services/vision";
 import { normaliseLabel } from "../utils/customIcons";
 import { toIssueDTO, type IssueRecord } from "../utils/issueDto";
 import { similarity } from "../utils/textMatch";
@@ -315,7 +316,8 @@ export const addComment: RequestHandler = async (req, res) => {
     throw new AppError(503, "Photo upload is not set up on the server yet");
   }
 
-  const images = await Promise.all(files.map((f) => uploadImage(f.buffer)));
+  const { buffers } = files.length ? await blurFaces(files) : { buffers: [] as Buffer[] };
+  const images = await Promise.all(buffers.map((b) => uploadImage(b)));
   const created = await Comment.create({
     issue: issue._id,
     user: viewer.id,

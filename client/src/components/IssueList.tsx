@@ -1,4 +1,5 @@
 import { Link } from "react-router-dom";
+import { EmergencyBadge } from "./EmergencyBadge";
 import { ClipboardPen, Clock, Headset, Layers, ThumbsUp } from "lucide-react";
 import { issueLabel, SOURCE_META } from "../lib/constants";
 import { daysOpen } from "../lib/format";
@@ -46,6 +47,7 @@ export function IssueList({ issues, empty }: { issues: Issue[]; empty: string })
                     </span>
                   )}
                   {issue.sla && <SlaChip sla={issue.sla} compact />}
+                  <EmergencyBadge emergency={issue.emergency} />
                 </span>
               </span>
               <span className="hidden w-32 shrink-0 sm:block">

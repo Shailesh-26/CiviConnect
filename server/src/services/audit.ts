@@ -1,6 +1,6 @@
 import { AuditLog } from "../models/AuditLog";
 
-type Actor = { id?: string; name: string; role: string };
+export type Actor = { id?: string; name: string; role: string };
 
 // Never let a failed audit write break the action itself.
 export async function audit(

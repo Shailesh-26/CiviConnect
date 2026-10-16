@@ -16,6 +16,8 @@ import {
   Sparkles,
   UserPlus,
   type LucideIcon,
+  Plane,
+  Siren,
 } from "lucide-react";
 import { useNotifications } from "../lib/notification-context";
 import { timeAgo } from "../lib/format";
@@ -29,6 +31,8 @@ const ICON: Record<NotificationType, { icon: LucideIcon; cls: string }> = {
   assigned: { icon: UserPlus, cls: "bg-accent/12 text-accent" },
   sla_warning: { icon: AlarmClock, cls: "bg-marker/20 text-marker-dark" },
   escalated: { icon: Flame, cls: "bg-alert/12 text-alert" },
+  emergency: { icon: Siren, cls: "bg-alert text-white" },
+  leave: { icon: Plane, cls: "bg-accent/12 text-accent" },
   reopened: { icon: RotateCcw, cls: "bg-alert/12 text-alert" },
   new_issue: { icon: Inbox, cls: "bg-accent/12 text-accent" },
   unassigned: { icon: Inbox, cls: "bg-marker/20 text-marker-dark" },

@@ -17,8 +17,12 @@ export type User = {
   homeLocation?: { lat: number; lng: number } | null;
   radiusKm: number;
   notify?: Record<NotifyKey, boolean>;
+  // Officers only: on leave since/until. New work is not assigned to them.
+  onLeave?: { since: string; until: string | null } | null;
   createdAt: string;
 };
+
+export type EmergencyKind = "live_wire" | "open_manhole" | "road_blocked" | "flooding" | "other_danger";
 
 export type Category = "pothole" | "garbage" | "drainage" | "streetlight" | "fallen_tree" | "other";
 export type Status = "reported" | "acknowledged" | "in_progress" | "resolved" | "rejected";
@@ -49,6 +53,7 @@ export type Issue = {
   images: { url: string }[];
   resolvedAt: string | null;
   escalated: boolean;
+  emergency: { kind: EmergencyKind; at: string } | null;
   sla: Sla;
   createdAt: string;
   updatedAt: string;
@@ -164,7 +169,7 @@ export type PublicIssue = {
 export type Place = { label: string; full: string; lat: number; lng: number };
 
 export type NotificationType =
-  | "status" | "resolved" | "comment" | "merged" | "assigned" | "sla_warning" | "escalated" | "reopened" | "new_issue" | "unassigned" | "flag";
+  | "status" | "resolved" | "comment" | "merged" | "assigned" | "sla_warning" | "escalated" | "emergency" | "leave" | "reopened" | "new_issue" | "unassigned" | "flag";
 
 export type AppNotification = {
   id: string;
@@ -191,7 +196,7 @@ export type AuditEntry = {
 export type Suggestion = { id: string; name: string; reason: string } | null;
 
 export type Lane = {
-  officer: { id: string; name: string; department: string | null; avatar: Avatar | null };
+  officer: { id: string; name: string; department: string | null; avatar: Avatar | null; onLeave: { since: string; until: string | null } | null };
   open: number;
   breached: number;
   resolved30d: number;
@@ -200,7 +205,7 @@ export type Lane = {
 };
 
 export type CommandOverview = {
-  kpis: { open: number; unassigned: number; breached: number; dueSoon: number; highPriority: number; resolved7d: number; flagsOpen: number };
+  kpis: { open: number; emergencies: number; unassigned: number; breached: number; dueSoon: number; highPriority: number; resolved7d: number; flagsOpen: number };
   breachBoard: Issue[];
   unassigned: (Issue & { suggestion: Suggestion })[];
   lanes: Lane[];

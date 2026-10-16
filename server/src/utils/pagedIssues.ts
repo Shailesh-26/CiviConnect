@@ -39,6 +39,7 @@ const PRIORITY_EXPR = {
             { $multiply: [1.5, { $min: [10, { $size: "$supporters" }] }] },
             { $min: [10, { $max: [0, { $divide: [{ $subtract: ["$$NOW", "$createdAt"] }, 86_400_000] }] }] },
             { $cond: [{ $ifNull: ["$escalatedAt", false] }, 15, 0] },
+            { $cond: [{ $eq: ["$emergency", true] }, 25, 0] },
           ],
         },
       ],

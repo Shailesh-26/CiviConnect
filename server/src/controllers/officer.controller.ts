@@ -1,4 +1,7 @@
 import type { RequestHandler } from "express";
+import { setLeave } from "../services/leave";
+import { toPublicUser } from "../utils/publicUser";
+import type { LeaveInput } from "../validators/admin.schemas";
 import { Types } from "mongoose";
 import { Issue, OPEN_STATUSES } from "../models/Issue";
 import { toIssueDTO, type IssueRecord } from "../utils/issueDto";
@@ -43,4 +46,11 @@ export const desk: RequestHandler = async (req, res) => {
     queue,
     recent: recent.map((r) => toIssueDTO(r, req.user!.id)),
   });
+};
+
+// An officer marks themselves on leave (or back). Open work is handed to colleagues automatically.
+export const setMyLeave: RequestHandler = async (req, res) => {
+  const { onLeave, leaveUntil } = req.body as LeaveInput;
+  const { officer, moved } = await setLeave(req.user!.id, onLeave, leaveUntil ?? null, req.user!);
+  res.json({ user: officer ? toPublicUser(officer) : null, moved });
 };

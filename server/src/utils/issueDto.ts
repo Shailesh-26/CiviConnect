@@ -39,6 +39,9 @@ export type IssueRecord = {
   lastActivityAt?: Date | null;
   slaDueAt?: Date | null;
   escalatedAt?: Date | null;
+  emergency?: boolean | null;
+  emergencyKind?: string | null;
+  emergencyAt?: Date | null;
   createdAt: Date;
   updatedAt: Date;
 };
@@ -51,6 +54,7 @@ export function toIssueDTO(issue: IssueRecord, viewerId?: string) {
     supporterCount: issue.supporters.length,
     createdAt: issue.createdAt,
     escalated: Boolean(issue.escalatedAt),
+    emergency: Boolean(issue.emergency),
   });
 
   return {
@@ -65,6 +69,7 @@ export function toIssueDTO(issue: IssueRecord, viewerId?: string) {
     status: issue.status,
     priority,
     priorityLabel: priorityLabel(priority),
+    emergency: issue.emergency ? { kind: issue.emergencyKind ?? "other_danger", at: issue.emergencyAt ?? issue.createdAt } : null,
     reportCount: issue.reports.length,
     supporterCount: issue.supporters.length,
     supportedByMe: viewerId ? issue.supporters.some((s) => s.toString() === viewerId) : false,

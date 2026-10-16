@@ -1,9 +1,11 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { EmergencyBadge } from "../components/EmergencyBadge";
 import { Link } from "react-router-dom";
-import { ArrowRight, BadgeCheck, ClipboardPen, Flame, Hammer, Hourglass, MapPin, Navigation, Play, Route, Timer, Wrench } from "lucide-react";
+import { ArrowRight, BadgeCheck, ClipboardPen, Flame, Hammer, Hourglass, MapPin, Navigation, Plane, Play, Route, Timer, Wrench } from "lucide-react";
 import { useAuth } from "../auth/useAuth";
 import { CategoryChip } from "../components/CategoryChip";
 import { CountUp } from "../components/CountUp";
+import { LeaveDialog } from "../components/LeaveDialog";
 import { Ring } from "../components/Ring";
 import { RouteMap } from "../components/RouteMap";
 import { SlaChip } from "../components/SlaChip";
@@ -15,7 +17,7 @@ import { formatDuration, timeAgo } from "../lib/format";
 import { planRoute } from "../lib/route";
 import { useLiveRefresh } from "../lib/useLiveRefresh";
 import { useToast } from "../lib/toast-context";
-import type { DeskData, Issue } from "../types";
+import type { DeskData, Issue, User } from "../types";
 
 function Stat({ label, value, icon: Icon, tone }: { label: string; value: number; icon: typeof Timer; tone: string }) {
   return (
@@ -29,7 +31,9 @@ function Stat({ label, value, icon: Icon, tone }: { label: string; value: number
 
 // The officer's workspace: today's work sorted by time left, the day's route, and how they are doing.
 export default function FieldDesk() {
-  const { user } = useAuth();
+  const { user, updateUser } = useAuth();
+  const [leaveOpen, setLeaveOpen] = useState(false);
+  const [leaveBusy, setLeaveBusy] = useState(false);
   const toast = useToast();
   const [data, setData] = useState<DeskData | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -65,6 +69,27 @@ export default function FieldDesk() {
     }
   }
 
+  async function setLeave(onLeave: boolean, until: string | null = null) {
+    setLeaveBusy(true);
+    try {
+      const d = await api<{ user: User; moved: { ticket: string; to: string | null }[] }>("/officer/leave", { method: "PATCH", body: { onLeave, leaveUntil: until } });
+      updateUser(d.user);
+      const handed = d.moved.filter((m) => m.to).length;
+      toast.success(
+        onLeave
+          ? d.moved.length ? `${handed} of your ${d.moved.length} open ${d.moved.length === 1 ? "issue was" : "issues were"} handed to colleagues. Enjoy your time off.` : "Enjoy your time off."
+          : "New assignments will reach you again.",
+        { title: onLeave ? "You're on leave" : "Welcome back" },
+      );
+      setLeaveOpen(false);
+      load();
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : "Could not update. Try again.");
+    } finally {
+      setLeaveBusy(false);
+    }
+  }
+
   const route = useMemo(() => planRoute(data?.queue.slice(0, 8) ?? []), [data]);
 
   if (!user) return null;
@@ -91,6 +116,16 @@ export default function FieldDesk() {
 
   return (
     <div className="space-y-6">
+      {user.onLeave && (
+        <div className="flex flex-wrap items-center gap-4 rounded-3xl border border-marker/50 bg-marker/12 p-4 animate-rise sm:p-5">
+          <span className="grid size-11 place-items-center rounded-2xl bg-marker/25 text-marker-dark"><Plane size={22} aria-hidden /></span>
+          <div className="min-w-0 flex-1">
+            <p className="font-semibold">You're on leave{user.onLeave.until ? ` until ${new Date(user.onLeave.until).toLocaleDateString("en-IN", { day: "numeric", month: "long" })}` : ""}</p>
+            <p className="text-sm text-ink/65">New issues aren't assigned to you, and your open work was handed to colleagues.</p>
+          </div>
+          <button type="button" disabled={leaveBusy} onClick={() => setLeave(false)} className="btn btn-primary">I'm back</button>
+        </div>
+      )}
       {/* Bento: hero + key numbers */}
       <div className="grid gap-4 md:grid-cols-4">
         <div className="relative overflow-hidden rounded-3xl bg-signboard p-6 text-white animate-rise md:col-span-2 md:row-span-2 sm:p-7">
@@ -106,6 +141,9 @@ export default function FieldDesk() {
                 </Link>
               )}
               <Link to="/report" className="btn bg-white/12 text-white hover:bg-white/20"><ClipboardPen size={16} aria-hidden /> Log inspection</Link>
+              {!user.onLeave && (
+                <button type="button" onClick={() => setLeaveOpen(true)} className="btn bg-white/12 text-white hover:bg-white/20"><Plane size={16} aria-hidden /> Going on leave</button>
+              )}
             </div>
           </div>
         </div>
@@ -138,6 +176,7 @@ export default function FieldDesk() {
                     <p className="mt-1.5 flex flex-wrap items-center gap-2">
                       <SlaChip sla={issue.sla} />
                       <StatusBadge status={issue.status} />
+                      <EmergencyBadge emergency={issue.emergency} />
                       {issue.escalated && <span className="rounded-full bg-alert/10 px-2 py-0.5 text-[11px] font-semibold text-alert">Escalated</span>}
                     </p>
                   </Link>
@@ -191,6 +230,7 @@ export default function FieldDesk() {
           )}
         </aside>
       </div>
+      <LeaveDialog open={leaveOpen} who={user.name} self openCount={s.open} busy={leaveBusy} onCancel={() => setLeaveOpen(false)} onConfirm={(until) => setLeave(true, until)} />
     </div>
   );
 }

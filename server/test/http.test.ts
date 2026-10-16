@@ -24,6 +24,8 @@ for (const [method, path] of [
   ["GET", "/vision/status"],
   ["POST", "/vision/classify"],
   ["GET", "/vision/stats"],
+  ["PATCH", "/officer/leave"],
+  ["PATCH", "/issues/0123456789abcdef01234567/emergency"],
   ["GET", "/admin/overview"],
   ["GET", "/notifications"],
 ] as const) {
@@ -42,4 +44,14 @@ test("http: unknown routes return 404 JSON", async () => {
   const res = await fetch(`${base}/nope`);
   assert.equal(res.status, 404);
   assert.equal(((await res.json()) as { message: string }).message, "Route not found");
+});
+
+test("http: forgot-password checks the email before anything else", async () => {
+  const res = await fetch(`${base}/auth/forgot`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ email: "nope" }) });
+  assert.equal(res.status, 400);
+});
+
+test("http: a malformed reset token is refused", async () => {
+  const res = await fetch(`${base}/auth/reset`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ token: "123", password: "Secret123" }) });
+  assert.equal(res.status, 400);
 });

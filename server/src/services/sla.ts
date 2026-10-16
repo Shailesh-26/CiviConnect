@@ -21,6 +21,11 @@ export async function loadSlaConfig() {
 }
 
 export const slaHoursFor = (category: Category) => hours[category];
+
+// Emergencies (live wire, open manhole...) get a fixed 4-hour clock whatever the category.
+export const EMERGENCY_SLA_HOURS = 4;
+export const hoursForIssue = (issue: { category: Category; emergency?: boolean | null }) =>
+  issue.emergency ? EMERGENCY_SLA_HOURS : slaHoursFor(issue.category);
 export const slaTable = () => CATEGORIES.map((c) => ({ category: c, slaHours: hours[c], defaultHours: DEFAULT_SLA_HOURS[c] }));
 
 export function setSlaHours(category: Category, value: number) {
@@ -32,9 +37,9 @@ export const dueFrom = (category: Category, from: Date) => new Date(from.getTime
 export type SlaState = "ok" | "warning" | "breached" | "met" | "missed" | "none";
 
 // Warning when less than a quarter of the allowed time is left.
-export function slaInfo(issue: { category: Category; status: Status; createdAt: Date; slaDueAt?: Date | null; resolvedAt?: Date | null; escalatedAt?: Date | null }) {
+export function slaInfo(issue: { category: Category; status: Status; createdAt: Date; slaDueAt?: Date | null; resolvedAt?: Date | null; escalatedAt?: Date | null; emergency?: boolean | null }) {
   const due = issue.slaDueAt ? new Date(issue.slaDueAt) : dueFrom(issue.category, new Date(issue.createdAt));
-  const totalMs = slaHoursFor(issue.category) * 3_600_000;
+  const totalMs = hoursForIssue(issue) * 3_600_000;
   let state: SlaState;
   if (issue.status === "rejected") state = "none";
   else if (issue.status === "resolved") state = issue.resolvedAt && new Date(issue.resolvedAt) <= due ? "met" : "missed";
@@ -44,7 +49,7 @@ export function slaInfo(issue: { category: Category; status: Status; createdAt: 
   }
   return {
     dueAt: due,
-    hours: slaHoursFor(issue.category),
+    hours: hoursForIssue(issue),
     hoursLeft: Math.round(((due.getTime() - Date.now()) / 3_600_000) * 10) / 10,
     state,
     escalated: Boolean(issue.escalatedAt),

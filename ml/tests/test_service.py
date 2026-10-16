@@ -123,3 +123,36 @@ def test_trained_head_is_used_when_present(tmp_path):
     assert set(probs) == set(classes)
     assert abs(sum(probs.values()) - 1) < 1e-6
     assert clf.info()["metrics"]["accuracy"] == 0.9
+
+
+# ---------------------------------------------------------------- privacy blur
+
+def test_blur_returns_204_when_there_is_no_face(client):
+    r = client.post("/privacy/blur", files={"image": ("road.jpg", photo(), "image/jpeg")})
+    assert r.status_code == 204
+    assert r.headers["x-faces-blurred"] == "0"
+
+
+def test_blur_returns_a_blurred_jpeg_when_faces_are_found(client, monkeypatch):
+    from app.main import state
+    monkeypatch.setattr(state["blur"], "faces", lambda bgr: [(100, 60, 80, 90)])
+    r = client.post("/privacy/blur", files={"image": ("people.jpg", photo(), "image/jpeg")})
+    assert r.status_code == 200
+    assert r.headers["content-type"] == "image/jpeg"
+    assert r.headers["x-faces-blurred"] == "1"
+    out = Image.open(io.BytesIO(r.content))
+    assert out.size == (320, 240)
+
+
+def test_blur_regions_changes_only_the_face_area():
+    from app.privacy import blur_regions
+    rng = np.random.default_rng(1)
+    img = rng.integers(0, 255, (200, 300, 3), dtype=np.uint8)
+    out = blur_regions(img, [(120, 80, 40, 40)])
+    assert not np.array_equal(out[80:120, 120:160], img[80:120, 120:160])
+    assert np.array_equal(out[:40, :40], img[:40, :40])
+
+
+def test_blur_rejects_non_images(client):
+    r = client.post("/privacy/blur", files={"image": ("x.txt", b"nope", "text/plain")})
+    assert r.status_code == 400

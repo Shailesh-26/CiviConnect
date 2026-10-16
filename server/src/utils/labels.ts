@@ -1,4 +1,4 @@
-import type { Category, Status } from "../models/Issue";
+import type { Category, EmergencyKind, Status } from "../models/Issue";
 
 const CATEGORY_NAME: Record<Category, string> = {
   pothole: "Pothole",
@@ -20,5 +20,13 @@ export const STATUS_NAME: Record<Status, string> = {
 // "Pothole · CC-D0012" style names for notifications and the audit log.
 export const issueName = (issue: { category: Category; customLabel?: string | null; ticket: string }) =>
   `${issue.category === "other" && issue.customLabel ? issue.customLabel : CATEGORY_NAME[issue.category]} · ${issue.ticket}`;
+
+export const EMERGENCY_NAME: Record<EmergencyKind, string> = {
+  live_wire: "Live wire",
+  open_manhole: "Open manhole",
+  road_blocked: "Road blocked",
+  flooding: "Flooding",
+  other_danger: "Danger to people",
+};
 
 export const categoryName = (c: Category) => CATEGORY_NAME[c];

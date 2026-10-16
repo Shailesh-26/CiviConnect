@@ -6,6 +6,8 @@ pillow>=10.0
 numpy>=1.26
 torch>=2.2
 transformers>=4.44,<5
+# Face blurring (YuNet face detector, model file in assets/)
+opencv-python-headless>=4.8
 
 # Only for running the tests (python -m pytest)
 pytest>=8.0

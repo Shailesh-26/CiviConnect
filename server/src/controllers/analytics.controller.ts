@@ -23,11 +23,12 @@ type Lite = {
   timeline: { status: Status; at: Date }[];
   slaDueAt?: Date | null;
   escalatedAt?: Date | null;
+  emergency?: boolean | null;
   resolvedAt?: Date | null;
   createdAt: Date;
 };
 
-const FIELDS = "ticket category customLabel status address location reports supporters commentCount assignedTo timeline.status timeline.at slaDueAt escalatedAt resolvedAt createdAt";
+const FIELDS = "ticket category customLabel status address location reports supporters commentCount assignedTo timeline.status timeline.at slaDueAt escalatedAt emergency resolvedAt createdAt";
 
 // "Near Ameerpet metro station, Ameerpet" -> "Ameerpet". Landmarks typed by people vary, so this is a best effort.
 const areaOf = (address?: string | null) => {
@@ -207,7 +208,7 @@ export const getAnalytics: RequestHandler = async (req, res) => {
       lat: i.location.coordinates[1],
       lng: i.location.coordinates[0],
       category: i.category,
-      priority: computePriority({ category: i.category, reportCount: i.reports.length, supporterCount: i.supporters.length, createdAt: i.createdAt, escalated: Boolean(i.escalatedAt) }),
+      priority: computePriority({ category: i.category, reportCount: i.reports.length, supporterCount: i.supporters.length, createdAt: i.createdAt, escalated: Boolean(i.escalatedAt), emergency: Boolean(i.emergency) }),
     })),
   });
 };

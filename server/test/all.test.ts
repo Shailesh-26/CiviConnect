@@ -5,4 +5,5 @@ import "./sla.test";
 import "./text-and-geo.test";
 import "./validators.test";
 import "./vision.test";
+import "./phase11.test";
 import "./http.test";

@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { EmergencyBadge } from "./EmergencyBadge";
 import { useNavigate } from "react-router-dom";
 import { ArrowBigUp, Bell, BellRing, EyeOff, Flag, Layers, Link2, MapPin, MessageSquare, Share2, Users } from "lucide-react";
 import { formatDistance } from "../lib/community";
@@ -94,6 +95,7 @@ export function FeedCard({ item, active, index, onHover, onChange, onHide, onFla
               <span>{timeAgo(item.createdAt)}</span>
               <span className="tabular-nums">{item.ticket}</span>
               {open && item.sla && <SlaChip sla={item.sla} compact />}
+              {open && <EmergencyBadge emergency={item.emergency} />}
               <span className="sm:hidden"><StatusBadge status={item.status} /></span>
             </p>
           </div>

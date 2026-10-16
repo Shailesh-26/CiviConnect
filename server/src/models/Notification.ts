@@ -8,6 +8,8 @@ export const NOTIFICATION_TYPES = [
   "assigned",
   "sla_warning",
   "escalated",
+  "emergency",
+  "leave",
   "reopened",
   "new_issue",
   "unassigned",

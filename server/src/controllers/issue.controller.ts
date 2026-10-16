@@ -1,6 +1,6 @@
 import type { RequestHandler } from "express";
 import { isValidObjectId, Types } from "mongoose";
-import { CATEGORIES, Issue, OPEN_STATUSES, STATUSES, type Channel, type Source, type Status } from "../models/Issue";
+import { CATEGORIES, Issue, OPEN_STATUSES, STATUSES, type Channel, type EmergencyKind, type Source, type Status } from "../models/Issue";
 import { User } from "../models/User";
 import { AppError } from "../utils/AppError";
 import { imageStorageEnabled, uploadImage } from "../utils/cloudinary";
@@ -8,11 +8,12 @@ import { normaliseLabel } from "../utils/customIcons";
 import { toIssueDetailDTO, toIssueDTO, type IssueRecord } from "../utils/issueDto";
 import { pagedIssues } from "../utils/pagedIssues";
 import { chronicFor } from "../services/insights";
-import { issueName, STATUS_NAME } from "../utils/labels";
+import { EMERGENCY_NAME, issueName, STATUS_NAME } from "../utils/labels";
 import { audit, SYSTEM } from "../services/audit";
 import { adminIds, broadcast, notify } from "../services/notify";
-import { dueFrom, slaHoursFor } from "../services/sla";
-import type { AssignInput, CreateIssueInput, StatusInput, VerifyInput } from "../validators/issue.schemas";
+import { dueFrom, EMERGENCY_SLA_HOURS, slaHoursFor } from "../services/sla";
+import { blurFaces } from "../services/vision";
+import type { AssignInput, CreateIssueInput, EmergencyInput, StatusInput, VerifyInput } from "../validators/issue.schemas";
 
 // Reports of the same category closer than this are merged into one master issue.
 const MERGE_RADIUS_METERS = 50;
@@ -121,7 +122,11 @@ export const createIssue: RequestHandler = async (req, res) => {
     });
   }
 
-  const images = await Promise.all(files.map((f) => uploadImage(f.buffer)));
+  // Faces are blurred before the photos are stored (privacy filter in the Photo Assistant).
+  const privacy = files.length ? await blurFaces(files) : { buffers: [], faces: 0 };
+  const images = await Promise.all(privacy.buffers.map((b) => uploadImage(b)));
+  const emergencyKind = input.emergencyKind as EmergencyKind | undefined;
+  let emergencyNow = false;
   const ai = input.aiVerdict
     ? { verdict: input.aiVerdict, category: input.aiCategory, confidence: input.aiConfidence, mode: input.aiMode }
     : undefined;
@@ -135,6 +140,17 @@ export const createIssue: RequestHandler = async (req, res) => {
     nearby.reports.push(report);
     if (!nearby.followers.some((f) => f.equals(userId))) nearby.followers.push(userId);
     nearby.lastActivityAt = new Date();
+    if (emergencyKind && !nearby.emergency) {
+      // A new report says it is dangerous: the whole issue becomes an emergency.
+      const now = new Date();
+      nearby.emergency = true;
+      nearby.emergencyKind = emergencyKind;
+      nearby.emergencyAt = now;
+      const fast = new Date(now.getTime() + EMERGENCY_SLA_HOURS * 3_600_000);
+      if (!nearby.slaDueAt || nearby.slaDueAt > fast) nearby.slaDueAt = fast;
+      nearby.timeline.push({ status: nearby.status, note: `Raised to an emergency by a new report: ${EMERGENCY_NAME[emergencyKind]}. ${EMERGENCY_SLA_HOURS}-hour fix-by time.`, images: [], by: userId, byName: user.name, at: now });
+      emergencyNow = true;
+    }
     await nearby.save();
     issueId = nearby.id;
     merged = true;
@@ -156,6 +172,10 @@ export const createIssue: RequestHandler = async (req, res) => {
     const timeline: { status: Status; note: string; by: Types.ObjectId; byName: string; at: Date }[] = [
       { status: "reported", note: firstNote, by: userId, byName: user.name, at: now },
     ];
+    if (emergencyKind) {
+      timeline.push({ status: "reported", note: `Marked as an emergency: ${EMERGENCY_NAME[emergencyKind]}. ${EMERGENCY_SLA_HOURS}-hour fix-by time.`, by: userId, byName: user.name, at: now });
+      emergencyNow = true;
+    }
     if (source === "field_inspection") {
       timeline.push({
         status: "acknowledged",
@@ -181,7 +201,8 @@ export const createIssue: RequestHandler = async (req, res) => {
       timeline,
       followers: [userId],
       lastActivityAt: now,
-      slaDueAt: dueFrom(category, now),
+      slaDueAt: emergencyKind ? new Date(now.getTime() + EMERGENCY_SLA_HOURS * 3_600_000) : dueFrom(category, now),
+      ...(emergencyKind ? { emergency: true, emergencyKind, emergencyAt: now } : {}),
     });
     issueId = created.id;
     if (source !== "citizen") {
@@ -191,7 +212,9 @@ export const createIssue: RequestHandler = async (req, res) => {
 
   const record = await loadRecord(issueId);
   const dto = toIssueDetailDTO(record, user.id);
-  if (!merged && dto.priorityLabel === "high" && source !== "field_inspection") {
+  if (emergencyNow) {
+    await notifyEmergency(record, user.id);
+  } else if (!merged && dto.priorityLabel === "high" && source !== "field_inspection") {
     await notify(await adminIds(), {
       type: "new_issue",
       title: `New high-priority issue: ${issueName(record)}`,
@@ -201,8 +224,23 @@ export const createIssue: RequestHandler = async (req, res) => {
     }, user.id);
   }
   broadcast(await adminIds(), "refresh", { reason: "issue" });
-  res.status(merged ? 200 : 201).json({ merged, issue: dto });
+  res.status(merged ? 200 : 201).json({ merged, issue: dto, privacy: { facesBlurred: privacy.faces } });
 };
+
+// Emergencies reach every admin and the assigned officer at once, whatever their notification settings.
+async function notifyEmergency(issue: { id?: string; _id: { toString(): string }; category: IssueRecord["category"]; customLabel?: string | null; ticket: string; address?: string | null; emergencyKind?: string | null; assignedTo?: { _id: { toString(): string } } | null }, except?: string) {
+  const kind = EMERGENCY_NAME[(issue.emergencyKind ?? "other_danger") as EmergencyKind];
+  const id = issue._id.toString();
+  const to = [...(await adminIds()), ...(issue.assignedTo ? [issue.assignedTo._id.toString()] : [])];
+  await notify(to, {
+    type: "emergency",
+    title: `Emergency: ${kind} · ${issueName(issue)}`,
+    body: `${issue.address ?? "Location on the map"}. Fix within ${EMERGENCY_SLA_HOURS} hours.`,
+    issueId: id,
+    category: issue.category,
+  }, except);
+  broadcast(to, "refresh", { reason: "emergency" });
+}
 
 // Lists answer with one page when `page` is given (new screens), or the classic capped list.
 export const listIssues: RequestHandler = async (req, res) => {
@@ -279,6 +317,10 @@ export const assignIssue: RequestHandler = async (req, res) => {
 
   const officer = await User.findOne({ _id: officerId, role: "officer", isActive: true });
   if (!officer) throw new AppError(404, "Officer not found");
+  if (officer.onLeaveSince) {
+    const until = officer.onLeaveUntil ? ` until ${officer.onLeaveUntil.toLocaleDateString("en-IN", { day: "numeric", month: "short" })}` : "";
+    throw new AppError(400, `${officer.name} is on leave${until}. Choose another officer.`);
+  }
 
   issue.assignedTo = officer._id;
   issue.lastActivityAt = new Date();
@@ -342,7 +384,8 @@ export const updateStatus: RequestHandler = async (req, res) => {
     throw new AppError(400, "Add a photo of the completed work as proof");
   }
 
-  const images = await Promise.all(files.map((f) => uploadImage(f.buffer)));
+  const { buffers } = files.length ? await blurFaces(files) : { buffers: [] as Buffer[] };
+  const images = await Promise.all(buffers.map((b) => uploadImage(b)));
 
   const previous = issue.status;
   issue.status = status;
@@ -435,5 +478,54 @@ export const verifyIssue: RequestHandler = async (req, res) => {
   }
 
   const record = await loadRecord(id);
+  res.json({ issue: toIssueDetailDTO(record, user.id) });
+};
+
+// Mark an issue as an emergency, or clear the flag. Admins, or the officer it is assigned to.
+export const setEmergency: RequestHandler = async (req, res) => {
+  const user = req.user!;
+  const id = String(req.params.id);
+  const { emergency, kind } = req.body as EmergencyInput;
+  if (!isValidObjectId(id)) throw new AppError(404, "Issue not found");
+  const issue = await Issue.findById(id);
+  if (!issue) throw new AppError(404, "Issue not found");
+  const isAssignedOfficer = user.role === "officer" && issue.assignedTo?.toString() === user.id;
+  if (user.role !== "admin" && !isAssignedOfficer) throw new AppError(403, "Only the assigned officer or an admin can change this");
+  if (!OPEN_STATUSES.includes(issue.status)) throw new AppError(400, "Closed issues cannot be changed");
+  if (Boolean(issue.emergency) === emergency) {
+    const record = await loadRecord(id);
+    res.json({ issue: toIssueDetailDTO(record, user.id) });
+    return;
+  }
+
+  const now = new Date();
+  const name = issueName(issue);
+  if (emergency) {
+    const k = kind ?? "other_danger";
+    issue.emergency = true;
+    issue.emergencyKind = k;
+    issue.emergencyAt = now;
+    const fast = new Date(now.getTime() + EMERGENCY_SLA_HOURS * 3_600_000);
+    if (!issue.slaDueAt || issue.slaDueAt > fast) issue.slaDueAt = fast;
+    issue.timeline.push({ status: issue.status, note: `Marked as an emergency by ${user.name}: ${EMERGENCY_NAME[k]}. ${EMERGENCY_SLA_HOURS}-hour fix-by time.`, images: [], by: new Types.ObjectId(user.id), byName: user.name, at: now });
+  } else {
+    issue.emergency = false;
+    issue.set("emergencyKind", undefined);
+    issue.set("emergencyAt", undefined);
+    // Back to the normal clock for its category, counted from when it was reported.
+    issue.slaDueAt = dueFrom(issue.category, issue.createdAt);
+    if (issue.slaDueAt > now) {
+      issue.set("escalatedAt", undefined);
+      issue.set("slaWarnedAt", undefined);
+    }
+    issue.timeline.push({ status: issue.status, note: `Emergency cleared by ${user.name}. Normal fix-by time applies.`, images: [], by: new Types.ObjectId(user.id), byName: user.name, at: now });
+  }
+  issue.lastActivityAt = now;
+  await issue.save();
+  await audit(user, emergency ? "issue.emergency" : "issue.emergency_cleared", { type: "issue", id }, `${name} ${emergency ? "marked as an emergency" : "no longer an emergency"}`);
+
+  const record = await loadRecord(id);
+  if (emergency) await notifyEmergency(record, user.id);
+  else broadcast(await adminIds(), "refresh", { reason: "emergency" });
   res.json({ issue: toIssueDetailDTO(record, user.id) });
 };

@@ -4,10 +4,12 @@ import { Plus } from "lucide-react";
 const QA = [
   { q: "Is CiviConnect free for citizens?", a: "Yes. Anyone can create an account and report problems. Officer and admin accounts are created by the city's admins." },
   { q: "What if someone already reported the same problem?", a: "If an open issue of the same kind exists within 50 metres, your report is merged into it. You still get updates, and the merged issue's priority goes up because more people are affected." },
-  { q: "How is priority decided?", a: "A transparent score out of 100: how hazardous the category is, how many people reported it, how many neighbours backed it, how long it has been open, and +15 if it missed its fix-by time. You can try the formula above." },
+  { q: "How is priority decided?", a: "A transparent score out of 100: how hazardous the category is, how many people reported it, how many neighbours backed it, how long it has been open, +15 if it missed its fix-by time, and +25 for an emergency. You can try the formula above." },
+  { q: "What counts as an emergency?", a: "Something that could hurt someone right now: a live wire, an open manhole, a road blocked by a fallen tree, or flooding. Emergencies get a 4-hour fix-by time, jump to the top of every queue and alert the admins at once. If someone is already hurt, call 112 first." },
   { q: "What stops an officer from closing an issue that isn't fixed?", a: "Closing needs a proof photo. Then citizens verify. If the original reporter, or two other neighbours, say it's still there, the issue reopens automatically with half the usual time to fix it." },
   { q: "How fast will my issue be fixed?", a: "Each category has a fix-by time: 24 hours for fallen trees, 48 for drainage and garbage, 72 for potholes and street lights. Officers are warned when a quarter of the time is left, and overdue issues are escalated." },
-  { q: "Is my name shown publicly?", a: "No. Public pages and the live map show only the problem, its place and its status. Your name never appears on a shared issue link." },
+  { q: "Is my name shown publicly?", a: "No. Public pages and the live map show only the problem, its place and its status. Your name never appears on a shared issue link, and faces in uploaded photos are blurred automatically before they are saved." },
+  { q: "What happens when an officer goes on leave?", a: "Their open issues are handed to the best available colleague straight away, using the same smart routing as new issues, and nothing new is assigned to them until they are back." },
   { q: "Can someone without a smartphone report a problem?", a: "Yes. City staff can register a complaint on a citizen's behalf from a phone call, walk-in, email or letter, and it is tracked exactly like any other report." },
 ];
 

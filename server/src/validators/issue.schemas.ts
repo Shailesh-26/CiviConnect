@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { AI_MODES, AI_VERDICTS, CATEGORIES, CHANNELS, STATUSES } from "../models/Issue";
+import { AI_MODES, AI_VERDICTS, CATEGORIES, CHANNELS, EMERGENCY_KINDS, STATUSES } from "../models/Issue";
 import { CUSTOM_ICON_KEYS } from "../utils/customIcons";
 
 // Multipart form fields arrive as strings; empty strings mean "not given".
@@ -26,6 +26,8 @@ export const createIssueSchema = z.object({
   // Required only when an admin files a complaint for a citizen.
   onBehalfName: optionalText(80, "Name must be at most 80 characters"),
   channel: z.preprocess((v) => (v === "" ? undefined : v), z.enum(CHANNELS, { error: "Choose how they contacted you" }).optional()),
+  // Set only when the reporter says it is dangerous right now.
+  emergencyKind: z.preprocess(blankOrInvalid(EMERGENCY_KINDS), z.enum(EMERGENCY_KINDS).optional()),
   // What the Photo Assistant suggested, if it ran. Never required; bad values are simply ignored.
   aiVerdict: z.preprocess(blankOrInvalid(AI_VERDICTS), z.enum(AI_VERDICTS).optional()),
   aiCategory: z.preprocess(blankOrInvalid(CATEGORIES), z.enum(CATEGORIES).optional()),
@@ -48,6 +50,12 @@ export const statusSchema = z.object({
 export const verifySchema = z.object({
   fixed: z.boolean({ error: "Choose an option" }),
 });
+
+export const emergencySchema = z.object({
+  emergency: z.boolean({ error: "Choose an option" }),
+  kind: z.enum(EMERGENCY_KINDS).optional(),
+});
+export type EmergencyInput = z.infer<typeof emergencySchema>;
 
 export type VerifyInput = z.infer<typeof verifySchema>;
 export type CreateIssueInput = z.infer<typeof createIssueSchema>;

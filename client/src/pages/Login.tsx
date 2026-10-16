@@ -42,7 +42,10 @@ export default function Login() {
     <AuthShell title="Welcome back" subtitle="Log in to track your reports and see what has been fixed.">
       <form onSubmit={onSubmit} className="mt-6 space-y-4">
         <Field label="Email" type="email" value={email} onChange={setEmail} autoComplete="email" icon={Mail} />
-        <Field label="Password" type="password" value={password} onChange={setPassword} autoComplete="current-password" icon={Lock} />
+        <div>
+          <Field label="Password" type="password" value={password} onChange={setPassword} autoComplete="current-password" icon={Lock} />
+          <p className="mt-1.5 text-right text-xs"><Link to="/forgot-password" className="font-semibold text-accent hover:underline">Forgot password?</Link></p>
+        </div>
         {error && (
           <p role="alert" className="rounded-xl border border-alert/30 bg-alert/10 px-3 py-2 text-sm text-alert">{error}</p>
         )}

@@ -40,6 +40,12 @@ const userSchema = new Schema(
     notify: { type: new Schema(notifyShape, { _id: false }), default: () => ({}) },
     // Issues this person chose to hide from their Neighbourhood feed.
     hiddenIssues: { type: [Schema.Types.ObjectId], default: [], select: false },
+    // Officers on leave get no new work; their open issues were handed to colleagues.
+    onLeaveSince: { type: Date },
+    onLeaveUntil: { type: Date },
+    // Forgot-password: only a SHA-256 hash of the emailed token is stored, never the token itself.
+    resetTokenHash: { type: String, select: false, index: true, sparse: true },
+    resetTokenExpires: { type: Date, select: false },
   },
   { timestamps: true },
 );

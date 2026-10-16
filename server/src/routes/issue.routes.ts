@@ -9,6 +9,7 @@ import {
   listMine,
   supportIssue,
   updateStatus,
+  setEmergency,
   verifyIssue,
 } from "../controllers/issue.controller";
 import {
@@ -23,7 +24,7 @@ import { authenticate, requireRole } from "../middleware/auth";
 import { upload } from "../middleware/upload";
 import { validateBody } from "../middleware/validate";
 import { commentSchema, flagSchema } from "../validators/community.schemas";
-import { assignSchema, createIssueSchema, statusSchema, verifySchema } from "../validators/issue.schemas";
+import { assignSchema, createIssueSchema, emergencySchema, statusSchema, verifySchema } from "../validators/issue.schemas";
 import { flagLimiter } from "./community.routes";
 
 export const issueRouter = Router();
@@ -53,6 +54,7 @@ issueRouter.get("/nearby", getNearby);
 issueRouter.get("/assigned", requireRole("officer"), listAssigned);
 issueRouter.get("/:id", getIssue);
 issueRouter.post("/:id/support", supportIssue);
+issueRouter.patch("/:id/emergency", requireRole("officer", "admin"), validateBody(emergencySchema), setEmergency);
 issueRouter.patch("/:id/assign", requireRole("admin"), validateBody(assignSchema), assignIssue);
 issueRouter.patch(
   "/:id/status",

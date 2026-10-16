@@ -14,6 +14,12 @@ const schema = z.object({
   CLOUDINARY_CLOUD_NAME: z.string().optional(),
   CLOUDINARY_API_KEY: z.string().optional(),
   CLOUDINARY_API_SECRET: z.string().optional(),
+  // Email (forgot password). All optional: without them, reset links are printed in this terminal instead.
+  SMTP_HOST: z.string().optional(),
+  SMTP_PORT: z.coerce.number().optional(),
+  SMTP_USER: z.string().optional(),
+  SMTP_PASS: z.string().optional(),
+  MAIL_FROM: z.string().optional(),
   // The local Photo Assistant (ml/ folder). Leave empty to use http://localhost:8000.
   VISION_URL: z.preprocess((v) => (v === "" ? undefined : v), z.string().url().default("http://localhost:8000")),
 });

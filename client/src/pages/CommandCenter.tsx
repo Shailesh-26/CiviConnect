@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState, type DragEvent } from "react";
+import { EmergencyBadge } from "../components/EmergencyBadge";
 import { Link } from "react-router-dom";
 import {
   Activity,
@@ -16,6 +17,8 @@ import {
   TriangleAlert,
   UserPlus,
   type LucideIcon,
+  Plane,
+  Siren,
 } from "lucide-react";
 import { Avatar } from "../components/Avatar";
 import { CategoryChip } from "../components/CategoryChip";
@@ -25,7 +28,7 @@ import { SimulatorControl } from "../components/SimulatorControl";
 import { SlaChip } from "../components/SlaChip";
 import { ErrorNote, Skeleton } from "../components/ui";
 import { api, ApiError } from "../lib/api";
-import { issueLabel, PRIORITY_META } from "../lib/constants";
+import { EMERGENCY_META, issueLabel, PRIORITY_META } from "../lib/constants";
 import { timeAgo } from "../lib/format";
 import { useNotifications } from "../lib/notification-context";
 import { useLiveRefresh } from "../lib/useLiveRefresh";
@@ -64,6 +67,7 @@ function BoardCard({ issue, suggestion, onAssign, busy }: { issue: Issue; sugges
         <GripVertical size={16} className="mt-1 shrink-0 text-ink/25 group-hover:text-ink/50" aria-hidden />
       </div>
       <div className="mt-2 flex flex-wrap items-center gap-1.5">
+        <EmergencyBadge emergency={issue.emergency} />
         <SlaChip sla={issue.sla} compact />
         <span className="rounded-full px-2 py-0.5 text-[11px] font-semibold" style={{ background: `${PRIORITY_META[issue.priorityLabel].hex}1f`, color: PRIORITY_META[issue.priorityLabel].hex }}>
           {issue.priority}
@@ -181,6 +185,7 @@ export default function CommandCenter() {
   }
 
   const k = data.kpis;
+  const emergencies = [...new Map([...data.unassigned, ...data.lanes.flatMap((l) => l.issues)].filter((i) => i.emergency).map((i) => [i.id, i])).values()];
 
   return (
     <div className="space-y-6">
@@ -200,6 +205,22 @@ export default function CommandCenter() {
         </p>
         </div>
       </div>
+
+      {emergencies.length > 0 && (
+        <div className="flex flex-wrap items-center gap-3 rounded-3xl border border-alert/40 bg-alert/[0.07] p-4 animate-rise">
+          <span className="cc-emergency grid size-11 place-items-center rounded-2xl bg-alert text-white"><Siren size={22} aria-hidden /></span>
+          <div className="min-w-0 flex-1">
+            <p className="font-semibold text-alert">{emergencies.length} {emergencies.length === 1 ? "emergency needs" : "emergencies need"} action within 4 hours</p>
+            <div className="mt-1.5 flex flex-wrap gap-1.5">
+              {emergencies.map((i) => (
+                <Link key={i.id} to={`/issues/${i.id}`} className="inline-flex items-center gap-1.5 rounded-full border border-alert/30 bg-surface px-2.5 py-1 text-xs font-medium transition hover:border-alert">
+                  {EMERGENCY_META[i.emergency!.kind].label} · {i.ticket} · {i.assignedTo ? i.assignedTo.name : <span className="font-semibold text-alert">unassigned</span>}
+                </Link>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Bento: KPIs */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
@@ -271,8 +292,8 @@ export default function CommandCenter() {
             return (
               <div
                 key={lane.officer.id}
-                {...dropProps(lane.officer.id)}
-                className={`flex w-72 shrink-0 snap-start flex-col rounded-3xl border p-3 transition ${over === lane.officer.id ? "scale-[1.01] border-accent bg-accent/8 shadow-lift" : "border-ink/10 bg-ink/[0.03]"}`}
+                {...(lane.officer.onLeave ? {} : dropProps(lane.officer.id))}
+                className={`flex w-72 shrink-0 snap-start flex-col rounded-3xl border p-3 transition ${lane.officer.onLeave ? "border-dashed border-ink/15 bg-ink/[0.02] opacity-75" : over === lane.officer.id ? "scale-[1.01] border-accent bg-accent/8 shadow-lift" : "border-ink/10 bg-ink/[0.03]"}`}
               >
                 <div className="flex items-center gap-2.5 px-1">
                   <Avatar name={lane.officer.name} avatar={lane.officer.avatar} size="sm" />
@@ -280,7 +301,13 @@ export default function CommandCenter() {
                     <p className="truncate text-sm font-semibold">{lane.officer.name}</p>
                     <p className="truncate text-[11px] text-ink/50">{lane.officer.department ?? "Officer"}</p>
                   </div>
-                  {lane.breached > 0 && <span className="rounded-full bg-alert/12 px-2 py-0.5 text-[11px] font-semibold text-alert">{lane.breached} late</span>}
+                  {lane.officer.onLeave ? (
+                    <span className="inline-flex items-center gap-1 rounded-full bg-marker/20 px-2 py-0.5 text-[11px] font-semibold text-marker-dark" title={lane.officer.onLeave.until ? `Back after ${new Date(lane.officer.onLeave.until).toLocaleDateString("en-IN", { day: "numeric", month: "short" })}` : "No end date"}>
+                      <Plane size={11} aria-hidden /> On leave
+                    </span>
+                  ) : (
+                    lane.breached > 0 && <span className="rounded-full bg-alert/12 px-2 py-0.5 text-[11px] font-semibold text-alert">{lane.breached} late</span>
+                  )}
                 </div>
                 <div className="mt-3 px-1">
                   <div className="flex justify-between text-[11px] text-ink/55">
@@ -293,7 +320,7 @@ export default function CommandCenter() {
                 </div>
                 <div className="cc-scroll mt-3 max-h-[30rem] min-h-24 space-y-2.5 overflow-y-auto pr-1">
                   {lane.issues.length === 0 ? (
-                    <p className="rounded-2xl border border-dashed border-ink/15 px-3 py-6 text-center text-xs text-ink/45">Free. Drop an issue here.</p>
+                    <p className="rounded-2xl border border-dashed border-ink/15 px-3 py-6 text-center text-xs text-ink/45">{lane.officer.onLeave ? "On leave. New work goes to colleagues." : "Free. Drop an issue here."}</p>
                   ) : (
                     lane.issues.map((i) => <BoardCard key={i.id} issue={i} busy={busy.has(i.id)} />)
                   )}

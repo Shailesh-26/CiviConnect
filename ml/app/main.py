@@ -11,11 +11,11 @@ import os
 import time
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, File, HTTPException, UploadFile
+from fastapi import FastAPI, File, HTTPException, Response, UploadFile
 from fastapi.concurrency import run_in_threadpool
 from PIL import Image, ImageOps, UnidentifiedImageError
 
-from . import labels, quality
+from . import labels, privacy, quality
 from .model import Classifier, ClipEncoder, FakeEncoder
 
 MAX_BYTES = 8 * 1024 * 1024
@@ -37,6 +37,10 @@ async def lifespan(_app: FastAPI):
     started = time.perf_counter()
     state["clf"] = load_classifier()
     state["load_s"] = round(time.perf_counter() - started, 1)
+    try:
+        state["blur"] = privacy.FaceBlurrer()
+    except Exception as err:  # the category service still works without face blurring
+        print(f"Face blurring disabled: {err}")
     print(f"Photo Assistant ready: {state['clf'].encoder.name}, {state['clf'].mode} mode, loaded in {state['load_s']} s")
     yield
     state.clear()
@@ -82,7 +86,7 @@ def interpret(probs: dict[str, float]) -> dict:
 @app.get("/health")
 def health():
     clf: Classifier = state["clf"]
-    return {"ok": True, "loadSeconds": state.get("load_s"), "model": clf.info(), "labels": labels.LABEL}
+    return {"ok": True, "loadSeconds": state.get("load_s"), "model": clf.info(), "labels": labels.LABEL, "faceBlur": "blur" in state}
 
 
 @app.post("/classify")
@@ -96,3 +100,16 @@ async def classify(image: UploadFile = File(...)):
     result["model"] = {"name": clf.encoder.name, "mode": clf.mode}
     result["ms"] = round((time.perf_counter() - started) * 1000)
     return result
+
+
+@app.post("/privacy/blur")
+async def blur(image: UploadFile = File(...)):
+    """Blur every face. 200 with the new JPEG when faces were found, 204 when there was nothing to blur."""
+    blurrer = state.get("blur")
+    if blurrer is None:
+        raise HTTPException(503, "Face blurring is not available")
+    img = read_image(await image.read())
+    data, count = await run_in_threadpool(privacy.blur_faces, img, blurrer)
+    if data is None:
+        return Response(status_code=204, headers={"X-Faces-Blurred": "0"})
+    return Response(content=data, media_type="image/jpeg", headers={"X-Faces-Blurred": str(count)})

@@ -1,13 +1,24 @@
 import { z } from "zod";
 import { USER_ROLES } from "../models/User";
 
+// Optional end date for leave (YYYY-MM-DD), today or later and at most 90 days ahead. Leave ends at the end of that day.
+const leaveUntil = z
+  .union([z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Pick a date"), z.null()])
+  .transform((v) => (v ? new Date(`${v}T23:59:59`) : null))
+  .refine((d) => d === null || (d.getTime() > Date.now() && d.getTime() < Date.now() + 91 * 86_400_000), "Pick a date within the next 90 days");
+
 export const updateUserSchema = z
   .object({
     isActive: z.boolean(),
     role: z.enum(USER_ROLES),
     department: z.string().trim().max(80, "Department must be at most 80 characters"),
+    onLeave: z.boolean(),
+    leaveUntil: leaveUntil,
   })
   .partial();
+
+export const leaveSchema = z.object({ onLeave: z.boolean(), leaveUntil: leaveUntil.optional() });
+export type LeaveInput = z.infer<typeof leaveSchema>;
 
 export const moderationSchema = z.object({
   targetType: z.enum(["issue", "comment"]),

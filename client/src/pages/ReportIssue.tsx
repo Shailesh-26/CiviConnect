@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { createElement, useEffect, useMemo, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { Link, useNavigate } from "react-router-dom";
 import {
@@ -15,6 +15,7 @@ import {
   MapPin,
   Pencil,
   Phone,
+  Siren,
   Sparkles,
   UserRound,
   X,
@@ -27,12 +28,12 @@ import { LocationPicker, type LatLng } from "../components/LocationPicker";
 import { PhotoAssistantCard, PhotoScan } from "../components/PhotoAssistantCard";
 import { SimilarIssues } from "../components/SimilarIssues";
 import { api, ApiError } from "../lib/api";
-import { CATEGORIES, CATEGORY_COLOR, CHANNEL_META, issueLabel } from "../lib/constants";
+import { CATEGORIES, CATEGORY_COLOR, CHANNEL_META, EMERGENCY_KINDS, EMERGENCY_META, issueLabel } from "../lib/constants";
 import { CUSTOM_ICONS, OTHER_SUGGESTIONS } from "../lib/customIcons";
 import { useToast } from "../lib/toast-context";
 import { confetti } from "../lib/confetti";
 import { usePhotoAssistant } from "../lib/usePhotoAssistant";
-import type { Category, Channel, Issue, IssueDetail, NearbyItem, Role } from "../types";
+import type { Category, Channel, EmergencyKind, Issue, IssueDetail, NearbyItem, Role } from "../types";
 
 type StepId = "who" | "photo" | "what" | "where" | "details" | "review";
 
@@ -130,6 +131,7 @@ export default function ReportIssue() {
   const [similarLoading, setSimilarLoading] = useState(false);
   const [supportingId, setSupportingId] = useState<string | null>(null);
   const [dragging, setDragging] = useState(false);
+  const [emergencyKind, setEmergencyKind] = useState<EmergencyKind | "">("");
 
   // The Photo Assistant looks at the first photo and pre-selects the problem when it is confident.
   const assistant = usePhotoAssistant(files[0] ?? null, (r) => {
@@ -343,6 +345,7 @@ export default function ReportIssue() {
       form.append("channel", channel);
     }
     files.forEach((f) => form.append("photos", f));
+    if (emergencyKind) form.append("emergencyKind", emergencyKind);
     if (assistant.result) {
       form.append("aiVerdict", assistant.result.verdict);
       form.append("aiCategory", assistant.result.top[0]?.category ?? "");
@@ -352,8 +355,12 @@ export default function ReportIssue() {
 
     setSubmitting(true);
     try {
-      const data = await api<{ merged: boolean; issue: IssueDetail }>("/issues", { method: "POST", body: form });
+      const data = await api<{ merged: boolean; issue: IssueDetail; privacy?: { facesBlurred: number } }>("/issues", { method: "POST", body: form });
       toast.success(data.merged ? copy.merged : copy.created, { title: data.merged ? "Merged" : "Submitted" });
+      if (data.privacy?.facesBlurred) {
+        const n = data.privacy.facesBlurred;
+        toast.success(`${n} ${n === 1 ? "face was" : "faces were"} blurred in your photos before saving, to protect people's privacy.`, { title: "Privacy protected" });
+      }
       confetti();
       navigate(`/issues/${data.issue.id}`, { state: { merged: data.merged } });
     } catch (err) {
@@ -679,6 +686,47 @@ export default function ReportIssue() {
             placeholder="Near the bus stop on Station Road"
             className="input mt-1.5"
           />
+
+          {/* Emergency: dangerous right now */}
+          <div className={`mt-6 overflow-hidden rounded-2xl border transition-colors duration-300 ${emergencyKind ? "border-alert/50 bg-alert/[0.06]" : "border-ink/12"}`}>
+            <label className="flex cursor-pointer items-center gap-3 p-4">
+              <span className={`grid size-10 shrink-0 place-items-center rounded-xl transition-colors ${emergencyKind ? "bg-alert text-white cc-emergency" : "bg-alert/10 text-alert"}`}><Siren size={20} aria-hidden /></span>
+              <span className="min-w-0 flex-1">
+                <span className="block text-sm font-semibold">Is anyone in danger right now?</span>
+                <span className="block text-xs text-ink/55">For example a live wire or an open manhole. It gets a 4-hour fix-by time and admins are alerted at once.</span>
+              </span>
+              <input type="checkbox" checked={Boolean(emergencyKind)} onChange={(e) => setEmergencyKind(e.target.checked ? "live_wire" : "")} className="peer sr-only" />
+              <span className="relative h-6 w-11 shrink-0 rounded-full bg-ink/20 transition-colors peer-checked:bg-alert peer-focus-visible:ring-2 peer-focus-visible:ring-accent after:absolute after:left-0.5 after:top-0.5 after:size-5 after:rounded-full after:bg-white after:shadow after:transition-transform after:duration-300 peer-checked:after:translate-x-5" />
+            </label>
+            {emergencyKind && (
+              <div className="border-t border-alert/20 p-4 animate-fade">
+                <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                  {EMERGENCY_KINDS.map((k) => {
+                    const on = emergencyKind === k;
+                    return (
+                      <button
+                        key={k}
+                        type="button"
+                        onClick={() => setEmergencyKind(k)}
+                        aria-pressed={on}
+                        className={`flex items-start gap-2 rounded-xl border px-3 py-2.5 text-left transition ${on ? "border-alert bg-surface text-alert shadow-card" : "border-ink/12 bg-surface/60 hover:border-ink/30"}`}
+                      >
+                        {createElement(EMERGENCY_META[k].icon, { size: 16, className: "mt-0.5 shrink-0", "aria-hidden": true })}
+                        <span>
+                          <span className="block text-sm font-semibold">{EMERGENCY_META[k].label}</span>
+                          <span className="block text-[11px] text-ink/55">{EMERGENCY_META[k].hint}</span>
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+                <p className="mt-3 flex items-start gap-2 rounded-xl bg-alert/10 px-3 py-2 text-xs text-ink/75">
+                  <Phone size={14} className="mt-0.5 shrink-0 text-alert" aria-hidden />
+                  <span>If someone is hurt or in immediate danger, call <a href="tel:112" className="font-bold text-alert underline">112</a> first. Please use this only for real danger.</span>
+                </p>
+              </div>
+            )}
+          </div>
         </StepCard>
       )}
 
@@ -701,6 +749,11 @@ export default function ReportIssue() {
             <Summary label="Location" onEdit={() => goTo(steps.indexOf("where"))}>
               <p>{address || placeName || (point ? `${point.lat.toFixed(5)}, ${point.lng.toFixed(5)}` : "")}</p>
             </Summary>
+            {emergencyKind && (
+              <Summary label="Emergency" onEdit={() => goTo(steps.indexOf("details"))}>
+                <span className="inline-flex items-center gap-1.5 font-semibold text-alert"><Siren size={14} aria-hidden /> {EMERGENCY_META[emergencyKind].label} · 4-hour fix-by time</span>
+              </Summary>
+            )}
             <Summary label="Details" onEdit={() => goTo(steps.indexOf("details"))}>
               <p className="whitespace-pre-line text-ink/80">{description}</p>
             </Summary>

@@ -25,6 +25,7 @@ export function PriorityPlayground() {
   const [support, setSupport] = useState(4);
   const [days, setDays] = useState(2);
   const [escalated, setEscalated] = useState(false);
+  const [emergency, setEmergency] = useState(false);
 
   const parts = [
     { key: "Hazard", value: HAZARD[category] * 5, color: CATEGORY_COLOR[category] },
@@ -32,6 +33,7 @@ export function PriorityPlayground() {
     { key: "Support", value: Math.min(support, 10) * 1.5, color: "var(--c-resolved)" },
     { key: "Age", value: Math.min(days, 10), color: "var(--c-marker)" },
     { key: "Overdue", value: escalated ? 15 : 0, color: "var(--c-alert)" },
+    { key: "Emergency", value: emergency ? 25 : 0, color: "#7a1f16" },
   ];
   const raw = parts.reduce((sum, p) => sum + p.value, 0);
   const score = Math.round(Math.min(100, raw));
@@ -85,11 +87,16 @@ export function PriorityPlayground() {
         <Slider label="People who reported it" value={reports} max={11} onChange={setReports} hint="+3 each after the first" />
         <Slider label="Neighbours who backed it" value={support} max={10} onChange={setSupport} hint="+1.5 each" />
         <Slider label="Days open" value={days} max={10} onChange={setDays} hint="+1 a day" />
-        <label className="flex cursor-pointer items-center justify-between rounded-xl bg-ink/[0.04] px-3 py-2 text-xs">
-          <span className="font-medium text-ink/70">Missed its fix-by time (escalated)</span>
-          <input type="checkbox" checked={escalated} onChange={(e) => setEscalated(e.target.checked)} className="peer sr-only" />
-          <span className="relative h-5 w-9 rounded-full bg-ink/20 transition-colors peer-checked:bg-alert peer-focus-visible:ring-2 peer-focus-visible:ring-accent after:absolute after:left-0.5 after:top-0.5 after:size-4 after:rounded-full after:bg-white after:shadow after:transition-transform after:duration-300 peer-checked:after:translate-x-4" />
-        </label>
+        {[
+          { label: "Missed its fix-by time (escalated)", on: escalated, set: setEscalated },
+          { label: "Emergency: danger to people right now", on: emergency, set: setEmergency },
+        ].map((t) => (
+          <label key={t.label} className="flex cursor-pointer items-center justify-between rounded-xl bg-ink/[0.04] px-3 py-2 text-xs">
+            <span className="font-medium text-ink/70">{t.label}</span>
+            <input type="checkbox" checked={t.on} onChange={(e) => t.set(e.target.checked)} className="peer sr-only" />
+            <span className="relative h-5 w-9 rounded-full bg-ink/20 transition-colors peer-checked:bg-alert peer-focus-visible:ring-2 peer-focus-visible:ring-accent after:absolute after:left-0.5 after:top-0.5 after:size-4 after:rounded-full after:bg-white after:shadow after:transition-transform after:duration-300 peer-checked:after:translate-x-4" />
+          </label>
+        ))}
       </div>
     </div>
   );

@@ -3,6 +3,7 @@ import { createPortal } from "react-dom";
 import { Link, useSearchParams } from "react-router-dom";
 import {
   BrainCircuit,
+  Plane,
   Bot,
   CheckCircle2,
   Flag,
@@ -23,6 +24,7 @@ import { useAuth } from "../auth/useAuth";
 import { Avatar } from "../components/Avatar";
 import { CategoryChip } from "../components/CategoryChip";
 import { ConfirmDialog } from "../components/ConfirmDialog";
+import { LeaveDialog } from "../components/LeaveDialog";
 import { Field } from "../components/Field";
 import { ModelCard } from "../components/ModelCard";
 import { StatusBadge } from "../components/StatusBadge";
@@ -84,6 +86,8 @@ function People() {
   const [editing, setEditing] = useState<AdminUser | null>(null);
   const [adding, setAdding] = useState(false);
   const [confirmOff, setConfirmOff] = useState<AdminUser | null>(null);
+  const [leaveFor, setLeaveFor] = useState<AdminUser | null>(null);
+  const [leaveBusy, setLeaveBusy] = useState(false);
 
   const load = useCallback(() => {
     api<{ users: AdminUser[] }>("/admin/users")
@@ -92,10 +96,21 @@ function People() {
   }, []);
   useEffect(load, [load]);
 
-  async function patch(target: AdminUser, body: Partial<{ isActive: boolean; role: Role; department: string }>) {
+  async function patch(target: AdminUser, body: Partial<{ isActive: boolean; role: Role; department: string; onLeave: boolean; leaveUntil: string | null }>) {
     try {
-      const d = await api<{ user: AdminUser }>(`/admin/users/${target.id}`, { method: "PATCH", body });
+      const d = await api<{ user: AdminUser; moved?: { ticket: string; to: string | null }[] }>(`/admin/users/${target.id}`, { method: "PATCH", body });
       setUsers((all) => (all ?? []).map((u) => (u.id === target.id ? { ...u, ...d.user } : u)));
+      if (body.onLeave !== undefined) {
+        const moved = d.moved ?? [];
+        const handed = moved.filter((m) => m.to).length;
+        toast.success(
+          body.onLeave
+            ? moved.length ? `${handed} of ${moved.length} open ${moved.length === 1 ? "issue" : "issues"} handed to colleagues${moved.length - handed ? `, ${moved.length - handed} back to Unassigned` : ""}.` : "No open issues needed to move."
+            : `${target.name} can get new assignments again.`,
+          { title: body.onLeave ? `${target.name} is on leave` : "Back from leave" },
+        );
+        return true;
+      }
       toast.success(body.isActive === false ? `${target.name} can no longer log in.` : body.isActive ? `${target.name} can log in again.` : "Changes saved.", { title: "Updated" });
       return true;
     } catch (err) {
@@ -145,6 +160,17 @@ function People() {
                   <p className="flex items-center gap-1 truncate text-xs text-ink/55"><Mail size={12} aria-hidden /> {u.email}</p>
                 </button>
                 <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold capitalize ${ROLE_BADGE[u.role]}`}>{u.role}</span>
+                {u.role === "officer" && u.isActive && (
+                  u.onLeave ? (
+                    <button type="button" onClick={() => patch(u, { onLeave: false })} title="End leave" className="inline-flex items-center gap-1 rounded-full bg-marker/20 px-2.5 py-0.5 text-xs font-semibold text-marker-dark transition hover:bg-marker/30">
+                      <Plane size={12} aria-hidden /> On leave{u.onLeave.until ? ` · till ${new Date(u.onLeave.until).toLocaleDateString("en-IN", { day: "numeric", month: "short" })}` : ""} · end
+                    </button>
+                  ) : (
+                    <button type="button" onClick={() => setLeaveFor(u)} className="inline-flex items-center gap-1 rounded-full border border-ink/15 px-2.5 py-0.5 text-xs font-medium text-ink/60 transition hover:border-ink/35 hover:text-ink">
+                      <Plane size={12} aria-hidden /> Leave
+                    </button>
+                  )
+                )}
                 <span className="hidden w-40 truncate text-xs text-ink/60 md:block">{u.department ?? (u.role === "citizen" ? `${u.reportCount} reports` : "")}</span>
                 <span className="hidden w-24 text-xs text-ink/50 lg:block">Joined {timeAgo(u.createdAt)}</span>
                 <div className="w-36">
@@ -162,6 +188,21 @@ function People() {
 
       <EditUser user={editing} onClose={() => setEditing(null)} onSave={async (body) => editing && (await patch(editing, body)) && setEditing(null)} isMe={editing?.id === me?.id} />
       <AddOfficer open={adding} onClose={() => setAdding(false)} onCreated={(u) => { setUsers((all) => [u, ...(all ?? [])]); setAdding(false); }} />
+      <LeaveDialog
+        key={leaveFor?.id ?? "none"}
+        open={Boolean(leaveFor)}
+        who={leaveFor?.name ?? ""}
+        self={false}
+        busy={leaveBusy}
+        onCancel={() => setLeaveFor(null)}
+        onConfirm={async (until) => {
+          if (!leaveFor) return;
+          setLeaveBusy(true);
+          await patch(leaveFor, { onLeave: true, leaveUntil: until });
+          setLeaveBusy(false);
+          setLeaveFor(null);
+        }}
+      />
       <ConfirmDialog
         open={Boolean(confirmOff)}
         icon={ShieldUser}

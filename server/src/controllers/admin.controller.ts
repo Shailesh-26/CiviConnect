@@ -8,6 +8,8 @@ import { CATEGORIES, Issue, OPEN_STATUSES, type Category } from "../models/Issue
 import { User } from "../models/User";
 import { audit } from "../services/audit";
 import { broadcast, adminIds } from "../services/notify";
+import { setLeave } from "../services/leave";
+import { suggest, type OfficerLite } from "../services/routing";
 import { setSlaHours, slaHoursFor, slaTable } from "../services/sla";
 import { AppError } from "../utils/AppError";
 import { toIssueDTO, type IssueRecord } from "../utils/issueDto";
@@ -77,51 +79,24 @@ export const updateUser: RequestHandler = async (req, res) => {
   await user.save();
   if (changes.length) await audit(req.user!, "user.updated", { type: "user", id }, `${user.name}: ${changes.join(", ")}`);
 
-  res.json({ user: { ...toAdminUser(user), isActive: user.isActive } });
+  let moved: { ticket: string; to: string | null }[] = [];
+  if (input.onLeave !== undefined && user.role === "officer") {
+    const result = await setLeave(id, input.onLeave, input.leaveUntil ?? null, req.user!);
+    moved = result.moved;
+    if (result.officer) user.set({ onLeaveSince: result.officer.onLeaveSince, onLeaveUntil: result.officer.onLeaveUntil });
+  }
+
+  res.json({ user: { ...toAdminUser(user), isActive: user.isActive }, moved });
 };
 
 // ---------------------------------------------------------------- Command Center
-
-// Words that link an officer's department to a category, used for smart routing.
-const DEPT_HINTS: Record<Category, string[]> = {
-  pothole: ["road", "pave", "engineer"],
-  garbage: ["sanit", "waste", "garbage", "clean"],
-  drainage: ["drain", "sewer", "water"],
-  streetlight: ["light", "electric"],
-  fallen_tree: ["tree", "park", "horti", "green"],
-  other: ["road", "general", "ward"],
-};
-
-type OfficerLite = { _id: Types.ObjectId; name: string; department?: string | null };
-
-/**
- * Suggest who should take an issue: experience with the category (past assignments),
- * a department that matches, and spare capacity (fewer open issues). Weights are simple and visible.
- */
-function suggest(category: Category, officers: OfficerLite[], history: Map<string, number>, load: Map<string, number>) {
-  let best: { officer: OfficerLite; score: number } | null = null;
-  for (const o of officers) {
-    const id = o._id.toString();
-    const dept = (o.department ?? "").toLowerCase();
-    const match = DEPT_HINTS[category].some((h) => dept.includes(h)) ? 5 : 0;
-    const score = (history.get(`${id}:${category}`) ?? 0) + match - 1.5 * (load.get(id) ?? 0);
-    if (!best || score > best.score) best = { officer: o, score };
-  }
-  if (!best) return null;
-  const id = best.officer._id.toString();
-  return {
-    id,
-    name: best.officer.name,
-    reason: `${best.officer.department ?? "Officer"} · ${load.get(id) ?? 0} open`,
-  };
-}
 
 export const overview: RequestHandler = async (req, res) => {
   const viewer = req.user!.id;
   const now = Date.now();
   const [open, officers, history, resolved7d, flagsOpen, activity, resolvedByOfficer] = await Promise.all([
     Issue.find({ status: { $in: OPEN_STATUSES } }).populate(assigneeFields).lean() as unknown as Promise<IssueRecord[]>,
-    User.find({ role: "officer", isActive: true }).select("name department avatar").lean(),
+    User.find({ role: "officer", isActive: true }).select("name department avatar onLeaveSince onLeaveUntil").lean(),
     Issue.aggregate([{ $match: { assignedTo: { $ne: null } } }, { $group: { _id: { o: "$assignedTo", c: "$category" }, n: { $sum: 1 } } }]),
     Issue.countDocuments({ status: "resolved", resolvedAt: { $gte: new Date(now - 7 * 86_400_000) } }),
     Flag.countDocuments({ status: "open" }),
@@ -149,6 +124,7 @@ export const overview: RequestHandler = async (req, res) => {
   res.json({
     kpis: {
       open: dtos.length,
+      emergencies: dtos.filter((d) => d.emergency).length,
       unassigned: dtos.filter((d) => !d.assignedTo).length,
       breached: dtos.filter((d) => d.sla.state === "breached").length,
       dueSoon: dtos.filter((d) => d.sla.state !== "breached" && d.sla.hoursLeft <= 24).length,
@@ -168,6 +144,7 @@ export const overview: RequestHandler = async (req, res) => {
           name: o.name,
           department: o.department ?? null,
           avatar: o.avatar && (o.avatar.url || o.avatar.emoji) ? { emoji: o.avatar.emoji ?? null, color: o.avatar.color ?? null, url: o.avatar.url ?? null } : null,
+          onLeave: o.onLeaveSince ? { since: o.onLeaveSince, until: o.onLeaveUntil ?? null } : null,
         },
         open: mine.length,
         breached: mine.filter((d) => d.sla.state === "breached").length,
@@ -349,7 +326,8 @@ export const updateCategory: RequestHandler = async (req, res) => {
   setSlaHours(category, slaHours);
 
   // Open issues of this category get the new fix-by time, measured from when they were reported.
-  const open = await Issue.find({ category, status: { $in: OPEN_STATUSES } }).select("createdAt escalatedAt");
+  // Emergencies keep their own 4-hour clock.
+  const open = await Issue.find({ category, status: { $in: OPEN_STATUSES }, emergency: { $ne: true } }).select("createdAt escalatedAt");
   const now = Date.now();
   let cleared = 0;
   await Issue.bulkWrite(

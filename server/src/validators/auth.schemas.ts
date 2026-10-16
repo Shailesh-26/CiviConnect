@@ -18,6 +18,14 @@ const password = z
 
 export const registerSchema = z.object({ name, email, password });
 
+export const forgotSchema = z.object({ email });
+export const resetSchema = z.object({
+  token: z.string().regex(/^[a-f\d]{64}$/i, "This reset link is not valid"),
+  password,
+});
+export type ForgotInput = z.infer<typeof forgotSchema>;
+export type ResetInput = z.infer<typeof resetSchema>;
+
 export const loginSchema = z.object({
   email,
   password: z.string().min(1, "Password is required"),

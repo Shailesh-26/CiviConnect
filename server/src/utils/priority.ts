@@ -17,6 +17,8 @@ type PriorityInput = {
   createdAt: Date;
   // Overdue issues that were escalated by the SLA sweep get a boost.
   escalated?: boolean;
+  // Dangerous right now (live wire, open manhole...): jumps the queue.
+  emergency?: boolean;
 };
 
 /**
@@ -26,14 +28,15 @@ type PriorityInput = {
  *   citizen support          up to 15
  *   days open                up to 10
  *   escalated (overdue)      +15
+ *   emergency                +25
  */
-export function computePriority({ category, reportCount, supporterCount, createdAt, escalated = false }: PriorityInput) {
+export function computePriority({ category, reportCount, supporterCount, createdAt, escalated = false, emergency = false }: PriorityInput) {
   const hazard = HAZARD[category] * 5;
   const reports = Math.min(Math.max(reportCount - 1, 0), 10) * 3;
   const support = Math.min(supporterCount, 10) * 1.5;
   const ageDays = (Date.now() - new Date(createdAt).getTime()) / 86_400_000;
   const age = Math.min(Math.max(ageDays, 0), 10);
-  return Math.round(Math.min(100, hazard + reports + support + age + (escalated ? 15 : 0)));
+  return Math.round(Math.min(100, hazard + reports + support + age + (escalated ? 15 : 0) + (emergency ? 25 : 0)));
 }
 
 export const priorityLabel = (score: number) => (score >= 70 ? "high" : score >= 40 ? "medium" : "low");

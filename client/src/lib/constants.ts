@@ -1,13 +1,17 @@
 import {
   Construction,
+  CircleDashed,
   CircleHelp,
   Droplets,
   Lightbulb,
   Trash2,
   TreeDeciduous,
+  TriangleAlert,
+  Waves,
+  Zap,
   type LucideIcon,
 } from "lucide-react";
-import type { Category, Channel, PriorityLabel, Source, Status } from "../types";
+import type { Category, Channel, EmergencyKind, PriorityLabel, Source, Status } from "../types";
 
 // Order matters: charts draw categories in this order, and the colours below were checked
 // (dataviz palette validator) so neighbours stay distinguishable, also for colour-blind readers.
@@ -82,6 +86,16 @@ export const PRIORITY_META: Record<PriorityLabel, { label: string; bar: string; 
   medium: { label: "Medium", bar: "bg-marker", hex: "#e0a100" },
   low: { label: "Low", bar: "bg-accent", hex: "#2f73b3" },
 };
+
+// Emergencies: dangerous right now. 4-hour fix-by clock and +25 priority (server/src/services/sla.ts).
+export const EMERGENCY_META: Record<EmergencyKind, { label: string; hint: string; icon: LucideIcon }> = {
+  live_wire: { label: "Live wire", hint: "Exposed or fallen electric wire", icon: Zap },
+  open_manhole: { label: "Open manhole", hint: "Uncovered drain or manhole", icon: CircleDashed },
+  road_blocked: { label: "Road blocked", hint: "Tree or debris blocking traffic", icon: Construction },
+  flooding: { label: "Flooding", hint: "Water rising on the road or into homes", icon: Waves },
+  other_danger: { label: "Other danger", hint: "Anything that could hurt someone now", icon: TriangleAlert },
+};
+export const EMERGENCY_KINDS = Object.keys(EMERGENCY_META) as EmergencyKind[];
 
 export const OPEN: Status[] = ["reported", "acknowledged", "in_progress"];
 

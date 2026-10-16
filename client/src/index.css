@@ -454,3 +454,9 @@ body::before {
 /* Report wizard: drag and drop overlay */
 @keyframes cc-bob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-8px); } }
 .cc-bob { animation: cc-bob 1.1s ease-in-out infinite; }
+
+/* Emergency badge: a soft red glow that pulses, so it is noticed without being annoying. */
+@keyframes cc-emergency { 0%, 100% { box-shadow: 0 0 0 0 rgb(184 58 46 / 0.45); } 50% { box-shadow: 0 0 0 6px rgb(184 58 46 / 0); } }
+.cc-emergency { animation: cc-emergency 1.8s ease-out infinite; }
+.cc-emergency-card { box-shadow: inset 3px 0 0 var(--c-alert), var(--shadow-card); }
+@media (prefers-reduced-motion: reduce) { .cc-emergency { animation: none; } }
