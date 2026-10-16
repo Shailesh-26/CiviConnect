@@ -80,13 +80,15 @@ export const updateUser: RequestHandler = async (req, res) => {
   if (changes.length) await audit(req.user!, "user.updated", { type: "user", id }, `${user.name}: ${changes.join(", ")}`);
 
   let moved: { ticket: string; to: string | null }[] = [];
+  let back: { returned: { ticket: string }[]; kept: { ticket: string }[] } | null = null;
   if (input.onLeave !== undefined && user.role === "officer") {
     const result = await setLeave(id, input.onLeave, input.leaveUntil ?? null, req.user!);
     moved = result.moved;
+    back = result.back;
     if (result.officer) user.set({ onLeaveSince: result.officer.onLeaveSince, onLeaveUntil: result.officer.onLeaveUntil });
   }
 
-  res.json({ user: { ...toAdminUser(user), isActive: user.isActive }, moved });
+  res.json({ user: { ...toAdminUser(user), isActive: user.isActive }, moved, back });
 };
 
 // ---------------------------------------------------------------- Command Center

@@ -7,7 +7,7 @@ import { Field } from "../components/Field";
 import { ApiError } from "../lib/api";
 
 // Shown only on the dev server. Matches the accounts created by `npm run seed:demo`.
-const DEMO_PASSWORD = "Demo@1234";
+const DEMO_PASSWORD = "Demo@123";
 const DEMO_ACCOUNTS = [
   { label: "Citizen", email: "anjali.sharma@civiconnect.demo", icon: User },
   { label: "Officer", email: "ravi.kumar@civiconnect.demo", icon: Wrench },

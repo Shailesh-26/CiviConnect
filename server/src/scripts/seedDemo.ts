@@ -24,7 +24,7 @@ import { DEFAULT_SLA_HOURS } from "../services/sla";
  */
 
 const DEMO_DOMAIN = "@civiconnect.demo";
-const DEMO_PASSWORD = "Demo@1234";
+const DEMO_PASSWORD = "Demo@123";
 const DAY = 86_400_000;
 
 // Small deterministic random generator so every run produces the same city.

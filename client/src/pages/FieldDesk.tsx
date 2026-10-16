@@ -29,6 +29,18 @@ function Stat({ label, value, icon: Icon, tone }: { label: string; value: number
   );
 }
 
+type LeaveBack = { returned: { ticket: string }[]; kept: { ticket: string; with: string | null; status: string }[] };
+
+function welcomeBack(back: LeaveBack) {
+  const r = back.returned.length;
+  const kept = back.kept.filter((k) => k.status === "in_progress");
+  const parts = [];
+  if (r) parts.push(`${r} ${r === 1 ? "issue that wasn't started is" : "issues that weren't started are"} back on your desk.`);
+  if (kept.length) parts.push(`${kept.length} already in progress ${kept.length === 1 ? "stays" : "stay"} with ${[...new Set(kept.map((k) => k.with ?? "a colleague"))].join(", ")}.`);
+  if (back.kept.length - kept.length > 0) parts.push(`${back.kept.length - kept.length} ${back.kept.length - kept.length === 1 ? "was" : "were"} fixed while you were away.`);
+  return parts.length ? parts.join(" ") : "Nothing was handed over, so your desk is as you left it. New assignments will reach you again.";
+}
+
 // The officer's workspace: today's work sorted by time left, the day's route, and how they are doing.
 export default function FieldDesk() {
   const { user, updateUser } = useAuth();
@@ -72,13 +84,13 @@ export default function FieldDesk() {
   async function setLeave(onLeave: boolean, until: string | null = null) {
     setLeaveBusy(true);
     try {
-      const d = await api<{ user: User; moved: { ticket: string; to: string | null }[] }>("/officer/leave", { method: "PATCH", body: { onLeave, leaveUntil: until } });
+      const d = await api<{ user: User; moved: { ticket: string; to: string | null }[]; back: LeaveBack }>("/officer/leave", { method: "PATCH", body: { onLeave, leaveUntil: until } });
       updateUser(d.user);
       const handed = d.moved.filter((m) => m.to).length;
       toast.success(
         onLeave
           ? d.moved.length ? `${handed} of your ${d.moved.length} open ${d.moved.length === 1 ? "issue was" : "issues were"} handed to colleagues. Enjoy your time off.` : "Enjoy your time off."
-          : "New assignments will reach you again.",
+          : welcomeBack(d.back),
         { title: onLeave ? "You're on leave" : "Welcome back" },
       );
       setLeaveOpen(false);

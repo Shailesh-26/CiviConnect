@@ -98,7 +98,7 @@ function People() {
 
   async function patch(target: AdminUser, body: Partial<{ isActive: boolean; role: Role; department: string; onLeave: boolean; leaveUntil: string | null }>) {
     try {
-      const d = await api<{ user: AdminUser; moved?: { ticket: string; to: string | null }[] }>(`/admin/users/${target.id}`, { method: "PATCH", body });
+      const d = await api<{ user: AdminUser; moved?: { ticket: string; to: string | null }[]; back?: { returned: unknown[]; kept: unknown[] } | null }>(`/admin/users/${target.id}`, { method: "PATCH", body });
       setUsers((all) => (all ?? []).map((u) => (u.id === target.id ? { ...u, ...d.user } : u)));
       if (body.onLeave !== undefined) {
         const moved = d.moved ?? [];
@@ -106,7 +106,7 @@ function People() {
         toast.success(
           body.onLeave
             ? moved.length ? `${handed} of ${moved.length} open ${moved.length === 1 ? "issue" : "issues"} handed to colleagues${moved.length - handed ? `, ${moved.length - handed} back to Unassigned` : ""}.` : "No open issues needed to move."
-            : `${target.name} can get new assignments again.`,
+            : `${target.name} can get new assignments again.${d.back?.returned.length ? ` ${d.back.returned.length} not-yet-started ${d.back.returned.length === 1 ? "issue went" : "issues went"} back to them.` : ""}`,
           { title: body.onLeave ? `${target.name} is on leave` : "Back from leave" },
         );
         return true;

@@ -122,6 +122,8 @@ const issueSchema = new Schema(
     emergencyKind: { type: String, enum: EMERGENCY_KINDS },
     emergencyAt: { type: Date },
     unassignedAlertAt: { type: Date },
+    // Set when the issue was handed to a colleague because its officer went on leave.
+    handedOverFrom: { type: Schema.Types.ObjectId, ref: "User", index: true, sparse: true },
   },
   { timestamps: true },
 );

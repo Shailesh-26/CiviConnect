@@ -9,7 +9,7 @@ const QA = [
   { q: "What stops an officer from closing an issue that isn't fixed?", a: "Closing needs a proof photo. Then citizens verify. If the original reporter, or two other neighbours, say it's still there, the issue reopens automatically with half the usual time to fix it." },
   { q: "How fast will my issue be fixed?", a: "Each category has a fix-by time: 24 hours for fallen trees, 48 for drainage and garbage, 72 for potholes and street lights. Officers are warned when a quarter of the time is left, and overdue issues are escalated." },
   { q: "Is my name shown publicly?", a: "No. Public pages and the live map show only the problem, its place and its status. Your name never appears on a shared issue link, and faces in uploaded photos are blurred automatically before they are saved." },
-  { q: "What happens when an officer goes on leave?", a: "Their open issues are handed to the best available colleague straight away, using the same smart routing as new issues, and nothing new is assigned to them until they are back." },
+  { q: "What happens when an officer goes on leave?", a: "Their open issues are handed to the best available colleague straight away, using the same smart routing as new issues, and nothing new is assigned to them. When they are back, anything nobody has started yet returns to them; work a colleague has already started stays with that colleague." },
   { q: "Can someone without a smartphone report a problem?", a: "Yes. City staff can register a complaint on a citizen's behalf from a phone call, walk-in, email or letter, and it is tracked exactly like any other report." },
 ];
 

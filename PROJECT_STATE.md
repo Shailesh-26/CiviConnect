@@ -175,7 +175,7 @@ NODE_ENV, PORT, MONGODB_URI, CLIENT_URL, JWT_SECRET (32+ chars), JWT_EXPIRES_DAY
 - One README only: ml/README.md merged into the root README (setup, daily run with 3 terminals, Photo Assistant, training, tests) and deleted
 - .gitattributes (text=auto eol=lf) to stop CRLF warnings on Windows
 
-## Phase 11 (real-world features) - delivered 2026-10-16, awaiting owner test
+## Phase 11 (real-world features) - delivered 2026-10-16, pushed to GitHub by owner (verified identical), test results pending
 - Forgot password: POST /api/auth/forgot (same answer whether or not the email exists, 5 per 15 min) stores a SHA-256 hash of a random token, 30-minute expiry; POST /api/auth/reset sets the password, clears the token, emails a "password changed" notice and signs the user in. services/mailer.ts uses Nodemailer when SMTP_* is set in server/.env, otherwise prints the email in the server terminal; in development without SMTP the reset link is also returned as devLink and shown on the page. Pages /forgot-password and /reset-password (strength meter), "Forgot password?" on Login
 - Emergencies: emergency, emergencyKind (live_wire, open_manhole, road_blocked, flooding, other_danger), emergencyAt on Issue. 4-hour fix-by clock (EMERGENCY_SLA_HOURS), +25 priority (also in the MongoDB priority expression and analytics), warning in the last hour, escalation text. Set in the wizard Details step (with "call 112 first"), raised when a merged report says so, or by admin / assigned officer via PATCH /api/issues/:id/emergency (clear restores the category clock). Notification type "emergency" cannot be switched off; admins + assigned officer told instantly. Red pulsing badge on lists, feed, Field Desk, Command Center cards and issue page; Command Center emergency banner; admin category SLA changes skip emergencies. Demo seed marks 2 open issues as emergencies
 - Officer leave: onLeaveSince/onLeaveUntil on User. services/leave.ts hands every open issue to the best available colleague (services/routing.ts, the smart routing moved out of admin.controller; on-leave officers are never suggested), or back to Unassigned; timeline notes, notifications, audit. Officer: PATCH /api/officer/leave (Field Desk "Going on leave" dialog with optional end date, on-leave banner with "I'm back"); admin: People tab Leave button via PATCH /api/admin/users/:id {onLeave, leaveUntil}. Assigning to an officer on leave is refused; Command Center lanes show "On leave" and do not accept drops; the scheduler ends leave after its end date
@@ -185,8 +185,13 @@ NODE_ENV, PORT, MONGODB_URI, CLIENT_URL, JWT_SECRET (32+ chars), JWT_EXPIRES_DAY
 - Tests: server 41 (emergency priority and clock, routing skips leave, leave dates, reset/forgot validation, email fallback, new 401 routes); ml 14 (blur endpoint, blur region)
 - New server dependency: nodemailer (owner must run npm install in server); new ml dependency: opencv-python-headless (pip install -r requirements.txt again)
 
+## Phase 11.1 (2026-10-16)
+- Owner tested Phase 11: all fine except leave. Going on leave moved Ravi's issues away and "I'm back" brought nothing back, which looked like nothing happened
+- Now issues handed over because of leave are marked (Issue.handedOverFrom). On return (button, admin, or end date), the ones not started yet (reported/acknowledged) go back to the officer with a timeline note and the colleague is told; In progress work stays with the colleague. Field Desk and Admin show a welcome-back summary; leave dialog and FAQ explain the rule
+- Issues moved before this fix carry no marker; re-run npm run seed:demo to reset the demo
+
 ## Next steps
-1. Owner tests Phase 11
+1. Owner tests Phase 11.1
 2. Phase 10b when the owner has photos: Colab notebook, then copy the two files into ml/models/
 3. Feature freeze about 7-10 days before the final review; presentation only when the owner asks
 

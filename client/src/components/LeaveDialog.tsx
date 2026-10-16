@@ -30,7 +30,7 @@ export function LeaveDialog({ open, who, self, openCount, busy, onConfirm, onCan
                 ? "There are no open issues to hand over. "
                 : `${openCount} open ${openCount === 1 ? "issue" : "issues"} `}
             {openCount !== 0 && "will be handed to the best available colleague automatically. "}
-            New work won't be assigned until {self ? "you're" : "they're"} back.
+            New work won't be assigned until {self ? "you're" : "they're"} back. On return, issues nobody has started yet come back; work a colleague has started stays with them.
           </p>
           <label className="block">
             <span className="text-xs font-semibold text-ink/70">Back on (optional)</span>

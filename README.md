@@ -56,7 +56,7 @@ fallen trees and broken street lights, from a citizen's photo to a verified fix.
 ### 🧰 Field officers
 - 📋 **Field Desk:** queue sorted by time left, today's route (nearest stop next), on-time rate
 - 🔍 Log problems found during field inspections; resolve with a proof photo
-- ✈️ **On leave:** open work is handed to colleagues automatically; nothing new is assigned until they're back
+- ✈️ **On leave:** open work is handed to colleagues automatically; nothing new is assigned until they're back, and on return anything not yet started comes back to them
 
 ### 🛰️ City admins
 - 🗺️ **Command Center:** emergency banner, live map, overdue board, unassigned queue with smart officer suggestions, officer lanes
