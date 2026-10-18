@@ -126,7 +126,9 @@ class Classifier:
         return self.encoder.image(img)
 
     def probabilities(self, img: Image.Image) -> dict[str, float]:
-        x = self.embed(img)
+        return self.probabilities_for(self.embed(img))
+
+    def probabilities_for(self, x: np.ndarray) -> dict[str, float]:
         logits = self.W @ x + self.b if self.mode == "trained" else self.encoder.logit_scale * (self.T @ x)
         p = _softmax(logits.astype(np.float64))
         return {c: float(v) for c, v in zip(self.classes, p)}

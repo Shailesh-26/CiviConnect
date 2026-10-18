@@ -124,6 +124,22 @@ const issueSchema = new Schema(
     unassignedAlertAt: { type: Date },
     // Set when the issue was handed to a colleague because its officer went on leave.
     handedOverFrom: { type: Schema.Types.ObjectId, ref: "User", index: true, sparse: true },
+    // AI fix check of the latest proof photo (advisory, see utils/fixCheck.ts).
+    fixCheck: {
+      type: new Schema(
+        {
+          verdict: { type: String, enum: ["looks_fixed", "different_place", "still_visible"] },
+          similarity: { type: Number },
+          stillScore: { type: Number },
+          comparedWith: { type: Number },
+          mode: { type: String },
+          at: { type: Date },
+          reviewedAt: { type: Date },
+        },
+        { _id: false },
+      ),
+      default: undefined,
+    },
   },
   { timestamps: true },
 );

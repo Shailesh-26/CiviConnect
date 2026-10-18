@@ -42,6 +42,7 @@ export type IssueRecord = {
   emergency?: boolean | null;
   emergencyKind?: string | null;
   emergencyAt?: Date | null;
+  fixCheck?: { verdict?: string | null; similarity?: number | null; stillScore?: number | null; comparedWith?: number | null; mode?: string | null; at?: Date | null; reviewedAt?: Date | null } | null;
   createdAt: Date;
   updatedAt: Date;
 };
@@ -116,6 +117,17 @@ export function toIssueDetailDTO(issue: IssueRecord, viewerId?: string) {
       byName: t.by && reporterIds.has(t.by.toString()) ? null : (t.byName ?? null),
       at: t.at,
     })),
+    fixCheck: issue.fixCheck?.verdict
+      ? {
+          verdict: issue.fixCheck.verdict,
+          similarity: issue.fixCheck.similarity ?? null,
+          stillScore: issue.fixCheck.stillScore ?? 0,
+          comparedWith: issue.fixCheck.comparedWith ?? 0,
+          mode: issue.fixCheck.mode ?? null,
+          at: issue.fixCheck.at ?? null,
+          reviewed: Boolean(issue.fixCheck.reviewedAt),
+        }
+      : null,
     verification: {
       fixed: votes.filter((v) => v.fixed).length,
       notFixed: votes.filter((v) => !v.fixed).length,

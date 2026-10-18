@@ -26,6 +26,7 @@ import { AddressSearch } from "../components/AddressSearch";
 import { CategoryChip } from "../components/CategoryChip";
 import { LocationPicker, type LatLng } from "../components/LocationPicker";
 import { PhotoAssistantCard, PhotoScan } from "../components/PhotoAssistantCard";
+import { PhotoMatches } from "../components/PhotoMatches";
 import { SimilarIssues } from "../components/SimilarIssues";
 import { api, ApiError } from "../lib/api";
 import { CATEGORIES, CATEGORY_COLOR, CHANNEL_META, EMERGENCY_KINDS, EMERGENCY_META, issueLabel } from "../lib/constants";
@@ -33,7 +34,7 @@ import { CUSTOM_ICONS, OTHER_SUGGESTIONS } from "../lib/customIcons";
 import { useToast } from "../lib/toast-context";
 import { confetti } from "../lib/confetti";
 import { usePhotoAssistant } from "../lib/usePhotoAssistant";
-import type { Category, Channel, EmergencyKind, Issue, IssueDetail, NearbyItem, Role } from "../types";
+import type { Category, Channel, EmergencyKind, Issue, IssueDetail, NearbyItem, PhotoMatch, Role } from "../types";
 
 type StepId = "who" | "photo" | "what" | "where" | "details" | "review";
 
@@ -137,6 +138,26 @@ export default function ReportIssue() {
   const assistant = usePhotoAssistant(files[0] ?? null, (r) => {
     if (r.verdict === "confident" && r.category) setCategory((c) => c || r.category!);
   });
+
+  // Same-photo duplicate check: once there is a pin, compare the photo with nearby report photos.
+  const photoVector = assistant.result?.vector;
+  const matchKey = point && photoVector ? `${point.lat.toFixed(5)},${point.lng.toFixed(5)},${photoVector.slice(0, 4).join(",")}` : "";
+  const [photoMatches, setPhotoMatches] = useState<{ key: string; items: PhotoMatch[] }>({ key: "", items: [] });
+  useEffect(() => {
+    if (!matchKey || !point || !photoVector) return;
+    let active = true;
+    const t = window.setTimeout(() => {
+      api<{ matches: PhotoMatch[] }>("/vision/similar", { method: "POST", body: { vector: photoVector, lat: point.lat, lng: point.lng } })
+        .then((d) => active && setPhotoMatches({ key: matchKey, items: d.matches }))
+        .catch(() => undefined);
+    }, 400);
+    return () => {
+      active = false;
+      window.clearTimeout(t);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [matchKey]);
+  const shownMatches = photoMatches.key === matchKey ? photoMatches.items : [];
 
   const previews = useMemo(() => files.map((f) => URL.createObjectURL(f)), [files]);
   useEffect(() => () => previews.forEach((url) => URL.revokeObjectURL(url)), [previews]);
@@ -651,6 +672,7 @@ export default function ReportIssue() {
           {fieldErrors.location && <p className="mt-1 text-sm text-alert">{fieldErrors.location}</p>}
           {point && (
             <div className="mt-5">
+              <PhotoMatches matches={shownMatches} canSupport={role === "citizen"} supportingId={supportingId} onSupport={(id) => supportInstead({ id } as NearbyItem)} />
               <SimilarIssues items={similar} loading={similarLoading} canSupport={role === "citizen"} supportingId={supportingId} onSupport={supportInstead} />
             </div>
           )}

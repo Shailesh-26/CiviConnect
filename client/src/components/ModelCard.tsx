@@ -4,6 +4,7 @@ import { api } from "../lib/api";
 import { CATEGORY_COLOR, issueLabel } from "../lib/constants";
 import type { Category, VisionStats, VisionStatus } from "../types";
 import { CountUp } from "./CountUp";
+import { FixReview } from "./FixReview";
 import { Ring } from "./Ring";
 import { Skeleton } from "./ui";
 
@@ -168,6 +169,8 @@ uvicorn app.main:app --port 8000`}</pre>
           </div>
         )
       )}
+
+      <FixReview />
 
       {/* Real-world agreement */}
       <section className="card p-5">

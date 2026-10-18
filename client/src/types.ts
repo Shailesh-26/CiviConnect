@@ -78,6 +78,7 @@ export type IssueDetail = Issue & {
     at: string;
   }[];
   verification: { fixed: number; notFixed: number; myVote: boolean | null };
+  fixCheck?: FixCheck | null;
   chronic?: { count: number; recurrences: number; since: string; suggestion: string } | null;
 };
 
@@ -169,7 +170,7 @@ export type PublicIssue = {
 export type Place = { label: string; full: string; lat: number; lng: number };
 
 export type NotificationType =
-  | "status" | "resolved" | "comment" | "merged" | "assigned" | "sla_warning" | "escalated" | "emergency" | "leave" | "reopened" | "new_issue" | "unassigned" | "flag";
+  | "status" | "resolved" | "comment" | "merged" | "assigned" | "sla_warning" | "escalated" | "emergency" | "leave" | "fix_check" | "reopened" | "new_issue" | "unassigned" | "flag";
 
 export type AppNotification = {
   id: string;
@@ -364,6 +365,57 @@ export type VisionResult = {
   quality: { sharpness: number; brightness: number; blurry: boolean; dark: boolean };
   model: { name: string; mode: VisionMode };
   ms: number;
+  vector?: number[];
+};
+
+export type FixCheck = {
+  verdict: "looks_fixed" | "different_place" | "still_visible";
+  similarity: number | null;
+  stillScore: number;
+  comparedWith: number;
+  mode: string | null;
+  at: string | null;
+  reviewed: boolean;
+};
+
+export type PhotoMatch = {
+  id: string;
+  ticket: string;
+  category: Category;
+  customLabel: string | null;
+  status: Status;
+  address: string | null;
+  photoUrl: string;
+  similarity: number;
+  exactSamePhoto: boolean;
+  distanceM: number | null;
+  open: boolean;
+};
+
+export type PhotoSearchHit = {
+  id: string;
+  ticket: string;
+  category: Category;
+  customLabel: string | null;
+  status: Status;
+  address: string | null;
+  photoUrl: string;
+  kind: "report" | "proof";
+  score: number;
+  at: string;
+};
+
+export type FixFlag = {
+  id: string;
+  ticket: string;
+  category: Category;
+  customLabel: string | null;
+  status: Status;
+  address: string | null;
+  officer: string | null;
+  before: string | null;
+  after: string | null;
+  fixCheck: { verdict: FixCheck["verdict"]; similarity: number | null; stillScore: number; at: string };
 };
 export type VisionMetrics = {
   encoder: string;

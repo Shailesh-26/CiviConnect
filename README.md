@@ -48,6 +48,7 @@ fallen trees and broken street lights, from a citizen's photo to a verified fix.
 - 🙈 **Privacy blur:** faces in uploaded photos are blurred automatically before saving
 - 🚨 **Emergency reports:** live wire, open manhole, flooding… 4-hour fix-by time and admins alerted at once
 - 🔗 **Duplicate merging** within 50 m, with "similar issues nearby" shown before submitting
+- 🖼️ **Same-photo check:** if your photo looks like one already reported nearby (or is the exact same photo), you are offered to support that issue instead
 - 📍 **Neighbourhood feed** (2 km) with Hot / New / Top sort; upvote, follow, hide, flag, discuss
 - 🔔 Live status tracker, real-time notifications, before/after photos, **verify the fix or reopen it**
 - 🏅 Civic score, badges and levels; shareable public issue page without names
@@ -62,6 +63,8 @@ fallen trees and broken street lights, from a citizen's photo to a verified fix.
 - 🗺️ **Command Center:** emergency banner, live map, overdue board, unassigned queue with smart officer suggestions, officer lanes
 - ☎️ Register complaints for citizens who phone, walk in or write
 - 🛠️ **Admin console:** people and roles, leave, moderation queue, SLA hours per category, audit log, Photo Assistant model card
+- 🕵️ **AI fix check:** when an officer marks an issue fixed, the proof photo is compared with the citizens' photos. Doubtful fixes ("different place?" or "problem still visible?") go to a review list where the admin accepts or reopens them
+- 🔎 **Photo search by words** (officers and admins): type "flooded road at night" and see the closest stored photos
 - 📊 Analytics with CSV export, **area report cards (A to F)**, chronic-spot detection, 90-day city time-lapse, live demo simulator
 
 ### ⚙️ Platform
@@ -169,7 +172,16 @@ Open http://localhost:5173. The Photo Assistant terminal looks idle once it's re
 3. 📥 Put the two files it downloads, `civic_head.npz` and `metrics.json`, in `ml/models/` and restart the service.
    It now says `trained mode`, and Admin › Photo Assistant shows the test scores.
 
-**API:** `GET /health` · `POST /classify` · `POST /privacy/blur` (multipart `image`, up to 8 MB).
+- 🧭 **Photo memory:** every stored photo's embedding is saved in MongoDB (`PhotoEmbedding`). Comparing embeddings with
+  cosine similarity powers the same-photo check (≥ 0.88 nearby, ≥ 0.97 anywhere = exact same photo), the AI fix check
+  (proof vs. report photo) and photo search by words (CLIP puts text and photos in the same space).
+- ⚠️ The fix check is **advisory**: it only flags fixes for a human to look at, it never reopens anything by itself.
+
+### 🗃️ Indexing photos that were uploaded before Phase 12
+New photos are indexed automatically. For photos already in the database, run once with the Photo Assistant running:
+`cd server` then `npm run vision:index`
+
+**API:** `GET /health` · `POST /classify` (add `?vector=true` for the embedding) · `POST /embed` · `POST /embed-text` (JSON `{"text": "..."}`) · `POST /privacy/blur` (multipart `image`, up to 8 MB).
 Interactive docs at http://localhost:8000/docs while it runs.
 
 ---
@@ -178,8 +190,8 @@ Interactive docs at http://localhost:8000/docs while it runs.
 
 | Part | Command | Covers |
 |------|---------|--------|
-| 🖥️ Server | `cd server` then `npm test` | priority formula, SLA and emergency clocks, leave routing, password-reset rules, email fallback, geo and text helpers, input validation, Photo Assistant client, login protection on every private route |
-| 🤖 Photo Assistant | `cd ml`, activate the venv, then `python -m pytest -q` | API responses, bad uploads, blur/dark checks, decision thresholds, trained-model loading, face blurring |
+| 🖥️ Server | `cd server` then `npm test` | priority formula, SLA and emergency clocks, leave routing, password-reset rules, email fallback, geo and text helpers, input validation, photo similarity and fix-check rules, Photo Assistant client, login protection on every private route |
+| 🤖 Photo Assistant | `cd ml`, activate the venv, then `python -m pytest -q` | API responses, embeddings, bad uploads, blur/dark checks, decision thresholds, trained-model loading, face blurring |
 | 🌐 Client | `cd client` then `npm run lint` and `npm run build` | type checking and lint rules |
 
 ---
@@ -192,10 +204,10 @@ client/src/
   components/    shared UI; components/landing/ holds the landing page sections
   lib/           API client, hooks, constants, formatting
 server/src/
-  models/        Mongoose schemas (Issue, User, Comment, Flag, Notification, AuditLog, CategoryConfig)
+  models/        Mongoose schemas (Issue, User, Comment, Flag, Notification, AuditLog, CategoryConfig, PhotoEmbedding)
   controllers/   route handlers
   routes/        Express routers under /api
-  services/      SLA engine, scheduler, notifications, routing, leave, mailer, insights, simulator, Photo Assistant client
+  services/      SLA engine, scheduler, notifications, routing, leave, mailer, insights, simulator, Photo Assistant client, photo index
   validators/    Zod schemas
 server/test/     automated tests (node:test)
 ml/

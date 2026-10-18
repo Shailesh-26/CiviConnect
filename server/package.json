@@ -10,7 +10,8 @@
     "seed:demo:clear": "tsx src/scripts/seedDemo.ts --clear",
     "build": "tsc",
     "start": "node dist/server.js",
-    "test": "tsx --test test/all.test.ts"
+    "test": "tsx --test test/all.test.ts",
+    "vision:index": "tsx src/scripts/indexPhotos.ts"
   },
   "keywords": [],
   "author": "",

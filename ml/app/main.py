@@ -13,7 +13,9 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, File, HTTPException, Response, UploadFile
 from fastapi.concurrency import run_in_threadpool
+import numpy as np
 from PIL import Image, ImageOps, UnidentifiedImageError
+from pydantic import BaseModel, Field
 
 from . import labels, privacy, quality
 from .model import Classifier, ClipEncoder, FakeEncoder
@@ -89,13 +91,21 @@ def health():
     return {"ok": True, "loadSeconds": state.get("load_s"), "model": clf.info(), "labels": labels.LABEL, "faceBlur": "blur" in state}
 
 
+def vector_list(x) -> list[float]:
+    return [round(float(v), 5) for v in x]
+
+
 @app.post("/classify")
-async def classify(image: UploadFile = File(...)):
+async def classify(image: UploadFile = File(...), vector: bool = False):
+    """Suggest a category. With ?vector=true the photo's embedding is returned too (used for duplicate checks)."""
     started = time.perf_counter()
     img = read_image(await image.read())
     clf: Classifier = state["clf"]
     # The model is CPU-heavy; run it off the event loop so /health stays responsive.
-    result = interpret(await run_in_threadpool(clf.probabilities, img))
+    x = await run_in_threadpool(clf.embed, img)
+    result = interpret(clf.probabilities_for(x))
+    if vector:
+        result["vector"] = vector_list(x)
     result["quality"] = await run_in_threadpool(quality.check, img)
     result["model"] = {"name": clf.encoder.name, "mode": clf.mode}
     result["ms"] = round((time.perf_counter() - started) * 1000)
@@ -113,3 +123,28 @@ async def blur(image: UploadFile = File(...)):
     if data is None:
         return Response(status_code=204, headers={"X-Faces-Blurred": "0"})
     return Response(content=data, media_type="image/jpeg", headers={"X-Faces-Blurred": str(count)})
+
+
+@app.post("/embed")
+async def embed(image: UploadFile = File(...)):
+    """The photo as a list of numbers (CLIP embedding, length 1). Similar photos give similar lists."""
+    img = read_image(await image.read())
+    clf: Classifier = state["clf"]
+    x = await run_in_threadpool(clf.embed, img)
+    return {"vector": vector_list(x), "dim": len(x), "model": clf.encoder.name}
+
+
+class TextQuery(BaseModel):
+    text: str = Field(min_length=2, max_length=200)
+
+
+@app.post("/embed-text")
+async def embed_text(body: TextQuery):
+    """A sentence as a list of numbers in the same space as photos, so words can search pictures."""
+    clf: Classifier = state["clf"]
+    phrase = body.text.strip()
+    prompts = [f"a photo of {phrase}", phrase]
+    vectors = await run_in_threadpool(clf.encoder.texts, prompts)
+    x = vectors.mean(axis=0)
+    x = x / max(float(np.linalg.norm(x)), 1e-8)
+    return {"vector": vector_list(x), "dim": len(x), "model": clf.encoder.name}

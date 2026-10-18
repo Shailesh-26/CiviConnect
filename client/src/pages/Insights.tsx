@@ -16,10 +16,13 @@ import {
   Printer,
   Repeat,
   RotateCcw,
+  ScanSearch,
   Share2,
   type LucideIcon,
 } from "lucide-react";
+import { useAuth } from "../auth/useAuth";
 import { CategoryChip } from "../components/CategoryChip";
+import { PhotoSearch } from "../components/PhotoSearch";
 import { EmptyState, ErrorNote, PageHeader, Skeleton } from "../components/ui";
 import { api, ApiError } from "../lib/api";
 import { copyText } from "../lib/community";
@@ -28,11 +31,12 @@ import { formatDuration } from "../lib/format";
 import { useToast } from "../lib/toast-context";
 import type { AreaCard, ChronicSpot, Grade, TimelineItem } from "../types";
 
-type Tab = "cards" | "chronic" | "replay";
+type Tab = "cards" | "chronic" | "replay" | "photos";
 const TABS: { id: Tab; label: string; icon: LucideIcon }[] = [
   { id: "cards", label: "Area report cards", icon: Award },
   { id: "chronic", label: "Chronic spots", icon: Repeat },
   { id: "replay", label: "City time-lapse", icon: Film },
+  { id: "photos", label: "Photo search", icon: ScanSearch },
 ];
 
 const GRADE_TONE: Record<Grade, { bg: string; text: string; ring: string }> = {
@@ -367,13 +371,15 @@ function Replay() {
 
 export default function Insights() {
   const [params, setParams] = useSearchParams();
-  const tab = (TABS.some((t) => t.id === params.get("tab")) ? params.get("tab") : "cards") as Tab;
+  const { user } = useAuth();
+  const tabs = TABS.filter((t) => t.id !== "photos" || (user && user.role !== "citizen"));
+  const tab = (tabs.some((t) => t.id === params.get("tab")) ? params.get("tab") : "cards") as Tab;
 
   return (
     <div className="space-y-6">
       <PageHeader title="Insights" subtitle="How each area is doing, where problems keep coming back, and 90 days of the city in motion." />
       <div className="no-print -mx-1 flex gap-1 overflow-x-auto rounded-2xl border border-ink/10 bg-surface p-1 shadow-card" role="tablist">
-        {TABS.map(({ id, label, icon: Icon }) => (
+        {tabs.map(({ id, label, icon: Icon }) => (
           <button key={id} type="button" role="tab" aria-selected={tab === id} onClick={() => setParams({ tab: id })} className={`inline-flex flex-1 shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-xl px-4 py-2.5 text-sm font-semibold transition ${tab === id ? "bg-accent text-paper shadow-card" : "text-ink/60 hover:bg-ink/5 hover:text-ink"}`}>
             <Icon size={16} aria-hidden /> {label}
           </button>
@@ -383,6 +389,7 @@ export default function Insights() {
         {tab === "cards" && <ReportCards />}
         {tab === "chronic" && <Chronic />}
         {tab === "replay" && <Replay />}
+        {tab === "photos" && <PhotoSearch />}
       </div>
     </div>
   );

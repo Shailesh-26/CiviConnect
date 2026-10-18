@@ -12,6 +12,7 @@ export type VisionResult = {
   quality: { sharpness: number; brightness: number; blurry: boolean; dark: boolean };
   model: { name: string; mode: "zero-shot" | "trained" };
   ms: number;
+  vector?: number[];
 };
 
 export type VisionHealth = {
@@ -37,12 +38,12 @@ export async function visionHealth(fresh = false): Promise<VisionHealth | null> 
   return value;
 }
 
-export async function classifyPhoto(file: { buffer: Buffer; mimetype: string; originalname: string }): Promise<VisionResult | null> {
+export async function classifyPhoto(file: { buffer: Buffer; mimetype: string; originalname: string }, withVector = false): Promise<VisionResult | null> {
   const form = new FormData();
   form.append("image", new Blob([new Uint8Array(file.buffer)], { type: file.mimetype }), file.originalname || "photo.jpg");
   try {
     // The first request after the service starts can be slow while the model warms up.
-    const res = await fetch(`${base()}/classify`, { method: "POST", body: form, signal: AbortSignal.timeout(20_000) });
+    const res = await fetch(`${base()}/classify${withVector ? "?vector=true" : ""}`, { method: "POST", body: form, signal: AbortSignal.timeout(20_000) });
     if (!res.ok) return null;
     healthCache = null;
     return (await res.json()) as VisionResult;
@@ -75,4 +76,33 @@ export async function blurFaces(files: UploadFile[]): Promise<{ buffers: Buffer[
     }),
   );
   return { buffers, faces };
+}
+
+// The photo as an embedding (list of numbers), or null when the service is not running.
+export async function embedPhoto(buffer: Buffer, mimetype = "image/jpeg", name = "photo.jpg"): Promise<number[] | null> {
+  const form = new FormData();
+  form.append("image", new Blob([new Uint8Array(buffer)], { type: mimetype }), name);
+  try {
+    const res = await fetch(`${base()}/embed`, { method: "POST", body: form, signal: AbortSignal.timeout(20_000) });
+    if (!res.ok) return null;
+    return ((await res.json()) as { vector: number[] }).vector;
+  } catch {
+    return null;
+  }
+}
+
+// A sentence as an embedding in the same space as photos ("flooded road at night").
+export async function embedText(text: string): Promise<number[] | null> {
+  try {
+    const res = await fetch(`${base()}/embed-text`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ text }),
+      signal: AbortSignal.timeout(10_000),
+    });
+    if (!res.ok) return null;
+    return ((await res.json()) as { vector: number[] }).vector;
+  } catch {
+    return null;
+  }
 }

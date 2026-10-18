@@ -10,6 +10,7 @@ export const NOTIFICATION_TYPES = [
   "escalated",
   "emergency",
   "leave",
+  "fix_check",
   "reopened",
   "new_issue",
   "unassigned",

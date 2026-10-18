@@ -18,7 +18,7 @@ export function usePhotoAssistant(file: File | null, onResult?: (r: VisionResult
     let active = true;
     const form = new FormData();
     form.append("image", file);
-    api<VisionResult>("/vision/classify", { method: "POST", body: form })
+    api<VisionResult>("/vision/classify?vector=true", { method: "POST", body: form })
       .then((result) => {
         if (!active) return;
         setState({ file, result, offline: false });

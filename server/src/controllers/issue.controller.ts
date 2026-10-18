@@ -13,6 +13,7 @@ import { audit, SYSTEM } from "../services/audit";
 import { adminIds, broadcast, notify } from "../services/notify";
 import { dueFrom, EMERGENCY_SLA_HOURS, slaHoursFor } from "../services/sla";
 import { blurFaces } from "../services/vision";
+import { indexPhoto, runFixCheck } from "../services/photoIndex";
 import type { AssignInput, CreateIssueInput, EmergencyInput, StatusInput, VerifyInput } from "../validators/issue.schemas";
 
 // Reports of the same category closer than this are merged into one master issue.
@@ -225,6 +226,15 @@ export const createIssue: RequestHandler = async (req, res) => {
   }
   broadcast(await adminIds(), "refresh", { reason: "issue" });
   res.status(merged ? 200 : 201).json({ merged, issue: dto, privacy: { facesBlurred: privacy.faces } });
+
+  // After answering: remember each new photo's embedding for duplicate checks, fix checks and photo search.
+  if (images.length) {
+    setImmediate(() => {
+      void (async () => {
+        for (const [i, img] of images.entries()) await indexPhoto(record, "report", img.url, { buffer: privacy.buffers[i] });
+      })().catch(() => undefined);
+    });
+  }
 };
 
 // Emergencies reach every admin and the assigned officer at once, whatever their notification settings.
@@ -398,6 +408,12 @@ export const updateStatus: RequestHandler = async (req, res) => {
     issue.slaWarnedAt = undefined;
   }
   if (status === "resolved") issue.verifications.splice(0, issue.verifications.length);
+  // AI fix check: compare the proof photo with the citizens' photos (advisory, never blocks the update).
+  let fixCheck: Awaited<ReturnType<typeof runFixCheck>> = null;
+  if (status === "resolved" && buffers.length) {
+    fixCheck = await runFixCheck(issue, buffers[0], images[0]?.url ?? null).catch(() => null);
+    if (fixCheck) issue.set("fixCheck", fixCheck);
+  }
   issue.timeline.push({
     status,
     note,
@@ -414,6 +430,11 @@ export const updateStatus: RequestHandler = async (req, res) => {
     : { type: "status", title: `${name} is now ${STATUS_NAME[status].toLowerCase()}`, body: note ?? undefined, issueId: id, category: issue.category },
   user.id);
   await audit(user, `issue.${status}`, { type: "issue", id }, `${name}: ${STATUS_NAME[previous]} → ${STATUS_NAME[status]}`, note ? { note } : undefined);
+  if (fixCheck && fixCheck.verdict !== "looks_fixed") {
+    const why = fixCheck.verdict === "still_visible" ? "the problem may still be visible in the proof photo" : "the proof photo may be from a different place";
+    await notify(await adminIds(), { type: "fix_check", title: `Check this fix: ${name}`, body: `AI fix check: ${why}.`, issueId: id, category: issue.category }, user.id);
+    await audit(SYSTEM, "issue.fix_flagged", { type: "issue", id }, `${name}: AI fix check flagged it (${fixCheck.verdict.replace("_", " ")})`, { ...fixCheck });
+  }
   broadcast(await adminIds(), "refresh", { reason: "status" });
 
   const record = await loadRecord(id);

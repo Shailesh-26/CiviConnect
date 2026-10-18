@@ -39,6 +39,7 @@ const PREF: Record<NotificationType, NotifyKey | null> = {
   // Emergencies always reach admins and the assigned officer; they cannot be switched off.
   emergency: null,
   leave: "assignments",
+  fix_check: "escalations",
   reopened: "escalations",
   flag: "escalations",
 };

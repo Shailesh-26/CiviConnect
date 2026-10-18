@@ -190,6 +190,15 @@ NODE_ENV, PORT, MONGODB_URI, CLIENT_URL, JWT_SECRET (32+ chars), JWT_EXPIRES_DAY
 - Now issues handed over because of leave are marked (Issue.handedOverFrom). On return (button, admin, or end date), the ones not started yet (reported/acknowledged) go back to the officer with a timeline note and the colleague is told; In progress work stays with the colleague. Field Desk and Admin show a welcome-back summary; leave dialog and FAQ explain the rule
 - Issues moved before this fix carry no marker; re-run npm run seed:demo to reset the demo
 
+## Phase 12 (more computer vision) - delivered 2026-10-18, awaiting owner test
+- ml: /classify?vector=true returns the CLIP embedding; new /embed and /embed-text (text -> same 512-d space). 18 pytest pass
+- server: PhotoEmbedding model (vector, kind report|proof, location, unique url). services/photoIndex.ts indexes photos after create and on resolve; utils/vectors.ts (cosine), utils/fixCheck.ts (verdict thresholds: same place >= 0.72, still visible = proof top category equals issue category >= 0.8)
+- Same-photo check: POST /api/vision/similar {vector, lat, lng}: report photos within 500 m with cosine >= 0.88, or exact same photo anywhere >= 0.97. Wizard shows PhotoMatches with Support button
+- AI fix check on resolve (advisory): Issue.fixCheck {verdict looks_fixed|different_place|still_visible, similarity, ...}. Doubtful ones notify admins (type fix_check) and appear in Admin > Photo Assistant > "Fixes to double-check" (Looks fine / Reopen). Issue page shows FixCheckNote
+- Photo search by words: GET /api/vision/search?q=&kind= (officer/admin), Insights > Photo search tab
+- Backfill: npm run vision:index (ML service must be running). 50 server tests pass
+- Thresholds not calibrated on real data yet; that's why the fix check is advisory
+
 ## Status 2026-10-16 12:11 IST
 - Phase 11 and 11.1 TESTED by owner: everything works. Owner taking a break
 

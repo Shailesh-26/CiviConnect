@@ -156,3 +156,34 @@ def test_blur_regions_changes_only_the_face_area():
 def test_blur_rejects_non_images(client):
     r = client.post("/privacy/blur", files={"image": ("x.txt", b"nope", "text/plain")})
     assert r.status_code == 400
+
+
+# ---------------------------------------------------------------- embeddings (duplicate check, fix check, photo search)
+
+def test_classify_can_return_the_photo_vector(client):
+    r = client.post("/classify?vector=true", files={"image": ("road.jpg", photo(), "image/jpeg")})
+    v = r.json()["vector"]
+    assert len(v) == FakeEncoder.dim
+    assert abs(sum(x * x for x in v) - 1) < 1e-3
+    assert "vector" not in client.post("/classify", files={"image": ("road.jpg", photo(), "image/jpeg")}).json()
+
+
+def test_embed_is_stable_and_normalised(client):
+    a = client.post("/embed", files={"image": ("a.jpg", photo(), "image/jpeg")}).json()
+    b = client.post("/embed", files={"image": ("b.jpg", photo(), "image/jpeg")}).json()
+    assert a["dim"] == FakeEncoder.dim
+    assert a["vector"] == b["vector"]
+    other = client.post("/embed", files={"image": ("c.jpg", photo("dark"), "image/jpeg")}).json()
+    assert other["vector"] != a["vector"]
+
+
+def test_embed_text_returns_a_unit_vector(client):
+    r = client.post("/embed-text", json={"text": "flooded road at night"})
+    assert r.status_code == 200
+    v = r.json()["vector"]
+    assert len(v) == FakeEncoder.dim
+    assert abs(sum(x * x for x in v) - 1) < 1e-3
+
+
+def test_embed_text_rejects_empty_queries(client):
+    assert client.post("/embed-text", json={"text": ""}).status_code == 422

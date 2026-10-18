@@ -17,6 +17,7 @@ import {
   UserPlus,
   type LucideIcon,
   Plane,
+  ScanSearch,
   Siren,
 } from "lucide-react";
 import { useNotifications } from "../lib/notification-context";
@@ -33,6 +34,7 @@ const ICON: Record<NotificationType, { icon: LucideIcon; cls: string }> = {
   escalated: { icon: Flame, cls: "bg-alert/12 text-alert" },
   emergency: { icon: Siren, cls: "bg-alert text-white" },
   leave: { icon: Plane, cls: "bg-accent/12 text-accent" },
+  fix_check: { icon: ScanSearch, cls: "bg-marker/20 text-marker-dark" },
   reopened: { icon: RotateCcw, cls: "bg-alert/12 text-alert" },
   new_issue: { icon: Inbox, cls: "bg-accent/12 text-accent" },
   unassigned: { icon: Inbox, cls: "bg-marker/20 text-marker-dark" },

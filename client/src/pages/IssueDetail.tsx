@@ -6,6 +6,7 @@ import { ActionMenu } from "../components/ActionMenu";
 import { CategoryChip } from "../components/CategoryChip";
 import { EmergencyBadge } from "../components/EmergencyBadge";
 import { EmergencyControl } from "../components/EmergencyControl";
+import { FixCheckNote } from "../components/FixCheckNote";
 import { Discussion } from "../components/Discussion";
 import { FlagDialog } from "../components/FlagDialog";
 import { IssueMap } from "../components/IssueMap";
@@ -193,6 +194,7 @@ export default function IssueDetail() {
               <h2 className="text-lg font-semibold">Before and after</h2>
               <p className="text-xs text-ink/55">Drag the handle to compare.</p>
               <div className="mt-3"><BeforeAfter before={before.url} after={after.url} /></div>
+              {issue.fixCheck && <FixCheckNote check={issue.fixCheck} />}
             </section>
           ) : (
             issue.images.length > 0 && (
@@ -265,6 +267,7 @@ export default function IssueDetail() {
               <p className="mt-2 text-sm text-ink/70">
                 {issue.verification.fixed} confirmed fixed · {issue.verification.notFixed} say it is still there
               </p>
+              {issue.fixCheck && !(before && after) && <FixCheckNote check={issue.fixCheck} />}
               {role === "citizen" && (
                 <div className="mt-3">
                   <p className="text-sm font-medium">Is it really fixed?</p>
