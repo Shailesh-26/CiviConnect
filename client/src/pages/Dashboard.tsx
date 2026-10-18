@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { Award, Radar, ArrowRight, BadgeCheck, CircleDot, FilePlus2, Hammer, Inbox, Layers } from "lucide-react";
+import { Award, Radar, ArrowRight, ArrowUpRight, BadgeCheck, CircleDot, FilePlus2, Hammer, Inbox, Layers } from "lucide-react";
 import { useAuth } from "../auth/useAuth";
 import { CivicCard } from "../components/CivicCard";
 import { CountUp } from "../components/CountUp";
@@ -8,6 +8,7 @@ import { IssueList } from "../components/IssueList";
 import { EmptyState, ErrorNote, ListSkeleton } from "../components/ui";
 import { api, ApiError } from "../lib/api";
 import { OPEN } from "../lib/constants";
+import type { StatusGroup } from "../lib/issueFilters";
 import type { Issue } from "../types";
 import CommandCenter from "./CommandCenter";
 import FieldDesk from "./FieldDesk";
@@ -16,13 +17,17 @@ const REPORT_CTA = { citizen: "Report an issue", officer: "Log field inspection"
 
 const heading = { citizen: "Your latest reports", officer: "Assigned to you", admin: "Highest priority right now" };
 
-function Tile({ label, value, icon: Icon, tone, bg }: { label: string; value: number; icon: typeof Layers; tone: string; bg: string }) {
+// Tapping a tile opens My reports already filtered to that status.
+function Tile({ label, value, icon: Icon, tone, bg, group }: { label: string; value: number | null; icon: typeof Layers; tone: string; bg: string; group: StatusGroup }) {
   return (
-    <div className="card card-hover tilt p-5">
-      <span className={`grid size-10 place-items-center rounded-xl ${bg} ${tone}`}><Icon size={20} aria-hidden /></span>
-      <p className={`mt-4 font-display text-4xl font-bold ${tone}`}><CountUp value={value} /></p>
+    <Link to={group === "all" ? "/my-reports" : `/my-reports?status=${group}`} className="card card-hover tilt group block p-5" aria-label={`${label}: ${value ?? "loading"}. Show these reports`}>
+      <span className="flex items-start justify-between">
+        <span className={`grid size-10 place-items-center rounded-xl ${bg} ${tone}`}><Icon size={20} aria-hidden /></span>
+        <ArrowUpRight size={17} className="text-ink/30 opacity-0 transition duration-300 group-hover:-translate-y-0.5 group-hover:translate-x-0.5 group-hover:text-accent group-hover:opacity-100" aria-hidden />
+      </span>
+      {value === null ? <p className="skeleton mb-1 mt-5 h-8 w-12" /> : <p className={`mt-4 font-display text-4xl font-bold ${tone}`}><CountUp value={value} /></p>}
       <p className="mt-1 text-sm text-ink/60">{label}</p>
-    </div>
+    </Link>
   );
 }
 
@@ -82,10 +87,10 @@ function CitizenHome() {
       </div>
 
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-        <Tile label="Total" value={list.length} icon={Layers} tone="text-ink" bg="bg-ink/8" />
-        <Tile label="Open" value={open} icon={CircleDot} tone="text-accent" bg="bg-accent/12" />
-        <Tile label="In progress" value={inProgress} icon={Hammer} tone="text-marker-dark" bg="bg-marker/20" />
-        <Tile label="Resolved" value={resolved} icon={BadgeCheck} tone="text-resolved" bg="bg-resolved/15" />
+        <Tile label="Total" value={issues && list.length} group="all" icon={Layers} tone="text-ink" bg="bg-ink/8" />
+        <Tile label="Open" value={issues && open} group="open" icon={CircleDot} tone="text-accent" bg="bg-accent/12" />
+        <Tile label="In progress" value={issues && inProgress} group="in_progress" icon={Hammer} tone="text-marker-dark" bg="bg-marker/20" />
+        <Tile label="Resolved" value={issues && resolved} group="resolved" icon={BadgeCheck} tone="text-resolved" bg="bg-resolved/15" />
       </div>
 
       <div className="reveal grid gap-4 lg:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)]">

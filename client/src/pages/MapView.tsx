@@ -184,13 +184,20 @@ export default function MapView() {
   const list = (
     <>
       <div className="flex items-center justify-between px-1 pb-2 text-xs">
-        <span className="font-semibold">{sorted.length} {followMap ? "in this area" : "issues"}</span>
+        {issues === null ? <span className="skeleton h-3.5 w-24" /> : <span className="font-semibold">{sorted.length} {followMap ? "in this area" : "issues"}</span>}
         <label className="inline-flex cursor-pointer items-center gap-1.5 text-ink/60">
           <input type="checkbox" checked={followMap} onChange={(e) => setFollowMap(e.target.checked)} className="accent-[var(--c-accent)]" /> Search as I move
         </label>
       </div>
       <ul className="cc-scroll -mx-1 flex-1 space-y-1 overflow-y-auto px-1">
-        {sorted.length === 0 ? (
+        {issues === null ? (
+          Array.from({ length: 6 }, (_, k) => (
+            <li key={k} className="flex items-center gap-3 rounded-xl px-2 py-2">
+              <span className="skeleton size-8 shrink-0 !rounded-lg" />
+              <span className="flex-1 space-y-1.5"><span className="skeleton block h-3 w-3/4" /><span className="skeleton block h-2.5 w-1/2" /></span>
+            </li>
+          ))
+        ) : sorted.length === 0 ? (
           <li className="px-2 py-8 text-center text-xs text-ink/50">Nothing here. Zoom out, move the map or clear a filter.</li>
         ) : (
           sorted.slice(0, 80).map((i) => (
@@ -247,7 +254,7 @@ export default function MapView() {
           <div className="flex items-center justify-between px-1 pb-3">
             <div>
               <h1 className="font-display text-lg font-semibold leading-tight">Explore the city</h1>
-              <p className="text-[11px] text-ink/55">{filtered.length} issues match · {late} overdue</p>
+              {issues === null ? <p className="skeleton mt-1 h-3 w-28" /> : <p className="text-[11px] text-ink/55">{filtered.length} issues match · {late} overdue</p>}
             </div>
             <button type="button" onClick={() => setPanelOpen(false)} aria-label="Hide panel" className="grid size-8 place-items-center rounded-lg text-ink/55 hover:bg-ink/6"><PanelLeftClose size={17} aria-hidden /></button>
           </div>

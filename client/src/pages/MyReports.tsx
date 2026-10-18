@@ -1,21 +1,30 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { FilePlus2, Inbox, SearchX } from "lucide-react";
 import { IssueFilterBar } from "../components/IssueFilterBar";
 import { IssueList } from "../components/IssueList";
 import { Pagination } from "../components/Pagination";
 import { EmptyState, ErrorNote, ListSkeleton, PageHeader } from "../components/ui";
-import type { IssueFilters } from "../lib/issueFilters";
+import { STATUS_GROUPS, type IssueFilters, type StatusGroup } from "../lib/issueFilters";
 import { usePagedIssues } from "../lib/usePagedIssues";
 
 const START: IssueFilters = { q: "", group: "all", category: "", sort: "newest" };
 
 export default function MyReports() {
-  const [filters, setFiltersRaw] = useState<IssueFilters>(START);
-  const [page, setPage] = useState(1);
+  // The status filter lives in the address (?status=open), so the dashboard tiles can link
+  // straight to a filtered list and the sidebar link shows everything again.
+  const [params, setParams] = useSearchParams();
+  const fromUrl = params.get("status");
+  const group = STATUS_GROUPS.some((g) => g.value === fromUrl) ? (fromUrl as StatusGroup) : "all";
+  const [rest, setRest] = useState<Omit<IssueFilters, "group">>({ q: START.q, category: START.category, sort: START.sort });
+  const filters: IssueFilters = { ...rest, group };
+  const [paging, setPaging] = useState({ key: "", page: 1 });
+  const filterKey = JSON.stringify(filters);
+  const page = paging.key === filterKey ? paging.page : 1;
+  const setPage = (p: number) => setPaging({ key: filterKey, page: p });
   const setFilters = (f: IssueFilters) => {
-    setFiltersRaw(f);
-    setPage(1);
+    setRest({ q: f.q, category: f.category, sort: f.sort });
+    if (f.group !== group) setParams(f.group === "all" ? {} : { status: f.group }, { replace: true });
   };
   const { data, error, loading } = usePagedIssues("/issues/mine", filters, page);
   const filtered = Boolean(filters.q || filters.category || filters.group !== "all");

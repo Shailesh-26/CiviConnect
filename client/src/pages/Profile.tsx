@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useMemo, useState, type FormEvent, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 import {
+  Award,
   Bell,
   Camera,
   CalendarDays,
@@ -18,7 +20,7 @@ import {
   UserRound,
   type LucideIcon,
 } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "../auth/useAuth";
 import { Avatar } from "../components/Avatar";
 import { ConfirmDialog } from "../components/ConfirmDialog";
@@ -28,11 +30,13 @@ import { Field } from "../components/Field";
 import { HomeAreaMap } from "../components/HomeAreaMap";
 import type { LatLng } from "../components/LocationPicker";
 import { PageHeader, Switch } from "../components/ui";
+import { UnsavedChangesDialog } from "../components/UnsavedChangesDialog";
 import { api, ApiError } from "../lib/api";
 import { AVATAR_COLORS, AVATAR_EMOJIS } from "../lib/avatar";
 import { OPEN } from "../lib/constants";
 import { passwordScore, STRENGTH_LEVELS } from "../lib/passwordStrength";
 import { useToast } from "../lib/toast-context";
+import { useLeaveGuard } from "../lib/useLeaveGuard";
 import { useTheme } from "../theme/theme-context";
 import type { Avatar as AvatarData, Issue, NotifyKey, Role, User } from "../types";
 
@@ -68,8 +72,12 @@ const NOTIFY_OPTIONS: Record<Role, { key: NotifyKey; label: string; hint: string
   ],
 };
 
-const SECTIONS: { id: string; label: string; icon: LucideIcon }[] = [
+type SectionId = "identity" | "score" | "home" | "notifications" | "appearance" | "security";
+const CHANGE_NAMES: Partial<Record<SectionId, string>> = { identity: "your profile details", home: "your neighbourhood", notifications: "your notification settings" };
+
+const SECTIONS: { id: SectionId; label: string; icon: LucideIcon; citizenOnly?: boolean }[] = [
   { id: "identity", label: "Profile", icon: UserRound },
+  { id: "score", label: "Score & badges", icon: Award, citizenOnly: true },
   { id: "home", label: "Neighbourhood", icon: MapPinHouse },
   { id: "notifications", label: "Notifications", icon: Bell },
   { id: "appearance", label: "Appearance", icon: Palette },
@@ -253,13 +261,23 @@ export default function Profile() {
   }, [draft, original, user]);
   const dirty = Object.keys(changes).length > 0;
 
-  // Warn before closing the tab with unsaved changes.
-  useEffect(() => {
-    if (!dirty) return;
-    const onLeave = (e: BeforeUnloadEvent) => e.preventDefault();
-    window.addEventListener("beforeunload", onLeave);
-    return () => window.removeEventListener("beforeunload", onLeave);
-  }, [dirty]);
+  // Which tabs hold the unsaved changes, so they get a dot and the save bar can name them.
+  const changedSections = useMemo(() => {
+    const out = new Set<SectionId>();
+    if ("name" in changes || "bio" in changes || "avatar" in changes) out.add("identity");
+    if ("homeArea" in changes || "homeLocation" in changes || "radiusKm" in changes) out.add("home");
+    if ("notify" in changes) out.add("notifications");
+    return out;
+  }, [changes]);
+
+  // Moving to another page with unsaved changes asks first; closing the tab shows the browser's warning.
+  const { blocker, allowLeave } = useLeaveGuard(dirty);
+
+  // One tab at a time instead of one very long page. The tab is in the address (?tab=home) so it survives a refresh.
+  const [params, setParams] = useSearchParams();
+  const sections = SECTIONS.filter((x) => !x.citizenOnly || role === "citizen");
+  const section: SectionId = sections.find((x) => x.id === params.get("tab"))?.id ?? "identity";
+  const openSection = useCallback((id: SectionId) => setParams(id === "identity" ? {} : { tab: id }, { replace: true }), [setParams]);
 
   const set = useCallback((patch: Partial<Draft>) => setDraft((d) => (d ? { ...d, ...patch } : d)), []);
   const cancelLogout = useCallback(() => setConfirmLogout(false), []);
@@ -270,12 +288,13 @@ export default function Profile() {
   const preset = draft.avatar.kind === "preset" ? draft.avatar : { emoji: user.avatar?.emoji ?? AVATAR_EMOJIS[0], color: user.avatar?.color ?? AVATAR_COLORS[0] };
   const memberSince = new Date(user.createdAt).toLocaleDateString("en-IN", { month: "long", year: "numeric" });
 
-  async function save() {
-    if (!dirty) return;
+  async function save(): Promise<boolean> {
+    if (!dirty) return true;
     if ("name" in changes && String(changes.name).length < 2) {
       setErrors({ name: "Name must be at least 2 characters" });
+      openSection("identity");
       toast.error("Please fix the highlighted fields.");
-      return;
+      return false;
     }
     setSaving(true);
     setErrors({});
@@ -284,14 +303,23 @@ export default function Profile() {
       updateUser(data.user);
       setDraft(fromUser(data.user));
       toast.success("Profile saved.");
+      return true;
     } catch (err) {
       if (err instanceof ApiError) {
         setErrors(err.fieldErrors);
         toast.error(err.message);
       } else toast.error("Something went wrong. Try again.");
+      return false;
     } finally {
       setSaving(false);
     }
+  }
+
+  function discard() {
+    if (!user) return;
+    setDraft(fromUser(user));
+    setErrors({});
+    setAvatarTab(user.avatar?.url ? "photo" : user.avatar?.emoji ? "emoji" : "initials");
   }
 
   async function uploadPhoto(file: File | undefined) {
@@ -340,6 +368,7 @@ export default function Profile() {
 
   async function doLogout() {
     setLeaving(true);
+    allowLeave();
     try {
       await logout();
       toast.info("You have been logged out. See you soon!");
@@ -351,7 +380,16 @@ export default function Profile() {
   }
 
   return (
-    <div className="space-y-6 pb-16">
+    <div
+      className={`space-y-6 ${dirty ? "pb-40 lg:pb-24" : "pb-16"}`}
+      onKeyDown={(e) => {
+        // Ctrl+S (Cmd+S on a Mac) saves while you're typing anywhere on this page.
+        if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "s") {
+          e.preventDefault();
+          if (dirty && !saving) void save();
+        }
+      }}
+    >
       <PageHeader title="Your profile" subtitle="How you appear in CiviConnect, the area you care about, and how we keep you posted." />
 
       {/* Hero card with a live preview of every change */}
@@ -367,9 +405,9 @@ export default function Profile() {
           <div className="-mt-12 flex flex-col items-start gap-3 sm:flex-row sm:items-end sm:gap-4">
             <div className="relative">
               <Avatar name={draft.name || user.name} avatar={shownAvatar} size="xl" className="border-4 border-surface shadow-lift" />
-              <a href="#identity" className="absolute bottom-1 right-1 grid size-9 place-items-center rounded-full border-2 border-surface bg-marker text-[#241a00] shadow-card transition hover:scale-110" aria-label="Change avatar">
+              <button type="button" onClick={() => openSection("identity")} className="absolute bottom-1 right-1 grid size-9 place-items-center rounded-full border-2 border-surface bg-marker text-[#241a00] shadow-card transition hover:scale-110" aria-label="Change avatar">
                 <Camera size={16} aria-hidden />
-              </a>
+              </button>
             </div>
             <div className="w-full min-w-0 flex-1 pb-1">
               <h2 className="truncate text-2xl font-semibold">{draft.name || user.name}</h2>
@@ -390,19 +428,27 @@ export default function Profile() {
         </div>
       </div>
 
-      {user.role === "citizen" && <CivicCard />}
-
       <div className="grid gap-6 lg:grid-cols-[12rem_1fr]">
-        <nav className="hidden lg:block" aria-label="Profile sections">
-          <ul className="sticky top-10 space-y-1">
-            {SECTIONS.map(({ id, label, icon: Icon }) => (
-              <li key={id}>
-                <a href={`#${id}`} className="flex items-center gap-2.5 rounded-xl px-3 py-2 text-sm font-medium text-ink/65 transition hover:bg-ink/5 hover:text-ink">
-                  <Icon size={16} aria-hidden /> {label}
-                </a>
-              </li>
-            ))}
-            <li className="pt-3">
+        <nav aria-label="Profile sections" className="min-w-0">
+          <ul className="no-print -mx-1 flex gap-1 overflow-x-auto rounded-2xl border border-ink/10 bg-surface p-1 shadow-card lg:sticky lg:top-10 lg:mx-0 lg:flex-col lg:overflow-visible lg:border-0 lg:bg-transparent lg:p-0 lg:shadow-none" role="tablist">
+            {sections.map(({ id, label, icon: Icon }) => {
+              const active = section === id;
+              return (
+                <li key={id} className="shrink-0">
+                  <button
+                    type="button"
+                    role="tab"
+                    aria-selected={active}
+                    onClick={() => openSection(id)}
+                    className={`relative flex w-full items-center gap-2.5 whitespace-nowrap rounded-xl px-3 py-2 text-sm font-medium transition ${active ? "bg-accent text-paper shadow-card lg:bg-accent/12 lg:text-accent lg:shadow-none" : "text-ink/65 hover:bg-ink/5 hover:text-ink"}`}
+                  >
+                    <Icon size={16} aria-hidden /> {label}
+                    {changedSections.has(id) && <span className="ml-auto size-2 rounded-full bg-marker animate-pop" title="Unsaved changes" aria-label="unsaved changes" />}
+                  </button>
+                </li>
+              );
+            })}
+            <li className="hidden pt-3 lg:block">
               <button type="button" onClick={() => setConfirmLogout(true)} className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-sm font-medium text-alert transition hover:bg-alert/10">
                 <LogOut size={16} aria-hidden /> Log out
               </button>
@@ -410,7 +456,9 @@ export default function Profile() {
           </ul>
         </nav>
 
-        <div className="min-w-0 space-y-6">
+        <div key={section} className="min-w-0 space-y-6 animate-fade">
+          {section === "score" && <CivicCard />}
+          {section === "identity" && (
           <Section id="identity" title="Profile" subtitle="Your name and avatar appear on your account. Reporter names are never shown to other citizens.">
             <div className="flex flex-wrap gap-1.5 rounded-xl bg-ink/5 p-1" role="tablist" aria-label="Avatar type">
               {[
@@ -522,7 +570,9 @@ export default function Profile() {
               </div>
             </div>
           </Section>
+          )}
 
+          {section === "home" && (
           <Section id="home" title="Neighbourhood" subtitle="Set your home spot and how far around it you care about. Your Neighbourhood feed shows problems inside this circle. Only you can see your home spot.">
             <div className="grid gap-4 sm:grid-cols-[1fr_auto] sm:items-end">
               <div>
@@ -569,7 +619,9 @@ export default function Profile() {
               })}
             </div>
           </Section>
+          )}
 
+          {section === "notifications" && (
           <Section id="notifications" title="Notifications" subtitle="Choose what is worth a ping. These appear under the bell at the top of the app.">
             <div className="-mx-3 divide-y divide-ink/8">
               {NOTIFY_OPTIONS[user.role].map((option) => (
@@ -583,7 +635,9 @@ export default function Profile() {
               ))}
             </div>
           </Section>
+          )}
 
+          {section === "appearance" && (
           <Section id="appearance" title="Appearance" subtitle="Saved on this device.">
             <div className="grid grid-cols-2 gap-3 sm:max-w-md">
               {([
@@ -615,8 +669,9 @@ export default function Profile() {
               })}
             </div>
           </Section>
+          )}
 
-          <PasswordSection />
+          {section === "security" && <PasswordSection />}
 
           <button type="button" onClick={() => setConfirmLogout(true)} className="btn btn-outline w-full !py-3 text-alert lg:hidden">
             <LogOut size={17} aria-hidden /> Log out
@@ -624,21 +679,35 @@ export default function Profile() {
         </div>
       </div>
 
-      {dirty && (
-        <div className="fixed inset-x-3 bottom-24 z-[1800] mx-auto flex max-w-xl items-center gap-3 rounded-2xl border border-ink/10 bg-ink px-4 py-3 text-paper shadow-lift animate-pop lg:bottom-6">
-          <span className="relative flex size-2.5 shrink-0">
-            <span className="absolute inline-flex size-full animate-ping rounded-full bg-marker opacity-75" />
-            <span className="relative inline-flex size-2.5 rounded-full bg-marker" />
-          </span>
-          <p className="flex-1 text-sm font-medium">You have unsaved changes</p>
-          <button type="button" onClick={() => { setDraft(fromUser(user)); setErrors({}); setAvatarTab(user.avatar?.url ? "photo" : user.avatar?.emoji ? "emoji" : "initials"); }} className="rounded-lg px-3 py-1.5 text-sm font-medium text-paper/75 hover:text-paper">
-            Discard
-          </button>
-          <button type="button" onClick={save} disabled={saving} className="btn btn-marker !py-1.5 text-sm">
-            {saving ? "Saving…" : "Save"}
-          </button>
-        </div>
-      )}
+      {/* Floats at the bottom of the screen whenever something is unsaved, wherever you are on the page. */}
+      {dirty &&
+        createPortal(
+          <div className="fixed inset-x-3 bottom-24 z-[1800] mx-auto flex max-w-xl flex-wrap items-center gap-3 rounded-2xl border border-ink/10 bg-ink px-4 py-3 text-paper shadow-lift animate-pop lg:bottom-6" role="status">
+            <span className="relative flex size-2.5 shrink-0">
+              <span className="absolute inline-flex size-full animate-ping rounded-full bg-marker opacity-75" />
+              <span className="relative inline-flex size-2.5 rounded-full bg-marker" />
+            </span>
+            <p className="min-w-0 flex-1 text-sm font-medium">
+              Unsaved changes
+              <span className="block truncate text-xs font-normal text-paper/60">
+                in {sections.filter((x) => changedSections.has(x.id)).map((x) => x.label).join(", ")}<span className="hidden sm:inline"> · <kbd className="font-sans">Ctrl</kbd>+<kbd className="font-sans">S</kbd> to save</span>
+              </span>
+            </p>
+            <button type="button" onClick={discard} disabled={saving} className="rounded-lg px-3 py-1.5 text-sm font-medium text-paper/75 hover:text-paper">
+              Discard
+            </button>
+            <button type="button" onClick={() => void save()} disabled={saving} className="btn btn-marker !py-1.5 text-sm">
+              {saving ? "Saving…" : "Save changes"}
+            </button>
+          </div>,
+          document.body,
+        )}
+
+      <UnsavedChangesDialog
+        blocker={blocker}
+        message={`Your changes to ${[...changedSections].map((id) => CHANGE_NAMES[id]).join(" and ") || "your profile"} haven't been saved yet.`}
+        onSave={save}
+      />
 
       <ConfirmDialog
         open={confirmLogout}

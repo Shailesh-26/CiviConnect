@@ -140,7 +140,7 @@ function People() {
       <div className="flex flex-wrap gap-1.5">
         {(["all", "citizen", "officer", "admin"] as const).map((r) => (
           <button key={r} type="button" onClick={() => setRole(r)} className={`rounded-full border px-3.5 py-1.5 text-sm font-medium capitalize transition ${role === r ? "border-accent bg-accent text-paper" : "border-ink/15 bg-surface text-ink/70 hover:border-ink/35"}`}>
-            {r === "all" ? "Everyone" : `${r}s`} <span className="ml-1 tabular-nums opacity-70">{counts[r]}</span>
+            {r === "all" ? "Everyone" : `${r}s`} {users && <span className="ml-1 tabular-nums opacity-70">{counts[r]}</span>}
           </button>
         ))}
       </div>

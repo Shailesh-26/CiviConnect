@@ -55,10 +55,10 @@ function FeedSkeleton() {
   );
 }
 
-function Tile({ label, value, tone }: { label: string; value: number; tone: string }) {
+function Tile({ label, value, tone }: { label: string; value: number | null; tone: string }) {
   return (
     <div className="rounded-2xl bg-ink/5 p-3.5">
-      <p className={`font-display text-2xl font-bold tabular-nums ${tone}`}>{value}</p>
+      {value === null ? <p className="skeleton mb-1.5 mt-1 h-6 w-8" /> : <p className={`font-display text-2xl font-bold tabular-nums animate-fade ${tone}`}>{value}</p>}
       <p className="text-xs text-ink/60">{label}</p>
     </div>
   );
@@ -378,9 +378,9 @@ export default function Neighbourhood() {
                   </button>
                 </div>
                 <div className="mt-3 grid grid-cols-3 gap-2">
-                  <Tile label="Open" value={pulse.open} tone="text-alert" />
-                  <Tile label="Fixed" value={pulse.fixed} tone="text-resolved" />
-                  <Tile label="You upvoted" value={pulse.mine} tone="text-marker-dark" />
+                  <Tile label="Open" value={meta ? pulse.open : null} tone="text-alert" />
+                  <Tile label="Fixed" value={meta ? pulse.fixed : null} tone="text-resolved" />
+                  <Tile label="You upvoted" value={meta ? pulse.mine : null} tone="text-marker-dark" />
                 </div>
                 <p className="mt-3 flex items-start gap-2 text-xs text-ink/55">
                   <ArrowBigUp size={16} className="shrink-0 text-marker-dark" aria-hidden />

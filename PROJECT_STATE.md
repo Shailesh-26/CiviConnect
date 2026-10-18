@@ -221,3 +221,12 @@ NODE_ENV, PORT, MONGODB_URI, CLIENT_URL, JWT_SECRET (32+ chars), JWT_EXPIRES_DAY
 - Owner tested Phase 12: everything works
 - Pages are code-split (lib/lazyPage.ts: like React.lazy but renders instantly once downloaded, avoiding React's 300 ms fallback throttle). Landing, Login, Register stay in the main bundle; other pages preload in the background after the first non-landing screen. Landing's live map (Leaflet) loads only when scrolled near
 - Main JS 1,054 KB -> 350 KB; first-load JS about 130 KB gzipped (was about 308 KB). Verified every page for every role in dev and production build: same headings, no loading flash, no page errors
+
+## Phase 12.2 (owner feedback) - 2026-10-18
+- Owner tested 12.1: works. Asked about loading skeletons, clickable citizen tiles, profile UX, officer vs citizen differences
+- Skeleton audit with a 2.5 s slow mock: most pages already had skeletons. Fixed places that showed a misleading 0 while loading: citizen dashboard tiles, Map list and header count, Neighbourhood pulse tiles, Admin people filter counts
+- Citizen dashboard tiles link to /my-reports?status=open|in_progress|resolved; My reports reads the status filter from the URL (sidebar link resets to All)
+- Root cause of "had to scroll to save": .animate-page used fill-mode both (filter/transform kept), which made fixed children position relative to the page. Now fill-mode backwards (looks identical). Save bar also portalled to body
+- Router moved to createBrowserRouter (main.tsx + Root.tsx; routes still in App.tsx) to allow useBlocker. lib/useLeaveGuard.ts + components/UnsavedChangesDialog.tsx: Keep editing / Discard / Save and leave. Never blocks / or /login (logout, session expiry)
+- Profile makeover: one tab at a time (Profile, Score & badges for citizens, Neighbourhood, Notifications, Appearance, Password; ?tab= in URL), dots on tabs with unsaved changes, floating save bar naming the changed tabs, Ctrl+S saves
+- Report wizard asks before leaving once anything is filled in

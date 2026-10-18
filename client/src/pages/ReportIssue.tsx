@@ -27,11 +27,13 @@ import { CategoryChip } from "../components/CategoryChip";
 import { LocationPicker, type LatLng } from "../components/LocationPicker";
 import { PhotoAssistantCard, PhotoScan } from "../components/PhotoAssistantCard";
 import { PhotoMatches } from "../components/PhotoMatches";
+import { UnsavedChangesDialog } from "../components/UnsavedChangesDialog";
 import { SimilarIssues } from "../components/SimilarIssues";
 import { api, ApiError } from "../lib/api";
 import { CATEGORIES, CATEGORY_COLOR, CHANNEL_META, EMERGENCY_KINDS, EMERGENCY_META, issueLabel } from "../lib/constants";
 import { CUSTOM_ICONS, OTHER_SUGGESTIONS } from "../lib/customIcons";
 import { useToast } from "../lib/toast-context";
+import { useLeaveGuard } from "../lib/useLeaveGuard";
 import { confetti } from "../lib/confetti";
 import { usePhotoAssistant } from "../lib/usePhotoAssistant";
 import type { Category, Channel, EmergencyKind, Issue, IssueDetail, NearbyItem, PhotoMatch, Role } from "../types";
@@ -143,6 +145,9 @@ export default function ReportIssue() {
   const photoVector = assistant.result?.vector;
   const matchKey = point && photoVector ? `${point.lat.toFixed(5)},${point.lng.toFixed(5)},${photoVector.slice(0, 4).join(",")}` : "";
   const [photoMatches, setPhotoMatches] = useState<{ key: string; items: PhotoMatch[] }>({ key: "", items: [] });
+  // Leaving halfway through asks first, so a photo and details aren't lost by a stray click.
+  const started = files.length > 0 || Boolean(category) || Boolean(description.trim()) || Boolean(point) || Boolean(onBehalfName.trim());
+  const { blocker, allowLeave } = useLeaveGuard(started);
   useEffect(() => {
     if (!matchKey || !point || !photoVector) return;
     let active = true;
@@ -332,6 +337,7 @@ export default function ReportIssue() {
     try {
       await api<{ issue: Issue }>(`/issues/${item.id}/support`, { method: "POST" });
       toast.success("Your upvote raised its priority. No duplicate created.", { title: "Added your voice" });
+      allowLeave();
       navigate(`/issues/${item.id}`);
     } catch (err) {
       toast.error(err instanceof ApiError ? err.message : "Could not upvote. Try again.");
@@ -383,6 +389,7 @@ export default function ReportIssue() {
         toast.success(`${n} ${n === 1 ? "face was" : "faces were"} blurred in your photos before saving, to protect people's privacy.`, { title: "Privacy protected" });
       }
       confetti();
+      allowLeave();
       navigate(`/issues/${data.issue.id}`, { state: { merged: data.merged } });
     } catch (err) {
       if (err instanceof ApiError) {
@@ -821,6 +828,7 @@ export default function ReportIssue() {
           </button>
         )}
       </div>
+      <UnsavedChangesDialog blocker={blocker} title="Leave this report?" message="Your report hasn't been sent yet. If you leave now, the photos and details you added will be lost." discardLabel="Leave and discard" />
     </div>
   );
 }
