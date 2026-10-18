@@ -190,8 +190,11 @@ NODE_ENV, PORT, MONGODB_URI, CLIENT_URL, JWT_SECRET (32+ chars), JWT_EXPIRES_DAY
 - Now issues handed over because of leave are marked (Issue.handedOverFrom). On return (button, admin, or end date), the ones not started yet (reported/acknowledged) go back to the officer with a timeline note and the colleague is told; In progress work stays with the colleague. Field Desk and Admin show a welcome-back summary; leave dialog and FAQ explain the rule
 - Issues moved before this fix carry no marker; re-run npm run seed:demo to reset the demo
 
+## Status 2026-10-16 12:11 IST
+- Phase 11 and 11.1 TESTED by owner: everything works. Owner taking a break
+
 ## Next steps
-1. Owner tests Phase 11.1
+1. (done) Owner tested Phase 11.1
 2. Phase 10b when the owner has photos: Colab notebook, then copy the two files into ml/models/
 3. Feature freeze about 7-10 days before the final review; presentation only when the owner asks
 
@@ -199,3 +202,5 @@ NODE_ENV, PORT, MONGODB_URI, CLIENT_URL, JWT_SECRET (32+ chars), JWT_EXPIRES_DAY
 - Production cookies use SameSite=None; revisit CSRF protection at deployment
 - Atlas user has atlasAdmin and IP list allows 0.0.0.0/0; tighten before deployment
 - Priority list endpoints return up to 300 issues; add pagination if data grows
+- 2026-10-18: owner created civic_dataset/ (7 folders, still empty) in Drive and ran the notebook once (expected 'no photos' stop). Notebook now finds photos in sub-folders (Kaggle layouts), prints a per-folder count, explains the empty case, and tolerates unreadable files in the sample grid
+- Owner changed the demo password to Demo@123 (Login.tsx and seedDemo.ts); keep it
