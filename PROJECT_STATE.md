@@ -216,3 +216,8 @@ NODE_ENV, PORT, MONGODB_URI, CLIENT_URL, JWT_SECRET (32+ chars), JWT_EXPIRES_DAY
 - Before/After tags now fade with the slider (BeforeAfter.tsx, landing ProofSlider)
 - Owner asked what more CV could do; proposed: AI fix check on proof photos (same place + problem gone), same-photo duplicate hint, natural-language photo search for admins
 - Owner changed the demo password to Demo@123 (Login.tsx and seedDemo.ts); keep it
+
+## Phase 12.1 (speed) - 2026-10-18
+- Owner tested Phase 12: everything works
+- Pages are code-split (lib/lazyPage.ts: like React.lazy but renders instantly once downloaded, avoiding React's 300 ms fallback throttle). Landing, Login, Register stay in the main bundle; other pages preload in the background after the first non-landing screen. Landing's live map (Leaflet) loads only when scrolled near
+- Main JS 1,054 KB -> 350 KB; first-load JS about 130 KB gzipped (was about 308 KB). Verified every page for every role in dev and production build: same headings, no loading flash, no page errors

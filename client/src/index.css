@@ -55,6 +55,8 @@
 
 @keyframes rise { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
 @keyframes fade { from { opacity: 0; } to { opacity: 1; } }
+/* Loading placeholders stay invisible for quick loads and only fade in if the wait is noticeable. */
+.cc-defer { animation: fade 0.25s ease 0.18s both; }
 @keyframes pop { from { opacity: 0; transform: scale(0.92) translateY(8px); } to { opacity: 1; transform: none; } }
 @keyframes pulse-ring { 0% { transform: scale(0.6); opacity: 0.7; } 100% { transform: scale(2.4); opacity: 0; } }
 @keyframes float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-8px); } }

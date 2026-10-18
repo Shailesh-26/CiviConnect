@@ -1,11 +1,10 @@
-import { useCallback, useEffect, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { ArrowRight, BadgeCheck, Clock3, Cpu, Database, FileClock, Globe2, MapPinned, Radio, ShieldCheck, Sparkles, Workflow } from "lucide-react";
 import { useAuth } from "../auth/useAuth";
 import { CategoryChip } from "../components/CategoryChip";
 import { CategoryIcon } from "../components/CategoryIcon";
 import { CountUp } from "../components/CountUp";
-import { PublicMap } from "../components/PublicMap";
 import { StatusBadge } from "../components/StatusBadge";
 import { Skeleton } from "../components/ui";
 import { Faq } from "../components/landing/Faq";
@@ -20,6 +19,9 @@ import { CATEGORY_COLOR, categoryMeta, issueLabel } from "../lib/constants";
 import { formatDuration, timeAgo } from "../lib/format";
 import { useInView, useInterval } from "../lib/useInView";
 import type { Category, PublicOverview } from "../types";
+
+// The map library is only downloaded when the visitor scrolls near the live map.
+const PublicMap = lazy(() => import("../components/PublicMap").then((m) => ({ default: m.PublicMap })));
 
 const WORDS: { word: string; category: Category }[] = [
   { word: "pothole", category: "pothole" },
@@ -253,7 +255,11 @@ export default function Landing() {
 
         <div className="mt-6 grid gap-4 lg:grid-cols-[1.6fr_1fr]">
           <div ref={mapRef} className="reveal card overflow-hidden p-2.5">
-            {data && mapVisible ? <PublicMap pins={data.pins} className="h-[28rem]" /> : <Skeleton className="h-[28rem] w-full !rounded-2xl" />}
+            {data && mapVisible ? (
+              <Suspense fallback={<Skeleton className="h-[28rem] w-full !rounded-2xl" />}><PublicMap pins={data.pins} className="h-[28rem]" /></Suspense>
+            ) : (
+              <Skeleton className="h-[28rem] w-full !rounded-2xl" />
+            )}
             <p className="flex flex-wrap items-center gap-4 px-2 pb-1 pt-3 text-xs text-ink/60">
               <span className="inline-flex items-center gap-1.5"><span className="size-3 rounded-full bg-[#c2561f]" /> Open</span>
               <span className="inline-flex items-center gap-1.5"><span className="size-3 rounded-full bg-resolved" /> Resolved</span>

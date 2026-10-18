@@ -14,7 +14,7 @@ fallen trees and broken street lights, from a citizen's photo to a verified fix.
 ![Python](https://img.shields.io/badge/FastAPI_+_CLIP-009688?logo=fastapi&logoColor=white)
 ![Tailwind](https://img.shields.io/badge/Tailwind_v4-06b6d4?logo=tailwindcss&logoColor=white)
 
-🎓 Final-year B.Tech project
+🎓 Mini Project
 
 </div>
 

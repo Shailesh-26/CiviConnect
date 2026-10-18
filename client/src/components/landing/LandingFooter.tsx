@@ -70,7 +70,7 @@ export function LandingFooter({ live }: { live: boolean }) {
       </div>
 
       <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-x-6 gap-y-3 border-t border-ink/10 px-4 py-6 text-xs text-ink/50 sm:px-6">
-        <span>© {new Date().getFullYear()} CiviConnect · Final-year B.Tech project</span>
+        <span>© {new Date().getFullYear()} CiviConnect · Mini project</span>
         <span>Map data © <a href="https://www.openstreetmap.org/copyright" className="underline-offset-2 hover:underline" target="_blank" rel="noreferrer">OpenStreetMap</a> contributors</span>
         <span className="ml-auto flex items-center gap-1">
           <ThemeToggle />
