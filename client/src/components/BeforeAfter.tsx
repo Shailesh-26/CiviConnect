@@ -7,6 +7,10 @@ export function BeforeAfter({ before, after }: { before: string; after: string }
   const box = useRef<HTMLDivElement>(null);
   const dragging = useRef(false);
 
+  // Each tag fades out as its photo slides out of view, so the label always matches what you see.
+  const beforeShown = Math.min(1, Math.max(0, (pos - 8) / 22));
+  const afterShown = Math.min(1, Math.max(0, (92 - pos) / 22));
+
   const move = (clientX: number) => {
     const r = box.current!.getBoundingClientRect();
     setPos(Math.max(0, Math.min(100, ((clientX - r.left) / r.width) * 100)));
@@ -29,8 +33,8 @@ export function BeforeAfter({ before, after }: { before: string; after: string }
       <div className="absolute inset-0" style={{ clipPath: `inset(0 ${100 - pos}% 0 0)` }}>
         <img src={before} alt="Before the fix" className="size-full object-cover" draggable={false} />
       </div>
-      <span className="absolute left-3 top-3 rounded-full bg-alert px-2.5 py-0.5 text-xs font-semibold text-white shadow">Before</span>
-      <span className="absolute right-3 top-3 rounded-full bg-resolved px-2.5 py-0.5 text-xs font-semibold text-white shadow">After</span>
+      <span className="pointer-events-none absolute left-3 top-3 rounded-full bg-alert px-2.5 py-0.5 text-xs font-semibold text-white shadow transition-[opacity,transform] duration-200" style={{ opacity: beforeShown, transform: `scale(${0.85 + beforeShown * 0.15})` }}>Before</span>
+      <span className="pointer-events-none absolute right-3 top-3 rounded-full bg-resolved px-2.5 py-0.5 text-xs font-semibold text-white shadow transition-[opacity,transform] duration-200" style={{ opacity: afterShown, transform: `scale(${0.85 + afterShown * 0.15})` }}>After</span>
       <div className="absolute inset-y-0 w-0.5 bg-white shadow-[0_0_12px_rgb(0_0_0/0.4)]" style={{ left: `${pos}%` }}>
         <button
           type="button"

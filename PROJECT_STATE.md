@@ -203,4 +203,7 @@ NODE_ENV, PORT, MONGODB_URI, CLIENT_URL, JWT_SECRET (32+ chars), JWT_EXPIRES_DAY
 - Atlas user has atlasAdmin and IP list allows 0.0.0.0/0; tighten before deployment
 - Priority list endpoints return up to 300 issues; add pagination if data grows
 - 2026-10-18: owner created civic_dataset/ (7 folders, still empty) in Drive and ran the notebook once (expected 'no photos' stop). Notebook now finds photos in sub-folders (Kaggle layouts), prints a per-folder count, explains the empty case, and tolerates unreadable files in the sample grid
+- 2026-10-18: Phase 10b DONE by owner: 305 labelled photos, test accuracy 92%, macro F1 0.85, zero-shot 87% on the same 61 test photos. Small classes (drainage 3, streetlight 2, other 6 test photos) make per-class numbers noisy; more photos there would help
+- Before/After tags now fade with the slider (BeforeAfter.tsx, landing ProofSlider)
+- Owner asked what more CV could do; proposed: AI fix check on proof photos (same place + problem gone), same-photo duplicate hint, natural-language photo search for admins
 - Owner changed the demo password to Demo@123 (Login.tsx and seedDemo.ts); keep it
