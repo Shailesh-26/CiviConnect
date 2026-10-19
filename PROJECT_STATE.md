@@ -236,3 +236,10 @@ NODE_ENV, PORT, MONGODB_URI, CLIENT_URL, JWT_SECRET (32+ chars), JWT_EXPIRES_DAY
 - Owner had pushed civic_dataset/ (306 photos, 157 MB, many from Google with unclear licences, e.g. wallpapers) to the public repo. Now gitignored; owner removes it with git rm -r --cached (files stay local + Drive)
 - seed:demo uses real photos: server/src/scripts/demoPhotos.ts picks 8 per category from civic_dataset/<category> (skips other, files >9.5 MB), uploads once to Cloudinary as civiconnect/demo/..., caches in server/.demo-photos.json (gitignored). Optional demo-after/<category>/ for after photos; drawn SVGs otherwise. deleteImage never deletes civiconnect/demo/*. clearDemo also removes demo PhotoEmbeddings
 - No real "after" photos exist yet (dataset has none; sandbox cannot download). Suggested owner downloads 5 free Pexels/Unsplash photos or takes them on a phone
+
+## Rehearsal (started 2026-10-19)
+- R1 (visitor pages) self-check fixes: lazyPage use() console error, PublicIssue header squeezed on phones, landing SLA "24 h" wrap. Owner had not applied R1 zip yet
+- Owner ran seed with real photos (40 before, 30 after from his demo-after/ folder). A second seed run printed nothing after "Demo photos…" (cause unknown, could not reproduce without MongoDB here); added "Creating the demo city…" progress line; asked owner to rerun and paste full output
+- Photo search returned 24 nearest even when unrelated: utils/searchRelevance.ts keeps matches within 0.04 of the best and >= 0.21, rest as "looser" (UI button). Thresholds not calibrated on real data
+- Owner asked whether removing civic_dataset from GitHub was needed: copyright + size; local copy and Drive kept
+- New flow agreed: owner tests by checklist, reports issues, I fix; zips only when there are fixes

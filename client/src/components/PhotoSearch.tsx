@@ -15,13 +15,14 @@ const KINDS = [
   { id: "proof", label: "Proof photos" },
 ] as const;
 type Kind = (typeof KINDS)[number]["id"];
-type State = { status: "idle" } | { status: "loading" } | { status: "offline" } | { status: "error"; message: string } | { status: "done"; query: string; total: number; results: PhotoSearchHit[] };
+type State = { status: "idle" } | { status: "loading" } | { status: "offline" } | { status: "error"; message: string } | { status: "done"; query: string; total: number; results: PhotoSearchHit[]; looser: PhotoSearchHit[] };
 
 // Describe a photo in plain words and the Photo Assistant finds the closest stored photos.
 export function PhotoSearch() {
   const [text, setText] = useState("");
   const [kind, setKind] = useState<Kind>("");
   const [state, setState] = useState<State>({ status: "idle" });
+  const [showLooser, setShowLooser] = useState(false);
 
   async function run(q: string, k: Kind) {
     const query = q.trim();
@@ -31,8 +32,9 @@ export function PhotoSearch() {
     try {
       const params = new URLSearchParams({ q: query });
       if (k) params.set("kind", k);
-      const data = await api<{ query: string; total: number; results: PhotoSearchHit[] }>(`/vision/search?${params}`);
-      setState({ status: "done", ...data });
+      const data = await api<{ query: string; total: number; results: PhotoSearchHit[]; looser?: PhotoSearchHit[] }>(`/vision/search?${params}`);
+      setState({ status: "done", ...data, looser: data.looser ?? [] });
+      setShowLooser(false);
     } catch (err) {
       if (err instanceof ApiError && err.status === 503) setState({ status: "offline" });
       else setState({ status: "error", message: err instanceof ApiError ? err.message : "Search failed. Try again." });
@@ -44,7 +46,7 @@ export function PhotoSearch() {
     run(text, kind);
   }
 
-  const best = state.status === "done" && state.results.length ? state.results[0].score : 1;
+  const best = state.status === "done" ? (state.results[0] ?? state.looser[0])?.score ?? 1 : 1;
 
   return (
     <div className="space-y-5">
@@ -89,34 +91,57 @@ export function PhotoSearch() {
           {Array.from({ length: 8 }, (_, i) => <div key={i} className="skeleton aspect-[4/3] w-full rounded-2xl" />)}
         </div>
       )}
-      {state.status === "done" && state.results.length === 0 && <EmptyState icon={ImageOff} title="No photos yet" text={state.total ? "Nothing close enough. Try other words." : "Photos are added as people report. On an existing database run: npm run vision:index"} />}
+      {state.status === "done" && state.total === 0 && <EmptyState icon={ImageOff} title="No photos yet" text="Photos are added as people report. On an existing database run: npm run vision:index" />}
+      {state.status === "done" && state.total > 0 && state.results.length === 0 && (
+        <EmptyState icon={ImageOff} title="No close matches" text={`None of the ${state.total} photos clearly shows "${state.query}". Try other words${state.looser.length ? ", or look at the loosely related ones below" : ""}.`} />
+      )}
       {state.status === "done" && state.results.length > 0 && (
         <>
-          <p className="text-sm text-ink/55">Best matches for <span className="font-semibold text-ink">"{state.query}"</span> among {state.total} photos</p>
-          <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            {state.results.map((hit, i) => (
-              <li key={hit.photoUrl} className="animate-rise" style={{ animationDelay: `${Math.min(i, 11) * 45}ms` }}>
-                <Link to={`/issues/${hit.id}`} className="group block overflow-hidden rounded-2xl border border-ink/10 bg-surface shadow-card transition hover:-translate-y-0.5 hover:shadow-lift">
-                  <div className="relative aspect-[4/3] overflow-hidden bg-ink/5">
-                    <img src={hit.photoUrl} alt={issueLabel(hit)} loading="lazy" className="size-full object-cover transition duration-500 group-hover:scale-105" />
-                    <span className={`absolute left-2 top-2 rounded-full px-2 py-0.5 text-[10px] font-semibold text-white ${hit.kind === "proof" ? "bg-resolved" : "bg-black/55 backdrop-blur"}`}>{hit.kind === "proof" ? "Proof" : "Citizen"}</span>
-                  </div>
-                  <div className="space-y-2 p-3">
-                    <div className="flex items-center justify-between gap-2">
-                      <p className="truncate text-sm font-semibold group-hover:text-accent">{issueLabel(hit)}</p>
-                      <StatusBadge status={hit.status} />
-                    </div>
-                    <p className="truncate text-xs text-ink/50">{hit.ticket} · {hit.address ?? "No address"} · {timeAgo(hit.at)}</p>
-                    <span className="block h-1.5 overflow-hidden rounded-full bg-ink/8" title="How close it is to your words, compared with the best match">
-                      <span className="cc-grow block h-full origin-left rounded-full bg-accent" style={{ "--to": Math.max(0.05, hit.score / best), animationDelay: `${Math.min(i, 11) * 45}ms` } as React.CSSProperties} />
-                    </span>
-                  </div>
-                </Link>
-              </li>
-            ))}
-          </ul>
+          <p className="text-sm text-ink/55">
+            {state.results.length} {state.results.length === 1 ? "photo matches" : "photos match"} <span className="font-semibold text-ink">"{state.query}"</span> among {state.total} photos
+          </p>
+          <HitGrid hits={state.results} best={best} />
         </>
       )}
+      {state.status === "done" && state.looser.length > 0 && (
+        <div className="space-y-4">
+          <button type="button" onClick={() => setShowLooser((v) => !v)} aria-expanded={showLooser} className="btn btn-outline w-full !py-2.5 text-sm">
+            {showLooser ? "Hide" : "Show"} {state.looser.length} loosely related {state.looser.length === 1 ? "photo" : "photos"}
+          </button>
+          {showLooser && (
+            <div className="opacity-80">
+              <HitGrid hits={state.looser} best={best} />
+            </div>
+          )}
+        </div>
+      )}
     </div>
+  );
+}
+
+function HitGrid({ hits, best }: { hits: PhotoSearchHit[]; best: number }) {
+  return (
+    <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      {hits.map((hit, i) => (
+        <li key={hit.photoUrl} className="animate-rise" style={{ animationDelay: `${Math.min(i, 11) * 45}ms` }}>
+          <Link to={`/issues/${hit.id}`} className="group block overflow-hidden rounded-2xl border border-ink/10 bg-surface shadow-card transition hover:-translate-y-0.5 hover:shadow-lift">
+            <div className="relative aspect-[4/3] overflow-hidden bg-ink/5">
+              <img src={hit.photoUrl} alt={issueLabel(hit)} loading="lazy" className="size-full object-cover transition duration-500 group-hover:scale-105" />
+              <span className={`absolute left-2 top-2 rounded-full px-2 py-0.5 text-[10px] font-semibold text-white ${hit.kind === "proof" ? "bg-resolved" : "bg-black/55 backdrop-blur"}`}>{hit.kind === "proof" ? "Proof" : "Citizen"}</span>
+            </div>
+            <div className="space-y-2 p-3">
+              <div className="flex items-center justify-between gap-2">
+                <p className="truncate text-sm font-semibold group-hover:text-accent">{issueLabel(hit)}</p>
+                <StatusBadge status={hit.status} />
+              </div>
+              <p className="truncate text-xs text-ink/50">{hit.ticket} · {hit.address ?? "No address"} · {timeAgo(hit.at)}</p>
+              <span className="block h-1.5 overflow-hidden rounded-full bg-ink/8" title="How close it is to your words, compared with the best match">
+                <span className="cc-grow block h-full origin-left rounded-full bg-accent" style={{ "--to": Math.max(0.05, Math.min(1, hit.score / best)), animationDelay: `${Math.min(i, 11) * 45}ms` } as React.CSSProperties} />
+              </span>
+            </div>
+          </Link>
+        </li>
+      ))}
+    </ul>
   );
 }

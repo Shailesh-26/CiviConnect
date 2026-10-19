@@ -77,7 +77,7 @@ export default function PublicIssue() {
             <section className="card overflow-hidden animate-rise">
               <div className="flex flex-wrap items-start gap-4 p-5 sm:p-6">
                 <CategoryChip category={issue.category} icon={issue.customIcon} size="lg" />
-                <div className="min-w-0 flex-1">
+                <div className="min-w-0 flex-1 basis-60">
                   <p className="text-xs font-semibold uppercase tracking-widest text-accent">Public civic issue · {issue.ticket}</p>
                   <h1 className="mt-1 text-3xl font-semibold">{issueLabel(issue)}</h1>
                   {issue.address && <p className="mt-1.5 text-sm text-ink/70">{issue.address}</p>}

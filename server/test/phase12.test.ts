@@ -34,3 +34,19 @@ test("fix check: a photo of a different place is flagged", () => {
 test("fix check: nothing to compare with is not held against the officer", () => {
   assert.equal(fixVerdict({ issueCategory: "pothole", similarity: null, proofTop: null, proofCivic: 0 }), "looks_fixed");
 });
+
+import { splitByRelevance, SEARCH_MIN_SCORE } from "../src/utils/searchRelevance";
+
+test("photo search keeps only photos close to the best match", () => {
+  const ranked = [0.31, 0.3, 0.285, 0.24, 0.22, 0.2, 0.15].map((s) => ({ s }));
+  const { strong, looser } = splitByRelevance(ranked, (x) => x.s, 24);
+  assert.deepEqual(strong.map((x) => x.s), [0.31, 0.3, 0.285]);
+  assert.deepEqual(looser.map((x) => x.s), [0.24, 0.22, 0.2]);
+});
+
+test("photo search returns no strong matches when nothing is similar", () => {
+  const ranked = [0.17, 0.16, 0.12].map((s) => ({ s }));
+  const { strong, looser } = splitByRelevance(ranked, (x) => x.s, 24);
+  assert.equal(strong.length, 0);
+  assert.ok(looser.every((x) => x.s >= SEARCH_MIN_SCORE - 0.03));
+});

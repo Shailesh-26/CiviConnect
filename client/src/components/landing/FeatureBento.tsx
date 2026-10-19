@@ -62,7 +62,7 @@ function SlaDemo() {
           ["Drainage · Garbage", "48 h"],
           ["Pothole · Street light", "72 h"],
         ].map(([k, v]) => (
-          <li key={k} className="flex gap-3"><span className="w-32 text-ink/60">{k}</span><span className="font-semibold tabular-nums">{v}</span></li>
+          <li key={k} className="flex gap-3"><span className="w-32 min-w-0 text-ink/60">{k}</span><span className="shrink-0 whitespace-nowrap font-semibold tabular-nums">{v}</span></li>
         ))}
         <li className="cc-sla-escalate inline-flex items-center gap-1 rounded-full bg-alert px-2.5 py-1 font-semibold text-white"><Siren size={12} aria-hidden /> Escalated · +15 priority</li>
       </ul>

@@ -217,6 +217,7 @@ async function main() {
   }
 
   photos = await loadDemoPhotos();
+  console.log("Creating the demo city…");
   const hash = await hashPassword(DEMO_PASSWORD);
   const now = Date.now();
 

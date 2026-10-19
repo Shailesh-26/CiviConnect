@@ -3,6 +3,7 @@ import { Issue, OPEN_STATUSES, type Category } from "../models/Issue";
 import { PhotoEmbedding } from "../models/PhotoEmbedding";
 import { fixVerdict, type FixVerdict } from "../utils/fixCheck";
 import { metres } from "../utils/geo";
+import { splitByRelevance } from "../utils/searchRelevance";
 import { cosine, round } from "../utils/vectors";
 import { classifyPhoto, embedPhoto, embedText } from "./vision";
 
@@ -133,15 +134,14 @@ export async function searchPhotos(text: string, limit = 24, kind?: "report" | "
   const query = await embedText(text);
   if (!query) return null;
   const rows = await PhotoEmbedding.find(kind ? { kind } : {}).sort({ createdAt: -1 }).select("issue url vector kind createdAt").limit(5000).lean();
-  const scored = rows.map((r) => ({ r, s: cosine(query, r.vector as number[]) })).sort((a, b) => b.s - a.s).slice(0, limit);
-  const cards = await issueCards([...new Set(scored.map((x) => String(x.r.issue)))]);
-  return {
-    total: rows.length,
-    results: scored
-      .map(({ r, s }) => {
-        const info = cards.get(String(r.issue));
-        return info ? { ...info.card, photoUrl: r.url, kind: r.kind, score: round(s), at: r.createdAt } : null;
-      })
-      .filter((x): x is NonNullable<typeof x> => x !== null),
+  const ranked = rows.map((r) => ({ r, s: cosine(query, r.vector as number[]) })).sort((a, b) => b.s - a.s);
+  // Only photos close to the best match count as real matches; the next few are offered as "looser" ones.
+  const { strong, looser } = splitByRelevance(ranked, (x) => x.s, limit);
+  const cards = await issueCards([...new Set([...strong, ...looser].map((x) => String(x.r.issue)))]);
+  const toCard = ({ r, s }: (typeof ranked)[number]) => {
+    const info = cards.get(String(r.issue));
+    return info ? { ...info.card, photoUrl: r.url, kind: r.kind, score: round(s), at: r.createdAt } : null;
   };
+  const notNull = <T,>(x: T | null): x is T => x !== null;
+  return { total: rows.length, results: strong.map(toCard).filter(notNull), looser: looser.map(toCard).filter(notNull) };
 }
