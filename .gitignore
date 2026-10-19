@@ -15,3 +15,7 @@ node_modules/
 
 # Build output
 dist/
+# Photo dataset and demo photos stay on your computer (and Google Drive), not on GitHub
+civic_dataset/
+demo-after/
+server/.demo-photos.json

@@ -14,7 +14,7 @@ fallen trees and broken street lights, from a citizen's photo to a verified fix.
 ![Python](https://img.shields.io/badge/FastAPI_+_CLIP-009688?logo=fastapi&logoColor=white)
 ![Tailwind](https://img.shields.io/badge/Tailwind_v4-06b6d4?logo=tailwindcss&logoColor=white)
 
-🎓 Mini Project
+🎓 Final-year B.Tech project
 
 </div>
 
@@ -106,6 +106,9 @@ server/  Express 5 + TypeScript + Mongoose + Zod + Nodemailer                 (p
 2. `npm install`
 3. Copy `.env.example` to `.env` and fill it in (see the table below)
 4. Optional demo city: `npm run seed:demo` (it prints the demo logins)
+   - 📷 If a `civic_dataset/` folder (one sub-folder per category) is in the project folder and Cloudinary is set up, the demo issues
+     use those real photos (uploaded once to your Cloudinary). Optional "after" photos for fixed issues go in `demo-after/<category>/`.
+     Both folders stay on your computer and are not pushed to GitHub. Then run `npm run vision:index` with the Photo Assistant running.
 
 ### 2️⃣ Client
 1. `cd client`

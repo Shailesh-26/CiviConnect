@@ -230,3 +230,9 @@ NODE_ENV, PORT, MONGODB_URI, CLIENT_URL, JWT_SECRET (32+ chars), JWT_EXPIRES_DAY
 - Router moved to createBrowserRouter (main.tsx + Root.tsx; routes still in App.tsx) to allow useBlocker. lib/useLeaveGuard.ts + components/UnsavedChangesDialog.tsx: Keep editing / Discard / Save and leave. Never blocks / or /login (logout, session expiry)
 - Profile makeover: one tab at a time (Profile, Score & badges for citizens, Neighbourhood, Notifications, Appearance, Password; ?tab= in URL), dots on tabs with unsaved changes, floating save bar naming the changed tabs, Ctrl+S saves
 - Report wizard asks before leaving once anything is filled in
+
+## Phase 12.3 (real demo photos) - 2026-10-18
+- Owner tested 12.2 flow; decided: no secret rotation (only shared .env in this chat), deployment AFTER rehearsal + bug fixing (plan: Render single service serving client build, Atlas, Cloudinary; Photo Assistant stays local)
+- Owner had pushed civic_dataset/ (306 photos, 157 MB, many from Google with unclear licences, e.g. wallpapers) to the public repo. Now gitignored; owner removes it with git rm -r --cached (files stay local + Drive)
+- seed:demo uses real photos: server/src/scripts/demoPhotos.ts picks 8 per category from civic_dataset/<category> (skips other, files >9.5 MB), uploads once to Cloudinary as civiconnect/demo/..., caches in server/.demo-photos.json (gitignored). Optional demo-after/<category>/ for after photos; drawn SVGs otherwise. deleteImage never deletes civiconnect/demo/*. clearDemo also removes demo PhotoEmbeddings
+- No real "after" photos exist yet (dataset has none; sandbox cannot download). Suggested owner downloads 5 free Pexels/Unsplash photos or takes them on a phone

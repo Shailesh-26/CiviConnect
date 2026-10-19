@@ -36,7 +36,8 @@ export function uploadImage(buffer: Buffer, kind: "issue" | "avatar" = "issue"):
 
 // Best effort: a failed delete must never break the request that replaced the image.
 export async function deleteImage(publicId?: string | null) {
-  if (!imageStorageEnabled || !publicId || publicId.startsWith("demo/")) return;
+  // Demo photos are shared by many demo issues, so they are never deleted from here.
+  if (!imageStorageEnabled || !publicId || publicId.startsWith("demo/") || publicId.startsWith("civiconnect/demo/")) return;
   try {
     await cloudinary.uploader.destroy(publicId);
   } catch (err) {

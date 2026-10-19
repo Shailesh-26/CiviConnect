@@ -9,6 +9,8 @@ import { User } from "../models/User";
 import { normaliseLabel } from "../utils/customIcons";
 import { hashPassword } from "../utils/password";
 import { DEFAULT_SLA_HOURS } from "../services/sla";
+import { PhotoEmbedding } from "../models/PhotoEmbedding";
+import { loadDemoPhotos, type DemoPhotoSet } from "./demoPhotos";
 
 /**
  * Fills the database with a realistic, fully fake city so every page looks alive in a demo:
@@ -19,8 +21,9 @@ import { DEFAULT_SLA_HOURS } from "../services/sla";
  *   npm run seed:demo:clear    remove the demo data again
  *
  * Only demo records are touched: users with an @civiconnect.demo email and issues whose ticket
- * starts with CC-D. Your real accounts and issues are never changed. Photos are the illustrations
- * in client/public/demo, so nothing is uploaded to Cloudinary.
+ * starts with CC-D. Your real accounts and issues are never changed. Photos come from your own
+ * civic_dataset/ folder (uploaded once to your Cloudinary, see demoPhotos.ts), or the drawn
+ * illustrations in client/public/demo when that folder isn't there.
  */
 
 const DEMO_DOMAIN = "@civiconnect.demo";
@@ -162,8 +165,11 @@ const REJECTION = [
 type Image = { url: string; publicId: string };
 const slug = (c: Category) => (c === "fallen_tree" ? "tree" : c);
 const img = (name: string): Image => ({ url: `/demo/${name}.svg`, publicId: `demo/${name}` });
-const beforeImg = (c: Category) => img(`${slug(c)}-before`);
-const afterImg = (c: Category) => img(`${slug(c)}-after`);
+// Real photos when civic_dataset/ (and optionally demo-after/) exist, otherwise the drawn illustrations.
+let photos: DemoPhotoSet = { before: {}, after: {} };
+const fromSet = (list: Image[] | undefined, n: number, fallback: Image) => (list?.length ? list[n % list.length] : fallback);
+const beforeImg = (c: Category, n: number) => fromSet(photos.before[c], n, img(`${slug(c)}-before`));
+const afterImg = (c: Category, n: number) => fromSet(photos.after[c], n, img(`${slug(c)}-after`));
 
 
 const EXTRA_AVATAR_EMOJI = ["🦁", "🐯", "🦊", "🐼", "🐢", "🐘", "🦚", "🌵", "🎨", "⚽", "🎸", "🍵", "🪁"];
@@ -190,6 +196,7 @@ async function clearDemo() {
   const comments = await Comment.deleteMany({ issue: { $in: demoIds } });
   await Flag.deleteMany({ issue: { $in: demoIds } });
   await Notification.deleteMany({ user: { $in: demoUsers } });
+  await PhotoEmbedding.deleteMany({ issue: { $in: demoIds } });
   await AuditLog.deleteMany({ "meta.demo": true });
   if (comments.deletedCount) console.log(`Removed ${comments.deletedCount} demo comments.`);
   const issues = await Issue.deleteMany({ ticket: /^CC-DS?\d{4}$/ });
@@ -209,6 +216,7 @@ async function main() {
     return;
   }
 
+  photos = await loadDemoPhotos();
   const hash = await hashPassword(DEMO_PASSWORD);
   const now = Date.now();
 
@@ -324,7 +332,7 @@ async function main() {
     const reports = reporters.map((user, i) => ({
       user: user._id,
       description: text[(n + i) % text.length],
-      images: i === 0 && hasPhoto ? [beforeImg(category)] : [],
+      images: i === 0 && hasPhoto ? [beforeImg(category, n)] : [],
       createdAt: new Date(createdAt + (i === 0 ? 0 : Math.min(ageMs * 0.7, between(0.05, 1.5) * DAY))),
     }));
     const supporters = shuffle(citizens).slice(0, int(0, 9)).map((u) => u._id);
@@ -366,7 +374,7 @@ async function main() {
       }
       if (status === "resolved" || reopened) {
         const when = createdAt + fixMs;
-        timeline.push({ status: "resolved", note: pick(RESOLUTION[category]), images: [afterImg(category)], by: officer._id, byName: officer.name, at: new Date(when) });
+        timeline.push({ status: "resolved", note: pick(RESOLUTION[category]), images: [afterImg(category, n)], by: officer._id, byName: officer.name, at: new Date(when) });
         log(officer, when, "issue.resolved", new Types.ObjectId(), `${label}: In progress → Resolved`);
         for (const r of reporterIds) note(r, when, { type: "resolved", title: `Fixed: ${label}`, body: "Is it really fixed? Tap to confirm or say it is still there.", category });
         lastEvent = when;
@@ -520,6 +528,7 @@ async function main() {
   console.log(`  Admin    admin${DEMO_DOMAIN}`);
   console.log(`  Officer  ${OFFICERS[0].email}`);
   console.log(`  Citizen  ${emailOf(CITIZENS[0])}\n`);
+  if (Object.keys(photos.before).length) console.log("Real photos used. With the Photo Assistant running, run  npm run vision:index  so photo search and the same-photo check know them.\n");
 
   await mongoose.disconnect();
 }
