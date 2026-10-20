@@ -36,6 +36,7 @@ import { useToast } from "../lib/toast-context";
 import { useLeaveGuard } from "../lib/useLeaveGuard";
 import { confetti } from "../lib/confetti";
 import { usePhotoAssistant } from "../lib/usePhotoAssistant";
+import { shrinkPhotos } from "../lib/shrinkPhoto";
 import type { Category, Channel, EmergencyKind, Issue, IssueDetail, NearbyItem, PhotoMatch, Role } from "../types";
 
 type StepId = "who" | "photo" | "what" | "where" | "details" | "review";
@@ -215,11 +216,12 @@ export default function ReportIssue() {
   }, [point, category, customLabel, isOther, description]);
 
   // One entry point for photos from the file picker, drag and drop, or paste. Checks type, size and the limit of 3.
-  function addFiles(list: FileList | File[] | null, how: "picked" | "dropped" | "pasted" = "picked") {
+  async function addFiles(list: FileList | File[] | null, how: "picked" | "dropped" | "pasted" = "picked") {
     if (!list) return;
     // Copy the files now: the input is cleared right after this runs.
     const all = Array.from(list);
-    const images = all.filter((f) => PHOTO_TYPES.includes(f.type));
+    // Big phone photos are made smaller first, so they fit the 5 MB limit and upload quickly.
+    const images = await shrinkPhotos(all.filter((f) => PHOTO_TYPES.includes(f.type)));
     const fitting = images.filter((f) => f.size <= MAX_PHOTO_BYTES);
     const room = Math.max(0, 3 - files.length);
     const added = fitting.slice(0, room);
@@ -526,7 +528,7 @@ export default function ReportIssue() {
               </span>
               <span className="font-display text-lg font-semibold">Take a photo or choose one</span>
               <span className="text-sm text-ink/55"><span className="hidden sm:inline">or drag photos here, or paste with Ctrl+V · </span>JPEG, PNG or WebP, up to 5 MB each</span>
-              <input type="file" accept="image/jpeg,image/png,image/webp" multiple capture="environment" className="sr-only" onChange={(e) => { addFiles(e.target.files); e.target.value = ""; }} />
+              <input type="file" accept="image/jpeg,image/png,image/webp" multiple className="sr-only" onChange={(e) => { addFiles(e.target.files); e.target.value = ""; }} />
             </label>
           ) : (
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">

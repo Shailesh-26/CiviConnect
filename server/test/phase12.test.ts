@@ -89,3 +89,15 @@ test("photo search on real scores for garbage keeps the garbage photos and drops
   assert.ok(strong.length >= 7);
   assert.ok(strong.every((x) => x.category === "garbage"));
 });
+
+import { csvCell, toCsv } from "../src/utils/csv";
+
+test("CSV cells are escaped and never run as spreadsheet formulas", () => {
+  assert.equal(csvCell('He said "hi", then left'), '"He said ""hi"", then left"');
+  assert.equal(csvCell("=HYPERLINK(\"http://x\")"), `"'=HYPERLINK(""http://x"")"`);
+  assert.equal(csvCell("+91 98765"), "'+91 98765");
+  assert.equal(csvCell("-5"), "'-5");
+  assert.equal(csvCell(-5), "-5"); // real numbers stay numbers
+  assert.equal(csvCell(null), "");
+  assert.ok(toCsv(["a"], [["x"]]).startsWith("﻿a\r\nx"));
+});

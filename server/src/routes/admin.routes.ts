@@ -1,6 +1,7 @@
 import { Router } from "express";
 import {
   createOfficer,
+  exportAudit,
   listAudit,
   listCategories,
   listFlags,
@@ -28,3 +29,4 @@ adminRouter.post("/flags/resolve", validateBody(moderationSchema), resolveFlags)
 adminRouter.get("/categories", listCategories);
 adminRouter.put("/categories/:category", validateBody(categorySchema), updateCategory);
 adminRouter.get("/audit", listAudit);
+adminRouter.get("/audit/export", exportAudit);

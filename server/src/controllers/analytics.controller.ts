@@ -3,6 +3,7 @@ import { CATEGORIES, Issue, OPEN_STATUSES, STATUSES, type Category, type Status 
 import { User } from "../models/User";
 import { slaInfo } from "../services/sla";
 import { computePriority } from "../utils/priority";
+import { toCsv } from "../utils/csv";
 
 const DAY = 86_400_000;
 const TZ = "Asia/Kolkata";
@@ -213,10 +214,6 @@ export const getAnalytics: RequestHandler = async (req, res) => {
   });
 };
 
-const csvCell = (v: unknown) => {
-  const s = v === null || v === undefined ? "" : String(v);
-  return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
-};
 
 // Every issue reported in the range as a spreadsheet-friendly CSV file.
 export const exportCsv: RequestHandler = async (req, res) => {
@@ -237,10 +234,10 @@ export const exportCsv: RequestHandler = async (req, res) => {
       new Date(i.createdAt).toISOString(), i.resolvedAt ? new Date(i.resolvedAt).toISOString() : "", hours,
       sla.hours, sla.state, i.escalatedAt ? "yes" : "no", i.reports.length, i.supporters.length, i.commentCount ?? 0,
       i.assignedTo?.name ?? "", i.address ?? "", i.location.coordinates[1], i.location.coordinates[0],
-    ].map(csvCell).join(",");
+    ];
   });
 
   res.setHeader("Content-Type", "text/csv; charset=utf-8");
   res.setHeader("Content-Disposition", `attachment; filename="civiconnect-issues-${days}d.csv"`);
-  res.send([header.join(","), ...lines].join("\n"));
+  res.send(toCsv(header, lines));
 };

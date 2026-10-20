@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
 import { createPortal } from "react-dom";
 import { Link, useSearchParams } from "react-router-dom";
-import {
+import { Download, FileText,
   BrainCircuit,
   Plane,
   Bot,
@@ -554,21 +554,69 @@ function AuditLog() {
     return [...map.entries()];
   }, [entries]);
 
+  // PDF: load the whole (filtered) log into a print-only table, name the file, open the print dialog.
+  const [printing, setPrinting] = useState<{ entries: AuditEntry[]; total: number } | null>(null);
+  const [preparing, setPreparing] = useState(false);
+  const filterLabel = AUDIT_FILTERS.find((f) => f.id === filter)?.label ?? "Everything";
+  async function exportPdf() {
+    setPreparing(true);
+    try {
+      const params = new URLSearchParams({ format: "json" });
+      if (filter) params.set("action", filter);
+      const d = await api<{ entries: AuditEntry[]; total: number }>(`/admin/audit/export?${params}`);
+      setPrinting(d);
+      const before = document.title;
+      document.title = `CiviConnect audit log - ${filterLabel} - ${new Date().toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}`;
+      window.addEventListener("afterprint", () => { document.title = before; setPrinting(null); }, { once: true });
+      // Let React draw the table before the print dialog takes its snapshot.
+      window.setTimeout(() => window.print(), 150);
+    } finally {
+      setPreparing(false);
+    }
+  }
+
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap gap-1.5">
+      {printing && (
+        <section className="print-only">
+          <header className="print-only mb-4 border-b-2 border-black pb-3">
+            <p className="text-[10pt] font-semibold uppercase tracking-widest">CiviConnect · Audit log</p>
+            <h1 className="mt-1 text-[18pt] font-bold">Every recorded action: {filterLabel.toLowerCase()}</h1>
+            <p className="mt-1 text-[10pt]">Printed {new Date().toLocaleString("en-IN", { dateStyle: "long", timeStyle: "short" })} · {printing.entries.length < printing.total ? `latest ${printing.entries.length} of ${printing.total} entries (download the CSV for all)` : `${printing.total} entries`}</p>
+          </header>
+          <table className="audit-print w-full border-collapse text-[9pt]">
+            <thead>
+              <tr><th>When</th><th>Who</th><th>What happened</th></tr>
+            </thead>
+            <tbody>
+              {printing.entries.map((e) => (
+                <tr key={e.id}>
+                  <td className="whitespace-nowrap">{new Date(e.at).toLocaleString("en-IN", { day: "numeric", month: "short", year: "numeric", hour: "numeric", minute: "2-digit" })}</td>
+                  <td>{e.actorName} <span className="capitalize">({e.actorRole})</span></td>
+                  <td>{e.summary}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </section>
+      )}
+      <div className="no-print flex flex-wrap items-center gap-1.5">
         {AUDIT_FILTERS.map((f) => (
           <button key={f.id} type="button" onClick={() => { setFilter(f.id); setPage(1); }} className={`rounded-full px-3.5 py-1.5 text-sm font-medium ${filter === f.id ? "bg-ink text-paper" : "text-ink/65 hover:bg-ink/6"}`}>
             {f.label}
           </button>
         ))}
+        <span className="ml-auto flex gap-1.5">
+          <a href={`/api/admin/audit/export${filter ? `?action=${filter}` : ""}`} download className="btn btn-outline !rounded-full !py-1.5 text-xs"><Download size={14} aria-hidden /> CSV</a>
+          <button type="button" onClick={exportPdf} disabled={preparing} className="btn btn-outline !rounded-full !py-1.5 text-xs"><FileText size={14} aria-hidden /> {preparing ? "Preparing…" : "PDF"}</button>
+        </span>
       </div>
       {entries === null ? (
         <ListSkeleton rows={5} />
       ) : entries.length === 0 ? (
         <EmptyState icon={History} title="Nothing logged yet" text="Every assignment, status change, escalation and admin decision is recorded here." />
       ) : (
-        <div className={`space-y-6 transition-opacity ${loading ? "opacity-50" : ""}`}>
+        <div className={`no-print space-y-6 transition-opacity ${loading ? "opacity-50" : ""}`}>
           {days.map(([day, list]) => (
             <section key={day}>
               <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-ink/50">{day}</h3>
@@ -605,8 +653,10 @@ export default function Admin() {
 
   return (
     <div className="space-y-6">
-      <PageHeader title="Admin console" subtitle="People and roles, community moderation, service-level clocks and a full record of every decision." />
-      <div className="-mx-1 flex gap-1 overflow-x-auto rounded-2xl border border-ink/10 bg-surface p-1 shadow-card" role="tablist">
+      <div className="no-print">
+        <PageHeader title="Admin console" subtitle="People and roles, community moderation, service-level clocks and a full record of every decision." />
+      </div>
+      <div className="no-print -mx-1 flex gap-1 overflow-x-auto rounded-2xl border border-ink/10 bg-surface p-1 shadow-card" role="tablist">
         {TABS.map(({ id, label, icon: Icon }) => (
           <button
             key={id}

@@ -9,6 +9,7 @@ import { ActionMenu } from "./ActionMenu";
 import { Avatar } from "./Avatar";
 import { ConfirmDialog } from "./ConfirmDialog";
 import { FlagDialog } from "./FlagDialog";
+import { shrinkPhotos } from "../lib/shrinkPhoto";
 
 function CommentBox({
   placeholder,
@@ -77,10 +78,11 @@ function CommentBox({
                 type="file"
                 accept="image/jpeg,image/png,image/webp"
                 className="sr-only"
-                onChange={(e) => {
+                onChange={async (e) => {
                   const picked = Array.from(e.target.files ?? []);
-                  setFiles((f) => [...f, ...picked].slice(0, 2));
                   e.target.value = "";
+                  const small = await shrinkPhotos(picked);
+                  setFiles((f) => [...f, ...small].slice(0, 2));
                 }}
               />
             </label>

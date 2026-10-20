@@ -17,6 +17,7 @@ import { hashPassword } from "../utils/password";
 import { toAdminUser } from "../utils/publicUser";
 import type { CreateOfficerInput } from "../validators/auth.schemas";
 import type { CategoryInput, ModerationInput, UpdateUserInput } from "../validators/admin.schemas";
+import { toCsv } from "../utils/csv";
 
 const assigneeFields = { path: "assignedTo", select: "name department" };
 
@@ -352,6 +353,28 @@ export const updateCategory: RequestHandler = async (req, res) => {
 };
 
 // ---------------------------------------------------------------- Audit log
+
+// The whole audit log (or one filter of it) to download. ?format=csv (default) or json (for the printable PDF view).
+export const exportAudit: RequestHandler = async (req, res) => {
+  const filter: Record<string, unknown> = {};
+  if (typeof req.query.action === "string" && /^[a-z_.]+$/.test(req.query.action)) filter.action = { $regex: `^${req.query.action}` };
+  const json = req.query.format === "json";
+  const rows = await AuditLog.find(filter).sort({ createdAt: -1 }).limit(json ? 2000 : 20000).lean();
+  if (json) {
+    res.json({ entries: rows.map((a) => ({ id: a._id.toString(), actorName: a.actorName, actorRole: a.actorRole, action: a.action, summary: a.summary, at: a.createdAt })), total: await AuditLog.countDocuments(filter) });
+    return;
+  }
+  const ist = (d: Date) => new Date(d).toLocaleString("en-IN", { timeZone: "Asia/Kolkata", dateStyle: "medium", timeStyle: "short" });
+  const csv = toCsv(
+    ["time_ist", "time_utc", "who", "role", "action", "what_happened", "target_type", "target_id"],
+    rows.map((a) => [ist(a.createdAt), new Date(a.createdAt).toISOString(), a.actorName, a.actorRole, a.action, a.summary, a.targetType ?? "", a.targetId ?? ""]),
+  );
+  const day = new Date().toISOString().slice(0, 10);
+  const name = `civiconnect-audit-log${typeof req.query.action === "string" && req.query.action ? `-${req.query.action.replace(/[^a-z_]/g, "")}` : ""}-${day}.csv`;
+  res.setHeader("Content-Type", "text/csv; charset=utf-8");
+  res.setHeader("Content-Disposition", `attachment; filename="${name}"`);
+  res.send(csv);
+};
 
 export const listAudit: RequestHandler = async (req, res) => {
   const filter: Record<string, unknown> = {};

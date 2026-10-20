@@ -22,6 +22,7 @@ import { CHANNEL_META, formatDate, issueLabel, NEXT_STATUS, OPEN, SOURCE_META, S
 import { useToast } from "../lib/toast-context";
 import { useIssueActions } from "../lib/useIssueActions";
 import type { IssueDetail as Detail, Status, User } from "../types";
+import { shrinkPhotos } from "../lib/shrinkPhoto";
 
 export default function IssueDetail() {
   const { id } = useParams();
@@ -341,10 +342,11 @@ export default function IssueDetail() {
                     accept="image/jpeg,image/png,image/webp"
                     multiple
                     className="sr-only"
-                    onChange={(e) => {
+                    onChange={async (e) => {
                       const picked = Array.from(e.target.files ?? []);
-                      setProof((prev) => [...prev, ...picked].slice(0, 2));
                       e.target.value = "";
+                      const small = await shrinkPhotos(picked);
+                      setProof((prev) => [...prev, ...small].slice(0, 2));
                     }}
                   />
                 </label>
