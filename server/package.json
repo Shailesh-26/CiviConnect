@@ -11,7 +11,8 @@
     "build": "tsc",
     "start": "node dist/server.js",
     "test": "tsx --test test/all.test.ts",
-    "vision:index": "tsx src/scripts/indexPhotos.ts"
+    "vision:index": "tsx src/scripts/indexPhotos.ts",
+    "vision:search": "tsx src/scripts/searchDebug.ts"
   },
   "keywords": [],
   "author": "",

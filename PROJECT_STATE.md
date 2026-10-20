@@ -243,3 +243,5 @@ NODE_ENV, PORT, MONGODB_URI, CLIENT_URL, JWT_SECRET (32+ chars), JWT_EXPIRES_DAY
 - Photo search returned 24 nearest even when unrelated: utils/searchRelevance.ts keeps matches within 0.04 of the best and >= 0.21, rest as "looser" (UI button). Thresholds not calibrated on real data
 - Owner asked whether removing civic_dataset from GitHub was needed: copyright + size; local copy and Drive kept
 - New flow agreed: owner tests by checklist, reports issues, I fix; zips only when there are fixes
+- R1 owner findings: (1) login with empty fields said "fix the highlighted fields" with nothing highlighted -> Login now validates per field and shows server field errors; Register gets noValidate so our messages show instead of browser popups. (2) photo search "garbage" still showed street lights -> rival check (photo must look more like the query than like any other civic category; closest-meaning rival dropped) + npm run vision:search -- "words" diagnostic table. Seed rerun worked fine (earlier silent stop not seen again)
+- Owner wants the rehearsal as a reference document (rounds/modules, sequential test steps) -> Claude Docs test plan

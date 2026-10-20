@@ -57,7 +57,7 @@ export default function Register() {
 
   return (
     <AuthShell title="Join your neighbours" subtitle="Create a free account and start fixing what is broken around you.">
-      <form onSubmit={onSubmit} className="mt-6 space-y-4">
+      <form onSubmit={onSubmit} className="mt-6 space-y-4" noValidate>
         <Field label="Full name" value={name} onChange={setName} autoComplete="name" error={fieldErrors.name} icon={User} />
         <Field label="Email" type="email" value={email} onChange={setEmail} autoComplete="email" error={fieldErrors.email} icon={Mail} />
         <div>

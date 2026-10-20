@@ -3,7 +3,7 @@ import { Issue, OPEN_STATUSES, type Category } from "../models/Issue";
 import { PhotoEmbedding } from "../models/PhotoEmbedding";
 import { fixVerdict, type FixVerdict } from "../utils/fixCheck";
 import { metres } from "../utils/geo";
-import { splitByRelevance } from "../utils/searchRelevance";
+import { pickRivals, RIVAL_SLACK, RIVALS, splitByRelevance, strongestRival, type Rival } from "../utils/searchRelevance";
 import { cosine, round } from "../utils/vectors";
 import { classifyPhoto, embedPhoto, embedText } from "./vision";
 
@@ -130,18 +130,45 @@ export async function similarPhotos(vector: number[], point: { lat: number; lng:
 }
 
 /** Search every stored photo with words. Ranked by how well each photo matches the sentence. */
-export async function searchPhotos(text: string, limit = 24, kind?: "report" | "proof") {
+// Text embeddings for the rival descriptions, fetched once from the Photo Assistant.
+let rivalCache: Rival[] | null = null;
+async function rivalVectors(): Promise<Rival[]> {
+  if (rivalCache) return rivalCache;
+  const out: Rival[] = [];
+  for (const r of RIVALS) {
+    const vector = await embedText(r.text);
+    if (!vector) return []; // service hiccup: search still works, just without the rival check this time
+    out.push({ key: r.key, vector });
+  }
+  rivalCache = out;
+  return out;
+}
+
+// Every stored photo scored against the words, with the rival check. Also used by npm run vision:search.
+export async function rankPhotos(text: string, kind?: "report" | "proof") {
   const query = await embedText(text);
   if (!query) return null;
-  const rows = await PhotoEmbedding.find(kind ? { kind } : {}).sort({ createdAt: -1 }).select("issue url vector kind createdAt").limit(5000).lean();
-  const ranked = rows.map((r) => ({ r, s: cosine(query, r.vector as number[]) })).sort((a, b) => b.s - a.s);
-  // Only photos close to the best match count as real matches; the next few are offered as "looser" ones.
-  const { strong, looser } = splitByRelevance(ranked, (x) => x.s, limit);
+  const rivals = pickRivals(query, await rivalVectors());
+  const rows = await PhotoEmbedding.find(kind ? { kind } : {}).sort({ createdAt: -1 }).select("issue ticket category url vector kind createdAt").limit(5000).lean();
+  const ranked = rows
+    .map((r) => {
+      const s = cosine(query, r.vector as number[]);
+      const rival = strongestRival(r.vector as number[], rivals);
+      return { r, s, rival, beats: !rival || s >= rival.score - RIVAL_SLACK };
+    })
+    .sort((a, b) => b.s - a.s);
+  return { total: rows.length, ranked };
+}
+
+export async function searchPhotos(text: string, limit = 24, kind?: "report" | "proof") {
+  const found = await rankPhotos(text, kind);
+  if (!found) return null;
+  const { strong, looser } = splitByRelevance(found.ranked, (x) => x.s, limit, (x) => x.beats);
   const cards = await issueCards([...new Set([...strong, ...looser].map((x) => String(x.r.issue)))]);
-  const toCard = ({ r, s }: (typeof ranked)[number]) => {
+  const toCard = ({ r, s }: (typeof found.ranked)[number]) => {
     const info = cards.get(String(r.issue));
     return info ? { ...info.card, photoUrl: r.url, kind: r.kind, score: round(s), at: r.createdAt } : null;
   };
   const notNull = <T,>(x: T | null): x is T => x !== null;
-  return { total: rows.length, results: strong.map(toCard).filter(notNull), looser: looser.map(toCard).filter(notNull) };
+  return { total: found.total, results: strong.map(toCard).filter(notNull), looser: looser.map(toCard).filter(notNull) };
 }

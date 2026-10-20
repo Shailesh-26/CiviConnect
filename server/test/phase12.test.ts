@@ -35,12 +35,12 @@ test("fix check: nothing to compare with is not held against the officer", () =>
   assert.equal(fixVerdict({ issueCategory: "pothole", similarity: null, proofTop: null, proofCivic: 0 }), "looks_fixed");
 });
 
-import { splitByRelevance, SEARCH_MIN_SCORE } from "../src/utils/searchRelevance";
+import { pickRivals, splitByRelevance, strongestRival, SEARCH_MIN_SCORE } from "../src/utils/searchRelevance";
 
 test("photo search keeps only photos close to the best match", () => {
-  const ranked = [0.31, 0.3, 0.285, 0.24, 0.22, 0.2, 0.15].map((s) => ({ s }));
+  const ranked = [0.31, 0.3, 0.27, 0.24, 0.22, 0.2, 0.15].map((s) => ({ s }));
   const { strong, looser } = splitByRelevance(ranked, (x) => x.s, 24);
-  assert.deepEqual(strong.map((x) => x.s), [0.31, 0.3, 0.285]);
+  assert.deepEqual(strong.map((x) => x.s), [0.31, 0.3, 0.27]);
   assert.deepEqual(looser.map((x) => x.s), [0.24, 0.22, 0.2]);
 });
 
@@ -49,4 +49,28 @@ test("photo search returns no strong matches when nothing is similar", () => {
   const { strong, looser } = splitByRelevance(ranked, (x) => x.s, 24);
   assert.equal(strong.length, 0);
   assert.ok(looser.every((x) => x.s >= SEARCH_MIN_SCORE - 0.03));
+});
+
+test("a photo that looks more like another problem is not a match", () => {
+  const ranked = [
+    { s: 0.3, beats: false }, // e.g. a street light with litter around it, searching "garbage"
+    { s: 0.29, beats: true },
+    { s: 0.28, beats: true },
+  ];
+  const { strong, looser } = splitByRelevance(ranked, (x) => x.s, 24, (x) => x.beats);
+  assert.deepEqual(strong.map((x) => x.s), [0.29, 0.28]);
+  assert.deepEqual(looser.map((x) => x.s), [0.3]);
+});
+
+test("the rival that means the same as the search words is ignored", () => {
+  const unit = (v: number[]) => { const n = Math.hypot(...v); return v.map((x) => x / n); };
+  const query = unit([1, 0.1, 0, ...Array(13).fill(0)]);
+  const rivals = [
+    { key: "garbage", vector: unit([1, 0.12, 0, ...Array(13).fill(0)]) },
+    { key: "streetlight", vector: unit([0, 0, 1, ...Array(13).fill(0)]) },
+  ];
+  const kept = pickRivals(query, rivals);
+  assert.deepEqual(kept.map((r) => r.key), ["streetlight"]);
+  const photo = unit([0.2, 0, 1, ...Array(13).fill(0)]);
+  assert.equal(strongestRival(photo, kept)?.key, "streetlight");
 });

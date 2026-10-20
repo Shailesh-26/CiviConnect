@@ -22,6 +22,7 @@ export default function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [submitting, setSubmitting] = useState(false);
 
   if (user) return <Navigate to={from} replace />;
@@ -29,21 +30,30 @@ export default function Login() {
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
     setError(null);
+    // Check the obvious things here, so each empty box gets its own message straight away.
+    const problems: Record<string, string> = {};
+    if (!email.trim()) problems.email = "Enter your email";
+    else if (!/^\S+@\S+\.\S+$/.test(email.trim())) problems.email = "That doesn't look like an email address";
+    if (!password) problems.password = "Enter your password";
+    setFieldErrors(problems);
+    if (Object.keys(problems).length) return;
+
     setSubmitting(true);
     try {
-      await login(email, password);
+      await login(email.trim(), password);
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Something went wrong. Try again.");
+      if (err instanceof ApiError && Object.keys(err.fieldErrors).length) setFieldErrors(err.fieldErrors);
+      else setError(err instanceof ApiError ? err.message : "Something went wrong. Try again.");
       setSubmitting(false);
     }
   }
 
   return (
     <AuthShell title="Welcome back" subtitle="Log in to track your reports and see what has been fixed.">
-      <form onSubmit={onSubmit} className="mt-6 space-y-4">
-        <Field label="Email" type="email" value={email} onChange={setEmail} autoComplete="email" icon={Mail} />
+      <form onSubmit={onSubmit} className="mt-6 space-y-4" noValidate>
+        <Field label="Email" type="email" value={email} onChange={setEmail} autoComplete="email" icon={Mail} error={fieldErrors.email} />
         <div>
-          <Field label="Password" type="password" value={password} onChange={setPassword} autoComplete="current-password" icon={Lock} />
+          <Field label="Password" type="password" value={password} onChange={setPassword} autoComplete="current-password" icon={Lock} error={fieldErrors.password} />
           <p className="mt-1.5 text-right text-xs"><Link to="/forgot-password" className="font-semibold text-accent hover:underline">Forgot password?</Link></p>
         </div>
         {error && (
