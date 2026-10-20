@@ -22,7 +22,7 @@ import { CHANNEL_META, formatDate, issueLabel, NEXT_STATUS, OPEN, SOURCE_META, S
 import { useToast } from "../lib/toast-context";
 import { useIssueActions } from "../lib/useIssueActions";
 import type { IssueDetail as Detail, Status, User } from "../types";
-import { shrinkPhotos } from "../lib/shrinkPhoto";
+import { realPhotos, shrinkPhotos } from "../lib/shrinkPhoto";
 
 export default function IssueDetail() {
   const { id } = useParams();
@@ -81,6 +81,12 @@ export default function IssueDetail() {
       const message = err instanceof ApiError ? err.message : "Something went wrong. Try again.";
       setActionError(message);
       toast.error(message);
+      // Someone else changed it meanwhile: show the issue as it is now, so the right buttons appear.
+      if (err instanceof ApiError && (err.status === 409 || err.status === 400)) {
+        api<{ issue: Detail }>(`/issues/${id}`)
+          .then((data) => setIssue(data.issue))
+          .catch(() => undefined);
+      }
       return false;
     } finally {
       setBusy(false);
@@ -345,7 +351,9 @@ export default function IssueDetail() {
                     onChange={async (e) => {
                       const picked = Array.from(e.target.files ?? []);
                       e.target.value = "";
-                      const small = await shrinkPhotos(picked);
+                      const { real, fake } = await realPhotos(picked);
+                      if (fake.length) toast.error("That file is not a real photo. Use a JPEG, PNG or WebP image.", { title: "Not a photo" });
+                      const small = await shrinkPhotos(real);
                       setProof((prev) => [...prev, ...small].slice(0, 2));
                     }}
                   />

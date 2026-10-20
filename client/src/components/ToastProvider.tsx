@@ -6,7 +6,7 @@ type Toast = ToastOptions & { id: number; kind: ToastKind; message: string };
 
 const STYLE = {
   success: { icon: CircleCheck, tile: "bg-resolved/15 text-resolved", bar: "bg-resolved", title: "Done" },
-  error: { icon: CircleAlert, tile: "bg-alert/15 text-alert", bar: "bg-alert", title: "Something went wrong" },
+  error: { icon: CircleAlert, tile: "bg-alert/15 text-alert", bar: "bg-alert", title: "That didn't go through" },
   info: { icon: Info, tile: "bg-accent/15 text-accent", bar: "bg-accent", title: "Heads up" },
 } as const;
 

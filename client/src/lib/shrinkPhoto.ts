@@ -28,3 +28,21 @@ export async function shrinkPhoto(file: File): Promise<File> {
 }
 
 export const shrinkPhotos = (files: File[]) => Promise.all(files.map(shrinkPhoto));
+
+// A file's name and type can lie (a PDF renamed to photo.jpg). Its first bytes don't: JPEG, PNG and
+// WebP each start with a fixed signature. The server checks the same thing.
+export async function isRealPhoto(file: File) {
+  const b = new Uint8Array(await file.slice(0, 12).arrayBuffer());
+  if (b.length < 12) return false;
+  const text = (from: number, to: number) => String.fromCharCode(...b.slice(from, to));
+  const jpeg = b[0] === 0xff && b[1] === 0xd8 && b[2] === 0xff;
+  const png = b[0] === 0x89 && text(1, 4) === "PNG";
+  const webp = text(0, 4) === "RIFF" && text(8, 12) === "WEBP";
+  return jpeg || png || webp;
+}
+
+/** Splits picked files into real photos and the rest. */
+export async function realPhotos(files: File[]) {
+  const checks = await Promise.all(files.map(isRealPhoto));
+  return { real: files.filter((_, i) => checks[i]), fake: files.filter((_, i) => !checks[i]) };
+}

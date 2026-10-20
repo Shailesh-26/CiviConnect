@@ -9,7 +9,7 @@ import { ActionMenu } from "./ActionMenu";
 import { Avatar } from "./Avatar";
 import { ConfirmDialog } from "./ConfirmDialog";
 import { FlagDialog } from "./FlagDialog";
-import { shrinkPhotos } from "../lib/shrinkPhoto";
+import { realPhotos, shrinkPhotos } from "../lib/shrinkPhoto";
 
 function CommentBox({
   placeholder,
@@ -23,17 +23,23 @@ function CommentBox({
   onCancel?: () => void;
 }) {
   const { user } = useAuth();
+  const toast = useToast();
   const [body, setBody] = useState("");
   const [files, setFiles] = useState<File[]>([]);
   const [busy, setBusy] = useState(false);
+  // Stops a double-click (or Ctrl+Enter twice) from posting the same comment twice.
+  const sendingRef = useRef(false);
   const previews = useMemo(() => files.map((f) => URL.createObjectURL(f)), [files]);
   useEffect(() => () => previews.forEach((u) => URL.revokeObjectURL(u)), [previews]);
 
   async function send() {
-    if (!body.trim() || busy) return;
+    if (!body.trim() || busy || sendingRef.current) return;
+    sendingRef.current = true;
     setBusy(true);
-    const ok = await onSubmit(body.trim(), files);
-    setBusy(false);
+    const ok = await onSubmit(body.trim(), files).finally(() => {
+      sendingRef.current = false;
+      setBusy(false);
+    });
     if (ok) {
       setBody("");
       setFiles([]);
@@ -81,7 +87,9 @@ function CommentBox({
                 onChange={async (e) => {
                   const picked = Array.from(e.target.files ?? []);
                   e.target.value = "";
-                  const small = await shrinkPhotos(picked);
+                  const { real, fake } = await realPhotos(picked);
+                  if (fake.length) toast.error("That file is not a real photo. Use a JPEG, PNG or WebP image.", { title: "Not a photo" });
+                  const small = await shrinkPhotos(real);
                   setFiles((f) => [...f, ...small].slice(0, 2));
                 }}
               />

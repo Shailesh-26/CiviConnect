@@ -214,7 +214,7 @@ export function Layout() {
       </aside>
 
       <div className="min-w-0">
-        <header className="glass sticky top-0 z-[1500] flex items-center justify-between border-b border-ink/10 px-4 py-2.5 lg:hidden">
+        <header className="cc-topbar glass sticky top-0 z-[1500] flex items-center justify-between border-b border-ink/10 px-4 py-2.5 lg:hidden">
           <Logo to="/dashboard" />
           <div className="flex items-center gap-1">
             <button type="button" onClick={() => setPaletteOpen(true)} aria-label="Search" className="btn btn-ghost size-10 !p-0">
@@ -237,7 +237,7 @@ export function Layout() {
         </main>
       </div>
 
-      <nav className="glass fixed inset-x-3 bottom-3 z-[2000] flex gap-1 rounded-2xl p-1.5 shadow-lift lg:hidden" aria-label="Main">
+      <nav className="cc-tabbar glass fixed inset-x-3 bottom-3 z-[2000] flex gap-1 rounded-2xl p-1.5 shadow-lift lg:hidden" aria-label="Main">
         {items.filter((i) => !i.desktopOnly).map(({ to, icon: Icon, label, short }) => (
           <NavLink key={to} to={to} className={tabClass}>
             <Icon size={20} aria-hidden /> <span className="max-w-full truncate">{short ?? label}</span>

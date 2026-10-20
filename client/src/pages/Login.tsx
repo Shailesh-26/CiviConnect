@@ -1,6 +1,7 @@
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { Link, Navigate, useLocation } from "react-router-dom";
-import { Lock, Mail, Shield, User, Wrench } from "lucide-react";
+import { Info, Lock, Mail, Shield, User, Wrench } from "lucide-react";
+import { SIGNED_OUT_KEY } from "../auth/auth-context";
 import { useAuth } from "../auth/useAuth";
 import { AuthShell } from "../components/AuthShell";
 import { Field } from "../components/Field";
@@ -24,6 +25,21 @@ export default function Login() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  // Why the server logged this person out (password changed on another device, account turned off).
+  const [signedOut] = useState(() => {
+    try {
+      return sessionStorage.getItem(SIGNED_OUT_KEY);
+    } catch {
+      return null;
+    }
+  });
+  useEffect(() => {
+    try {
+      sessionStorage.removeItem(SIGNED_OUT_KEY);
+    } catch {
+      /* nothing to clear */
+    }
+  }, []);
   const form = useFormChecks({ email, password }, { email: rules.email, password: rules.required("Enter your password") });
 
   if (user) return <Navigate to={from} replace />;
@@ -44,6 +60,11 @@ export default function Login() {
 
   return (
     <AuthShell title="Welcome back" subtitle="Log in to track your reports and see what has been fixed.">
+      {signedOut && !error && (
+        <p role="status" className="mt-5 flex gap-2.5 rounded-xl border border-accent/25 bg-accent/8 px-3 py-2.5 text-sm text-ink/80">
+          <Info size={17} className="mt-0.5 shrink-0 text-accent" aria-hidden /> <span>You were logged out. {signedOut.replace(/\.?$/, ".")}</span>
+        </p>
+      )}
       <form onSubmit={onSubmit} className="mt-6 space-y-4" noValidate>
         <Field label="Email" type="email" value={email} onChange={setEmail} autoComplete="email" icon={Mail} error={form.errors.email} onBlur={() => form.blur("email")} />
         <div>

@@ -80,6 +80,8 @@ export const updateUser: RequestHandler = async (req, res) => {
   }
   await user.save();
   if (changes.length) await audit(req.user!, "user.updated", { type: "user", id }, `${user.name}: ${changes.join(", ")}`);
+  // Their open tabs reload at once, hit "account turned off" and go to the login page.
+  if (input.isActive === false) broadcast([id], "refresh", { reason: "account" });
 
   let moved: { ticket: string; to: string | null }[] = [];
   // No longer a working officer: their open issues go to colleagues (or Unassigned) at once.

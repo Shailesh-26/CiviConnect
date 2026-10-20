@@ -15,7 +15,9 @@ const cookieOptions = {
 };
 
 export function signToken(userId: string) {
-  return jwt.sign({ sub: userId }, env.JWT_SECRET, { expiresIn: maxAgeSeconds });
+  // `at` is the sign-in moment in milliseconds: the standard `iat` only counts whole seconds, too coarse
+  // to tell a session started just before a password change from the one started just after it.
+  return jwt.sign({ sub: userId, at: Date.now() }, env.JWT_SECRET, { expiresIn: maxAgeSeconds });
 }
 
 export function verifyToken(token: string): { userId: string; issuedAt: number } {
@@ -23,7 +25,8 @@ export function verifyToken(token: string): { userId: string; issuedAt: number }
   if (typeof payload === "string" || !payload.sub) {
     throw new Error("Invalid token payload");
   }
-  return { userId: payload.sub, issuedAt: payload.iat ?? 0 };
+  const at = typeof payload.at === "number" ? payload.at : (payload.iat ?? 0) * 1000;
+  return { userId: payload.sub, issuedAt: at };
 }
 
 export function setAuthCookie(res: Response, token: string) {

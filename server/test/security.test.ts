@@ -28,7 +28,7 @@ test("security: unsigned and wrongly signed sessions are refused", async () => {
   const { signToken, verifyToken } = await import("../src/utils/token");
   const good = verifyToken(signToken("0123456789abcdef01234567"));
   assert.equal(good.userId, "0123456789abcdef01234567");
-  assert.ok(good.issuedAt > 0);
+  assert.ok(Math.abs(good.issuedAt - Date.now()) < 5000, "issue time is in milliseconds");
   const none = jwt.sign({ sub: "0123456789abcdef01234567" }, "", { algorithm: "none" });
   assert.throws(() => verifyToken(none));
   const other = jwt.sign({ sub: "0123456789abcdef01234567" }, "some-other-secret-some-other-secret-1234");

@@ -1,4 +1,4 @@
-import { createElement, useEffect, useMemo, useState, type ReactNode } from "react";
+import { createElement, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { Link, useNavigate } from "react-router-dom";
 import {
@@ -36,7 +36,7 @@ import { useToast } from "../lib/toast-context";
 import { useLeaveGuard } from "../lib/useLeaveGuard";
 import { confetti } from "../lib/confetti";
 import { usePhotoAssistant } from "../lib/usePhotoAssistant";
-import { shrinkPhotos } from "../lib/shrinkPhoto";
+import { realPhotos, shrinkPhotos } from "../lib/shrinkPhoto";
 import type { Category, Channel, EmergencyKind, Issue, IssueDetail, NearbyItem, PhotoMatch, Role } from "../types";
 
 type StepId = "who" | "photo" | "what" | "where" | "details" | "review";
@@ -131,6 +131,8 @@ export default function ReportIssue() {
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [error, setError] = useState<{ message: string; issueId?: string; ticket?: string } | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  // A double-click fires twice before the button can turn grey; this stops the second one at once.
+  const sendingRef = useRef(false);
   const [similar, setSimilar] = useState<NearbyItem[] | null>(null);
   const [similarLoading, setSimilarLoading] = useState(false);
   const [supportingId, setSupportingId] = useState<string | null>(null);
@@ -221,11 +223,13 @@ export default function ReportIssue() {
     // Copy the files now: the input is cleared right after this runs.
     const all = Array.from(list);
     // Big phone photos are made smaller first, so they fit the 5 MB limit and upload quickly.
-    const images = await shrinkPhotos(all.filter((f) => PHOTO_TYPES.includes(f.type)));
+    const { real, fake } = await realPhotos(all.filter((f) => PHOTO_TYPES.includes(f.type)));
+    if (fake.length) toast.error(fake.length === 1 ? "That file is not a real photo. Use a JPEG, PNG or WebP image." : `${fake.length} files are not real photos. Use JPEG, PNG or WebP images.`, { title: "Not a photo" });
+    const images = await shrinkPhotos(real);
     const fitting = images.filter((f) => f.size <= MAX_PHOTO_BYTES);
     const room = Math.max(0, 3 - files.length);
     const added = fitting.slice(0, room);
-    if (all.length > images.length) toast.error("Only JPEG, PNG or WebP photos can be added.", { title: "Not a photo" });
+    if (all.length > images.length + fake.length) toast.error("Only JPEG, PNG or WebP photos can be added.", { title: "Not a photo" });
     if (images.length > fitting.length) toast.error(`${images.length - fitting.length === 1 ? "A photo was" : `${images.length - fitting.length} photos were`} larger than 5 MB and skipped.`);
     if (fitting.length > room) toast.error(room === 0 ? "You already have 3 photos. Remove one to add another." : `Only ${room} more ${room === 1 ? "photo fits" : "photos fit"}, so the rest were skipped.`);
     if (!added.length) return;
@@ -382,6 +386,8 @@ export default function ReportIssue() {
       form.append("aiMode", assistant.result.model.mode);
     }
 
+    if (sendingRef.current) return;
+    sendingRef.current = true;
     setSubmitting(true);
     try {
       const data = await api<{ merged: boolean; issue: IssueDetail; privacy?: { facesBlurred: number } }>("/issues", { method: "POST", body: form });
@@ -413,12 +419,14 @@ export default function ReportIssue() {
             issueId: typeof err.data.issueId === "string" ? err.data.issueId : undefined,
             ticket: typeof err.data.ticket === "string" ? err.data.ticket : undefined,
           });
-          toast.error(err.message);
+          // Offline: the "Reconnecting" bar and the note above the button already say so.
+          if (err.status !== 0) toast.error(err.message);
         }
       } else {
         setError({ message: "Something went wrong. Try again." });
       }
     } finally {
+      sendingRef.current = false;
       setSubmitting(false);
     }
   }

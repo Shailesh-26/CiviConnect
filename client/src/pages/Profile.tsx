@@ -38,6 +38,7 @@ import { api, ApiError } from "../lib/api";
 import { AVATAR_COLORS, AVATAR_EMOJIS } from "../lib/avatar";
 import { OPEN } from "../lib/constants";
 import { passwordScore, STRENGTH_LEVELS } from "../lib/passwordStrength";
+import { isRealPhoto } from "../lib/shrinkPhoto";
 import { useToast } from "../lib/toast-context";
 import { useLeaveGuard } from "../lib/useLeaveGuard";
 import { useMyLeave } from "../lib/useMyLeave";
@@ -366,6 +367,10 @@ export default function Profile() {
     }
     if (file.size > 5 * 1024 * 1024) {
       toast.error("The photo must be 5 MB or smaller.");
+      return;
+    }
+    if (!(await isRealPhoto(file))) {
+      toast.error("That file is not a real photo. Use a JPEG, PNG or WebP image.");
       return;
     }
     const form = new FormData();

@@ -12,3 +12,6 @@ export type AuthState = {
 };
 
 export const AuthContext = createContext<AuthState | null>(null);
+
+// Why the server ended the session, kept for the login page to show once.
+export const SIGNED_OUT_KEY = "cc:signed-out";

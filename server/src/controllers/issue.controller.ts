@@ -401,10 +401,10 @@ export const updateStatus: RequestHandler = async (req, res) => {
 
   if (issue.status === status) {
     // Usually two people on the same issue: the other one got there first.
-    throw new AppError(409, `This issue is already ${STATUS_NAME[status]}. Refresh to see the latest.`);
+    throw new AppError(409, `Someone else just moved this issue to ${STATUS_NAME[status]}.`);
   }
   if (!TRANSITIONS[issue.status].includes(status)) {
-    throw new AppError(400, `This issue is ${STATUS_NAME[issue.status]} now, so it cannot be moved to ${STATUS_NAME[status]}. Refresh to see the latest.`);
+    throw new AppError(400, `This issue is ${STATUS_NAME[issue.status]} now, so it cannot be moved to ${STATUS_NAME[status]}.`);
   }
   if ((status === "resolved" || status === "rejected") && !note) {
     throw new AppError(400, "Add a short note explaining this decision");

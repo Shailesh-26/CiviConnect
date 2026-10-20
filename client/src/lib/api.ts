@@ -39,6 +39,12 @@ export async function api<T>(path: string, { method = "GET", body }: Options = {
   }
   reportReachable(true);
 
+  // Logged out by the server (password changed elsewhere, account turned off, session expired):
+  // tell the app once so it can go to the login page and say why, instead of failing page by page.
+  if (res.status === 401 && !/^\/auth\/(login|register|reset)/.test(path) && data?.message && data.message !== "Please log in to continue") {
+    window.dispatchEvent(new CustomEvent("cc:signed-out", { detail: data.message }));
+  }
+
   if (!res.ok) {
     const fieldErrors: Record<string, string> = {};
     for (const item of data?.errors ?? []) {

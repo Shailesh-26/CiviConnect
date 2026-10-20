@@ -41,10 +41,14 @@ const ReportIssue = pages.ReportIssue.Page;
 const ResetPassword = pages.ResetPassword.Page;
 
 let preloaded = false;
-function preloadPages() {
+// Other pages are fetched in the background one at a time, so they never take bandwidth from the page
+// and data you are waiting for. On a slow or data-saving connection they are not fetched ahead at all.
+async function preloadPages() {
   if (preloaded) return;
   preloaded = true;
-  for (const page of Object.values(pages)) page.preload().catch(() => undefined);
+  const net = (navigator as Navigator & { connection?: { saveData?: boolean; effectiveType?: string } }).connection;
+  if (net?.saveData || /(^|-)2g|3g/.test(net?.effectiveType ?? "")) return;
+  for (const page of Object.values(pages)) await page.preload().catch(() => undefined);
 }
 
 // Shown only if a page takes more than a moment to arrive (slow network, first visit).
@@ -86,7 +90,7 @@ export default function App() {
     if (onLanding || preloaded) return;
     const idle = window.requestIdleCallback ?? ((cb: () => void) => window.setTimeout(cb, 1200));
     const cancel = window.cancelIdleCallback ?? window.clearTimeout;
-    const id = idle(preloadPages, { timeout: 3000 });
+    const id = idle(() => void preloadPages(), { timeout: 3000 });
     return () => cancel(id);
   }, [onLanding]);
 

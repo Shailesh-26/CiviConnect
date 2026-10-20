@@ -16,9 +16,10 @@ export const authenticate: RequestHandler = async (req, _res, next) => {
   }
 
   const user = await User.findById(session.userId);
-  if (!user || !user.isActive) throw new AppError(401, "Account not found or disabled");
+  if (!user) throw new AppError(401, "Your account no longer exists. Please log in again");
+  if (!user.isActive) throw new AppError(401, "An admin turned off your account. Contact the city office if this is a mistake");
   // A password change logs out every other device: sessions started before it no longer count.
-  if (user.passwordChangedAt && session.issuedAt < Math.floor(user.passwordChangedAt.getTime() / 1000)) {
+  if (user.passwordChangedAt && session.issuedAt < user.passwordChangedAt.getTime()) {
     throw new AppError(401, "Your password was changed. Please log in again");
   }
 

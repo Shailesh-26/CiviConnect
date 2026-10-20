@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import { api, ApiError } from "../lib/api";
 import type { User } from "../types";
-import { AuthContext } from "./auth-context";
+import { AuthContext, SIGNED_OUT_KEY } from "./auth-context";
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
@@ -34,6 +34,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       active = false;
       window.clearTimeout(timer);
     };
+  }, []);
+
+  // The server ended this session: leave the reason for the login page and sign out here too.
+  useEffect(() => {
+    const onSignedOut = (e: Event) => {
+      try {
+        sessionStorage.setItem(SIGNED_OUT_KEY, String((e as CustomEvent<string>).detail));
+      } catch {
+        /* storage blocked: the login page simply shows no reason */
+      }
+      setUser(null);
+    };
+    window.addEventListener("cc:signed-out", onSignedOut);
+    return () => window.removeEventListener("cc:signed-out", onSignedOut);
   }, []);
 
   const login = useCallback(async (email: string, password: string) => {
