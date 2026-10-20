@@ -18,7 +18,7 @@ export type User = {
   radiusKm: number;
   notify?: Record<NotifyKey, boolean>;
   // Officers only: on leave since/until. New work is not assigned to them.
-  onLeave?: { since: string; until: string | null } | null;
+  onLeave?: { since: string; until: string | null; reason?: string | null } | null;
   createdAt: string;
 };
 
@@ -197,7 +197,7 @@ export type AuditEntry = {
 export type Suggestion = { id: string; name: string; reason: string } | null;
 
 export type Lane = {
-  officer: { id: string; name: string; department: string | null; avatar: Avatar | null; onLeave: { since: string; until: string | null } | null };
+  officer: { id: string; name: string; department: string | null; avatar: Avatar | null; onLeave: { since: string; until: string | null; reason?: string | null } | null };
   open: number;
   breached: number;
   resolved30d: number;

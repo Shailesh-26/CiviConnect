@@ -14,10 +14,18 @@ export const updateUserSchema = z
     department: z.string().trim().max(80, "Department must be at most 80 characters"),
     onLeave: z.boolean(),
     leaveUntil: leaveUntil,
+    leaveReason: z.string().trim().max(200, "Keep the reason under 200 characters"),
   })
-  .partial();
+  .partial()
+  .refine((v) => v.onLeave !== true || (v.leaveReason ?? "").length >= 3, { message: "Say briefly why (at least 3 characters)", path: ["leaveReason"] });
 
-export const leaveSchema = z.object({ onLeave: z.boolean(), leaveUntil: leaveUntil.optional() });
+export const leaveSchema = z
+  .object({
+    onLeave: z.boolean(),
+    leaveUntil: leaveUntil.optional(),
+    leaveReason: z.string().trim().max(200, "Keep the reason under 200 characters").optional(),
+  })
+  .refine((v) => !v.onLeave || (v.leaveReason ?? "").length >= 3, { message: "Say briefly why (at least 3 characters)", path: ["leaveReason"] });
 export type LeaveInput = z.infer<typeof leaveSchema>;
 
 export const moderationSchema = z.object({

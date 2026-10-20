@@ -82,10 +82,10 @@ export const updateUser: RequestHandler = async (req, res) => {
   let moved: { ticket: string; to: string | null }[] = [];
   let back: { returned: { ticket: string }[]; kept: { ticket: string }[] } | null = null;
   if (input.onLeave !== undefined && user.role === "officer") {
-    const result = await setLeave(id, input.onLeave, input.leaveUntil ?? null, req.user!);
+    const result = await setLeave(id, input.onLeave, input.leaveUntil ?? null, req.user!, input.leaveReason);
     moved = result.moved;
     back = result.back;
-    if (result.officer) user.set({ onLeaveSince: result.officer.onLeaveSince, onLeaveUntil: result.officer.onLeaveUntil });
+    if (result.officer) user.set({ onLeaveSince: result.officer.onLeaveSince, onLeaveUntil: result.officer.onLeaveUntil, onLeaveReason: result.officer.onLeaveReason });
   }
 
   res.json({ user: { ...toAdminUser(user), isActive: user.isActive }, moved, back });
@@ -98,7 +98,7 @@ export const overview: RequestHandler = async (req, res) => {
   const now = Date.now();
   const [open, officers, history, resolved7d, flagsOpen, activity, resolvedByOfficer] = await Promise.all([
     Issue.find({ status: { $in: OPEN_STATUSES } }).populate(assigneeFields).lean() as unknown as Promise<IssueRecord[]>,
-    User.find({ role: "officer", isActive: true }).select("name department avatar onLeaveSince onLeaveUntil").lean(),
+    User.find({ role: "officer", isActive: true }).select("name department avatar onLeaveSince onLeaveUntil onLeaveReason").lean(),
     Issue.aggregate([{ $match: { assignedTo: { $ne: null } } }, { $group: { _id: { o: "$assignedTo", c: "$category" }, n: { $sum: 1 } } }]),
     Issue.countDocuments({ status: "resolved", resolvedAt: { $gte: new Date(now - 7 * 86_400_000) } }),
     Flag.countDocuments({ status: "open" }),
@@ -146,7 +146,7 @@ export const overview: RequestHandler = async (req, res) => {
           name: o.name,
           department: o.department ?? null,
           avatar: o.avatar && (o.avatar.url || o.avatar.emoji) ? { emoji: o.avatar.emoji ?? null, color: o.avatar.color ?? null, url: o.avatar.url ?? null } : null,
-          onLeave: o.onLeaveSince ? { since: o.onLeaveSince, until: o.onLeaveUntil ?? null } : null,
+          onLeave: o.onLeaveSince ? { since: o.onLeaveSince, until: o.onLeaveUntil ?? null, reason: o.onLeaveReason ?? null } : null,
         },
         open: mine.length,
         breached: mine.filter((d) => d.sla.state === "breached").length,

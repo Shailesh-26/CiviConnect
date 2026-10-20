@@ -43,6 +43,8 @@ const userSchema = new Schema(
     // Officers on leave get no new work; their open issues were handed to colleagues.
     onLeaveSince: { type: Date },
     onLeaveUntil: { type: Date },
+    // Why the officer is away. Seen by the officer and admins only, never by colleagues or citizens.
+    onLeaveReason: { type: String, trim: true, maxlength: 200 },
     // Forgot-password: only a SHA-256 hash of the emailed token is stored, never the token itself.
     resetTokenHash: { type: String, select: false, index: true, sparse: true },
     resetTokenExpires: { type: Date, select: false },

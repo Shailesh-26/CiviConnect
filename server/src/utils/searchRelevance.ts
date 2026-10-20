@@ -20,6 +20,11 @@ export const RIVALS = [
   { key: "fallen_tree", text: "a fallen tree blocking a road" },
   { key: "streetlight", text: "a broken street light pole" },
   { key: "footpath", text: "a broken footpath or pavement" },
+  // Not civic at all: a photo of people or a beach should never pass as "pothole".
+  { key: "people", text: "a photo of people or a selfie" },
+  { key: "nature", text: "a landscape, beach, mountains or sky" },
+  { key: "indoors", text: "a room indoors" },
+  { key: "graphic", text: "a screenshot, poster or drawing" },
 ] as const;
 
 export type Rival = { key: string; vector: number[] };

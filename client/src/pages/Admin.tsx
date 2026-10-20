@@ -96,7 +96,7 @@ function People() {
   }, []);
   useEffect(load, [load]);
 
-  async function patch(target: AdminUser, body: Partial<{ isActive: boolean; role: Role; department: string; onLeave: boolean; leaveUntil: string | null }>) {
+  async function patch(target: AdminUser, body: Partial<{ isActive: boolean; role: Role; department: string; onLeave: boolean; leaveUntil: string | null; leaveReason: string }>) {
     try {
       const d = await api<{ user: AdminUser; moved?: { ticket: string; to: string | null }[]; back?: { returned: unknown[]; kept: unknown[] } | null }>(`/admin/users/${target.id}`, { method: "PATCH", body });
       setUsers((all) => (all ?? []).map((u) => (u.id === target.id ? { ...u, ...d.user } : u)));
@@ -163,7 +163,7 @@ function People() {
                 {u.role === "officer" && u.isActive && (
                   u.onLeave ? (
                     <button type="button" onClick={() => patch(u, { onLeave: false })} title="End leave" className="inline-flex items-center gap-1 rounded-full bg-marker/20 px-2.5 py-0.5 text-xs font-semibold text-marker-dark transition hover:bg-marker/30">
-                      <Plane size={12} aria-hidden /> On leave{u.onLeave.until ? ` · till ${new Date(u.onLeave.until).toLocaleDateString("en-IN", { day: "numeric", month: "short" })}` : ""} · end
+                      <Plane size={12} aria-hidden /> On leave{u.onLeave.until ? ` · till ${new Date(u.onLeave.until).toLocaleDateString("en-IN", { day: "numeric", month: "short" })}` : ""}{u.onLeave.reason ? ` · ${u.onLeave.reason}` : ""} · end
                     </button>
                   ) : (
                     <button type="button" onClick={() => setLeaveFor(u)} className="inline-flex items-center gap-1 rounded-full border border-ink/15 px-2.5 py-0.5 text-xs font-medium text-ink/60 transition hover:border-ink/35 hover:text-ink">
@@ -195,10 +195,10 @@ function People() {
         self={false}
         busy={leaveBusy}
         onCancel={() => setLeaveFor(null)}
-        onConfirm={async (until) => {
+        onConfirm={async (until, reason) => {
           if (!leaveFor) return;
           setLeaveBusy(true);
-          await patch(leaveFor, { onLeave: true, leaveUntil: until });
+          await patch(leaveFor, { onLeave: true, leaveUntil: until, leaveReason: reason });
           setLeaveBusy(false);
           setLeaveFor(null);
         }}

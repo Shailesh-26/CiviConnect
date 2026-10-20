@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState, type FormEvent, type ReactNo
 import { createPortal } from "react-dom";
 import {
   Award,
+  BadgeCheck,
   Bell,
   Camera,
   CalendarDays,
@@ -13,6 +14,7 @@ import {
   MapPinHouse,
   Moon,
   Palette,
+  Plane,
   Smile,
   Sun,
   Trash2,
@@ -28,6 +30,7 @@ import { CivicCard } from "../components/CivicCard";
 import { CountUp } from "../components/CountUp";
 import { Field } from "../components/Field";
 import { HomeAreaMap } from "../components/HomeAreaMap";
+import { LeaveDialog } from "../components/LeaveDialog";
 import type { LatLng } from "../components/LocationPicker";
 import { PageHeader, Switch } from "../components/ui";
 import { UnsavedChangesDialog } from "../components/UnsavedChangesDialog";
@@ -37,6 +40,7 @@ import { OPEN } from "../lib/constants";
 import { passwordScore, STRENGTH_LEVELS } from "../lib/passwordStrength";
 import { useToast } from "../lib/toast-context";
 import { useLeaveGuard } from "../lib/useLeaveGuard";
+import { useMyLeave } from "../lib/useMyLeave";
 import { useTheme } from "../theme/theme-context";
 import type { Avatar as AvatarData, Issue, NotifyKey, Role, User } from "../types";
 
@@ -72,12 +76,13 @@ const NOTIFY_OPTIONS: Record<Role, { key: NotifyKey; label: string; hint: string
   ],
 };
 
-type SectionId = "identity" | "score" | "home" | "notifications" | "appearance" | "security";
+type SectionId = "identity" | "score" | "leave" | "home" | "notifications" | "appearance" | "security";
 const CHANGE_NAMES: Partial<Record<SectionId, string>> = { identity: "your profile details", home: "your neighbourhood", notifications: "your notification settings" };
 
-const SECTIONS: { id: SectionId; label: string; icon: LucideIcon; citizenOnly?: boolean }[] = [
+const SECTIONS: { id: SectionId; label: string; icon: LucideIcon; citizenOnly?: boolean; officerOnly?: boolean }[] = [
   { id: "identity", label: "Profile", icon: UserRound },
   { id: "score", label: "Score & badges", icon: Award, citizenOnly: true },
+  { id: "leave", label: "Leave", icon: Plane, officerOnly: true },
   { id: "home", label: "Neighbourhood", icon: MapPinHouse },
   { id: "notifications", label: "Notifications", icon: Bell },
   { id: "appearance", label: "Appearance", icon: Palette },
@@ -151,6 +156,37 @@ function stats(role: Role, issues: Issue[]) {
     { label: "Open right now", value: open },
     { label: "Unassigned", value: issues.filter((i) => OPEN.includes(i.status) && !i.assignedTo).length },
   ];
+}
+
+// Officers start and end their own leave here as well as on the Field Desk.
+function LeaveSection() {
+  const { user } = useAuth();
+  const [open, setOpen] = useState(false);
+  const leave = useMyLeave(() => setOpen(false));
+  if (!user) return null;
+  const on = user.onLeave;
+  const fmt = (d: string) => new Date(d).toLocaleDateString("en-IN", { weekday: "short", day: "numeric", month: "long" });
+  return (
+    <Section id="leave" title="Leave" subtitle="While you're on leave your open issues go to colleagues and nothing new is assigned to you.">
+      {on ? (
+        <div className="flex flex-wrap items-center gap-4 rounded-2xl border border-marker/50 bg-marker/12 p-4">
+          <span className="grid size-11 place-items-center rounded-2xl bg-marker/25 text-marker-dark"><Plane size={22} aria-hidden /></span>
+          <div className="min-w-0 flex-1 text-sm">
+            <p className="font-semibold">You're on leave since {fmt(on.since)}</p>
+            <p className="text-ink/65">{on.until ? `Back on ${fmt(new Date(new Date(on.until).getTime() + 86_400_000).toISOString())}.` : "No end date set."}{on.reason ? ` Reason: ${on.reason}.` : ""}</p>
+          </div>
+          <button type="button" disabled={leave.busy} onClick={() => leave.end()} className="btn btn-primary">{leave.busy ? "Ending…" : "I'm back"}</button>
+        </div>
+      ) : (
+        <div className="flex flex-wrap items-center gap-4 rounded-2xl bg-ink/[0.04] p-4">
+          <span className="grid size-11 place-items-center rounded-2xl bg-resolved/15 text-resolved"><BadgeCheck size={22} aria-hidden /></span>
+          <p className="min-w-0 flex-1 text-sm"><span className="font-semibold">You're on duty.</span> <span className="text-ink/65">New issues in {user.department ?? "your department"} can be assigned to you.</span></p>
+          <button type="button" onClick={() => setOpen(true)} className="btn btn-outline"><Plane size={16} aria-hidden /> Going on leave</button>
+        </div>
+      )}
+      <LeaveDialog open={open} who={user.name} self busy={leave.busy} onCancel={() => setOpen(false)} onConfirm={(until, reason) => leave.start(until, reason)} />
+    </Section>
+  );
 }
 
 function PasswordSection() {
@@ -275,7 +311,7 @@ export default function Profile() {
 
   // One tab at a time instead of one very long page. The tab is in the address (?tab=home) so it survives a refresh.
   const [params, setParams] = useSearchParams();
-  const sections = SECTIONS.filter((x) => !x.citizenOnly || role === "citizen");
+  const sections = SECTIONS.filter((x) => (!x.citizenOnly || role === "citizen") && (!x.officerOnly || role === "officer"));
   const section: SectionId = sections.find((x) => x.id === params.get("tab"))?.id ?? "identity";
   const openSection = useCallback((id: SectionId) => setParams(id === "identity" ? {} : { tab: id }, { replace: true }), [setParams]);
 
@@ -458,6 +494,7 @@ export default function Profile() {
 
         <div key={section} className="min-w-0 space-y-6 animate-fade">
           {section === "score" && <CivicCard />}
+          {section === "leave" && <LeaveSection />}
           {section === "identity" && (
           <Section id="identity" title="Profile" subtitle="Your name and avatar appear on your account. Reporter names are never shown to other citizens.">
             <div className="flex flex-wrap gap-1.5 rounded-xl bg-ink/5 p-1" role="tablist" aria-label="Avatar type">

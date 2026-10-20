@@ -302,7 +302,7 @@ export default function CommandCenter() {
                     <p className="truncate text-[11px] text-ink/50">{lane.officer.department ?? "Officer"}</p>
                   </div>
                   {lane.officer.onLeave ? (
-                    <span className="inline-flex items-center gap-1 rounded-full bg-marker/20 px-2 py-0.5 text-[11px] font-semibold text-marker-dark" title={lane.officer.onLeave.until ? `Back after ${new Date(lane.officer.onLeave.until).toLocaleDateString("en-IN", { day: "numeric", month: "short" })}` : "No end date"}>
+                    <span className="inline-flex items-center gap-1 rounded-full bg-marker/20 px-2 py-0.5 text-[11px] font-semibold text-marker-dark" title={`${lane.officer.onLeave.until ? `Back after ${new Date(lane.officer.onLeave.until).toLocaleDateString("en-IN", { day: "numeric", month: "short" })}` : "No end date"}${lane.officer.onLeave.reason ? ` · ${lane.officer.onLeave.reason}` : ""}`}>
                       <Plane size={11} aria-hidden /> On leave
                     </span>
                   ) : (

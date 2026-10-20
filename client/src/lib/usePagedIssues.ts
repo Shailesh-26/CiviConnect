@@ -16,12 +16,13 @@ export function usePagedIssues(path: string, filters: IssueFilters, page: number
     return () => window.clearTimeout(t);
   }, [filters.q]);
 
-  const key = JSON.stringify([path, q, filters.group, filters.category, filters.sort, page, limit]);
+  const key = JSON.stringify([path, q, filters.group, filters.category, filters.sort, filters.when, page, limit]);
   useEffect(() => {
     let active = true;
     const params = new URLSearchParams({ page: String(page), limit: String(limit), group: filters.group, sort: filters.sort });
     if (q.trim()) params.set("q", q.trim());
     if (filters.category) params.set("category", filters.category);
+    if (filters.when) params.set("when", filters.when);
     api<Paged<Issue>>(`${path}?${params}`)
       .then((d) => {
         if (!active) return;
@@ -33,7 +34,7 @@ export function usePagedIssues(path: string, filters: IssueFilters, page: number
     return () => {
       active = false;
     };
-  }, [key, path, q, filters.group, filters.category, filters.sort, page, limit]);
+  }, [key, path, q, filters.group, filters.category, filters.sort, filters.when, page, limit]);
 
   return { data, error, loading: loadedKey !== key };
 }

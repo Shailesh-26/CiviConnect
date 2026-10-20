@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { EmergencyBadge } from "../components/EmergencyBadge";
 import { Link } from "react-router-dom";
-import { ArrowRight, BadgeCheck, ClipboardPen, Flame, Hammer, Hourglass, MapPin, Navigation, Plane, Play, Route, Timer, Wrench } from "lucide-react";
+import { ArrowRight, ArrowUpRight, BadgeCheck, ClipboardPen, Flame, Hammer, Hourglass, MapPin, Navigation, Plane, Play, Route, Timer, Wrench } from "lucide-react";
 import { useAuth } from "../auth/useAuth";
 import { CategoryChip } from "../components/CategoryChip";
 import { CountUp } from "../components/CountUp";
 import { LeaveDialog } from "../components/LeaveDialog";
+import { useMyLeave } from "../lib/useMyLeave";
 import { Ring } from "../components/Ring";
 import { RouteMap } from "../components/RouteMap";
 import { SlaChip } from "../components/SlaChip";
@@ -17,35 +18,34 @@ import { formatDuration, timeAgo } from "../lib/format";
 import { planRoute } from "../lib/route";
 import { useLiveRefresh } from "../lib/useLiveRefresh";
 import { useToast } from "../lib/toast-context";
-import type { DeskData, Issue, User } from "../types";
+import type { DeskData, Issue } from "../types";
 
-function Stat({ label, value, icon: Icon, tone }: { label: string; value: number; icon: typeof Timer; tone: string }) {
+// A Field Desk number that opens the queue filtered to exactly the issues it counts.
+function Stat({ label, sub, value, icon: Icon, tone, number, to, alert = false, delay = 0 }: { label: string; sub: string; value: number; icon: typeof Timer; tone: string; number: string; to: string; alert?: boolean; delay?: number }) {
   return (
-    <div className="card card-hover tilt p-4">
-      <span className={`grid size-9 place-items-center rounded-xl ${tone}`}><Icon size={18} aria-hidden /></span>
-      <p className="mt-3 font-display text-3xl font-bold"><CountUp value={value} /></p>
-      <p className="text-xs text-ink/60">{label}</p>
-    </div>
+    <Link to={to} className={`card card-hover tilt group relative block p-5 animate-rise ${alert ? "!border-alert/40 bg-alert/[0.04]" : ""}`} style={{ animationDelay: `${delay}ms` }} aria-label={`${label}: ${value}. Open these issues`}>
+      <span className="flex items-start justify-between">
+        <span className={`grid size-10 place-items-center rounded-xl ${tone}`}><Icon size={19} aria-hidden /></span>
+        {alert ? (
+          <span className="relative mt-1 flex size-2.5" aria-hidden>
+            <span className="absolute inline-flex size-full animate-ping rounded-full bg-alert opacity-60" />
+            <span className="relative inline-flex size-2.5 rounded-full bg-alert" />
+          </span>
+        ) : (
+          <ArrowUpRight size={17} className="text-ink/30 opacity-0 transition duration-300 group-hover:-translate-y-0.5 group-hover:translate-x-0.5 group-hover:text-accent group-hover:opacity-100" aria-hidden />
+        )}
+      </span>
+      <p className={`mt-4 font-display text-4xl font-bold ${number}`}><CountUp value={value} /></p>
+      <p className="mt-1 text-sm font-medium text-ink/75">{label}</p>
+      <p className="mt-0.5 text-xs text-ink/50">{sub}</p>
+    </Link>
   );
-}
-
-type LeaveBack = { returned: { ticket: string }[]; kept: { ticket: string; with: string | null; status: string }[] };
-
-function welcomeBack(back: LeaveBack) {
-  const r = back.returned.length;
-  const kept = back.kept.filter((k) => k.status === "in_progress");
-  const parts = [];
-  if (r) parts.push(`${r} ${r === 1 ? "issue that wasn't started is" : "issues that weren't started are"} back on your desk.`);
-  if (kept.length) parts.push(`${kept.length} already in progress ${kept.length === 1 ? "stays" : "stay"} with ${[...new Set(kept.map((k) => k.with ?? "a colleague"))].join(", ")}.`);
-  if (back.kept.length - kept.length > 0) parts.push(`${back.kept.length - kept.length} ${back.kept.length - kept.length === 1 ? "was" : "were"} fixed while you were away.`);
-  return parts.length ? parts.join(" ") : "Nothing was handed over, so your desk is as you left it. New assignments will reach you again.";
 }
 
 // The officer's workspace: today's work sorted by time left, the day's route, and how they are doing.
 export default function FieldDesk() {
-  const { user, updateUser } = useAuth();
+  const { user } = useAuth();
   const [leaveOpen, setLeaveOpen] = useState(false);
-  const [leaveBusy, setLeaveBusy] = useState(false);
   const toast = useToast();
   const [data, setData] = useState<DeskData | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -64,6 +64,10 @@ export default function FieldDesk() {
     load();
   }, [load]);
   useLiveRefresh(load);
+  const leave = useMyLeave(() => {
+    setLeaveOpen(false);
+    load();
+  });
 
   async function start(issue: Issue) {
     setBusyId(issue.id);
@@ -81,26 +85,7 @@ export default function FieldDesk() {
     }
   }
 
-  async function setLeave(onLeave: boolean, until: string | null = null) {
-    setLeaveBusy(true);
-    try {
-      const d = await api<{ user: User; moved: { ticket: string; to: string | null }[]; back: LeaveBack }>("/officer/leave", { method: "PATCH", body: { onLeave, leaveUntil: until } });
-      updateUser(d.user);
-      const handed = d.moved.filter((m) => m.to).length;
-      toast.success(
-        onLeave
-          ? d.moved.length ? `${handed} of your ${d.moved.length} open ${d.moved.length === 1 ? "issue was" : "issues were"} handed to colleagues. Enjoy your time off.` : "Enjoy your time off."
-          : welcomeBack(d.back),
-        { title: onLeave ? "You're on leave" : "Welcome back" },
-      );
-      setLeaveOpen(false);
-      load();
-    } catch (err) {
-      toast.error(err instanceof ApiError ? err.message : "Could not update. Try again.");
-    } finally {
-      setLeaveBusy(false);
-    }
-  }
+
 
   const route = useMemo(() => planRoute(data?.queue.slice(0, 8) ?? []), [data]);
 
@@ -135,34 +120,36 @@ export default function FieldDesk() {
             <p className="font-semibold">You're on leave{user.onLeave.until ? ` until ${new Date(user.onLeave.until).toLocaleDateString("en-IN", { day: "numeric", month: "long" })}` : ""}</p>
             <p className="text-sm text-ink/65">New issues aren't assigned to you, and your open work was handed to colleagues.</p>
           </div>
-          <button type="button" disabled={leaveBusy} onClick={() => setLeave(false)} className="btn btn-primary">I'm back</button>
+          <button type="button" disabled={leave.busy} onClick={() => leave.end()} className="btn btn-primary">I'm back</button>
         </div>
       )}
-      {/* Bento: hero + key numbers */}
-      <div className="grid gap-4 md:grid-cols-4">
-        <div className="relative overflow-hidden rounded-3xl bg-signboard p-6 text-white animate-rise md:col-span-2 md:row-span-2 sm:p-7">
-          <div className="grid-paper pointer-events-none absolute inset-0 opacity-25 [mask-image:linear-gradient(to_left,black,transparent_80%)]" aria-hidden />
-          <div className="relative flex h-full flex-col">
+      {/* Hero across the top, then four tiles that open the matching part of the queue */}
+      <div className="relative overflow-hidden rounded-3xl bg-signboard p-6 text-white animate-rise sm:p-7">
+        <div className="grid-paper pointer-events-none absolute inset-0 opacity-25 [mask-image:linear-gradient(to_left,black,transparent_80%)]" aria-hidden />
+        <div className="relative flex flex-wrap items-end justify-between gap-5">
+          <div className="min-w-0">
             <p className="flex items-center gap-2 text-xs font-semibold uppercase tracking-widest text-white/60"><Wrench size={14} aria-hidden /> Field Desk · {user.department ?? "Officer"}</p>
             <h1 className="mt-3 text-3xl font-semibold sm:text-4xl">{greeting}, {user.name.split(" ")[0]}</h1>
             <p className="mt-2 text-white/75">{summary}</p>
-            <div className="mt-auto flex flex-wrap gap-2 pt-6">
-              {data.queue[0] && (
-                <Link to={`/issues/${data.queue[0].id}`} className="btn btn-marker">
-                  <Navigation size={16} aria-hidden /> Start with {data.queue[0].ticket}
-                </Link>
-              )}
-              <Link to="/report" className="btn bg-white/12 text-white hover:bg-white/20"><ClipboardPen size={16} aria-hidden /> Log inspection</Link>
-              {!user.onLeave && (
-                <button type="button" onClick={() => setLeaveOpen(true)} className="btn bg-white/12 text-white hover:bg-white/20"><Plane size={16} aria-hidden /> Going on leave</button>
-              )}
-            </div>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {data.queue[0] && (
+              <Link to={`/issues/${data.queue[0].id}`} className="btn btn-marker">
+                <Navigation size={16} aria-hidden /> Start with {data.queue[0].ticket}
+              </Link>
+            )}
+            <Link to="/report" className="btn bg-white/12 text-white hover:bg-white/20"><ClipboardPen size={16} aria-hidden /> Log inspection</Link>
+            {!user.onLeave && (
+              <button type="button" onClick={() => setLeaveOpen(true)} className="btn bg-white/12 text-white hover:bg-white/20"><Plane size={16} aria-hidden /> Going on leave</button>
+            )}
           </div>
         </div>
-        <Stat label="Open on your desk" value={s.open} icon={Hammer} tone="bg-accent/12 text-accent" />
-        <Stat label="Overdue" value={s.breached} icon={Flame} tone="bg-alert/12 text-alert" />
-        <Stat label="Due within 24 h" value={s.dueToday} icon={Hourglass} tone="bg-marker/20 text-marker-dark" />
-        <Stat label="Fixed this week" value={s.resolvedWeek} icon={BadgeCheck} tone="bg-resolved/15 text-resolved" />
+      </div>
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <Stat to="/issues" label="Open on your desk" sub={s.inProgress ? `${s.inProgress} already in progress` : "None started yet"} value={s.open} icon={Hammer} tone="bg-accent/12 text-accent" number="text-accent" />
+        <Stat to="/issues?when=overdue" label="Overdue" sub={s.breached ? "Past the fix-by time: do these first" : "Everything is on time"} value={s.breached} icon={Flame} tone="bg-alert/12 text-alert" number={s.breached ? "text-alert" : "text-ink"} alert={s.breached > 0} delay={60} />
+        <Stat to="/issues?when=due24" label="Due within 24 h" sub={s.dueToday ? "Fix-by time is close" : "Nothing due today"} value={s.dueToday} icon={Hourglass} tone="bg-marker/20 text-marker-dark" number="text-marker-dark" delay={120} />
+        <Stat to="/issues?status=all&when=week" label="Fixed this week" sub={s.onTimeRate !== null ? `${s.onTimeRate}% on time over 90 days` : "Your fixes in the last 7 days"} value={s.resolvedWeek} icon={BadgeCheck} tone="bg-resolved/15 text-resolved" number="text-resolved" delay={180} />
       </div>
 
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1.45fr)_minmax(0,1fr)]">
@@ -242,7 +229,7 @@ export default function FieldDesk() {
           )}
         </aside>
       </div>
-      <LeaveDialog open={leaveOpen} who={user.name} self openCount={s.open} busy={leaveBusy} onCancel={() => setLeaveOpen(false)} onConfirm={(until) => setLeave(true, until)} />
+      <LeaveDialog open={leaveOpen} who={user.name} self openCount={s.open} busy={leave.busy} onCancel={() => setLeaveOpen(false)} onConfirm={(until, reason) => leave.start(until, reason)} />
     </div>
   );
 }

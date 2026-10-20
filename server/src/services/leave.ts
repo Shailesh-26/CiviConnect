@@ -17,7 +17,7 @@ type Moved = { ticket: string; to: string | null };
 type Back = { returned: { ticket: string }[]; kept: { ticket: string; with: string | null; status: string }[] };
 const noBack: Back = { returned: [], kept: [] };
 
-export async function setLeave(officerId: string, on: boolean, until: Date | null, actor: Actor) {
+export async function setLeave(officerId: string, on: boolean, until: Date | null, actor: Actor, reason?: string) {
   const officer = await User.findOne({ _id: officerId, role: "officer" });
   if (!officer) return { officer: null, moved: [] as Moved[], back: noBack };
 
@@ -25,6 +25,7 @@ export async function setLeave(officerId: string, on: boolean, until: Date | nul
     const wasOnLeave = Boolean(officer.onLeaveSince);
     officer.set("onLeaveSince", undefined);
     officer.set("onLeaveUntil", undefined);
+    officer.set("onLeaveReason", undefined);
     await officer.save();
     const back = wasOnLeave ? await returnHandedOver(officer, actor) : noBack;
     if (wasOnLeave) {
@@ -42,6 +43,7 @@ export async function setLeave(officerId: string, on: boolean, until: Date | nul
 
   officer.onLeaveSince = officer.onLeaveSince ?? new Date();
   officer.set("onLeaveUntil", until ?? undefined);
+  if (reason) officer.set("onLeaveReason", reason);
   await officer.save();
 
   const open = await Issue.find({ assignedTo: officer._id, status: { $in: OPEN_STATUSES } });
@@ -73,12 +75,12 @@ export async function setLeave(officerId: string, on: boolean, until: Date | nul
   }
 
   const handed = moved.filter((m) => m.to).length;
-  const summary = `${officer.name} on leave${until ? ` until ${fmt(until)}` : ""}; ${handed} of ${moved.length} open issues reassigned`;
+  const summary = `${officer.name} on leave${until ? ` until ${fmt(until)}` : ""}${reason ? ` (${reason})` : ""}; ${handed} of ${moved.length} open issues reassigned`;
   await audit(actor, "user.leave_started", { type: "user", id: officer.id }, summary, { moved });
   await notify(await adminIds(), {
     type: "leave",
     title: `${officer.name} is on leave${until ? ` until ${fmt(until)}` : ""}`,
-    body: moved.length ? `${handed} open ${handed === 1 ? "issue was" : "issues were"} handed to colleagues${moved.length - handed ? `, ${moved.length - handed} went back to Unassigned` : ""}.` : "No open issues needed to move.",
+    body: (reason ? `Reason: ${reason}. ` : "") + (moved.length ? `${handed} open ${handed === 1 ? "issue was" : "issues were"} handed to colleagues${moved.length - handed ? `, ${moved.length - handed} went back to Unassigned` : ""}.` : "No open issues needed to move."),
     link: "/dashboard",
   }, actor.id);
   broadcast([...(await adminIds()), ...receivers], "refresh", { reason: "leave" });

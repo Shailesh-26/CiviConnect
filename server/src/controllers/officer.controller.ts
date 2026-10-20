@@ -50,7 +50,7 @@ export const desk: RequestHandler = async (req, res) => {
 
 // An officer marks themselves on leave (or back). Open work is handed to colleagues automatically.
 export const setMyLeave: RequestHandler = async (req, res) => {
-  const { onLeave, leaveUntil } = req.body as LeaveInput;
-  const { officer, moved, back } = await setLeave(req.user!.id, onLeave, leaveUntil ?? null, req.user!);
+  const { onLeave, leaveUntil, leaveReason } = req.body as LeaveInput;
+  const { officer, moved, back } = await setLeave(req.user!.id, onLeave, leaveUntil ?? null, req.user!, leaveReason);
   res.json({ user: officer ? toPublicUser(officer) : null, moved, back });
 };

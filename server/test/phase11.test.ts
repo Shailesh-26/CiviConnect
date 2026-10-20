@@ -47,10 +47,18 @@ test("leave: routing never suggests an officer on leave", () => {
 
 test("leave: end date must be within 90 days", () => {
   const inDays = (d: number) => new Date(Date.now() + d * 86_400_000).toISOString().slice(0, 10);
-  assert.equal(leaveSchema.safeParse({ onLeave: true, leaveUntil: inDays(5) }).success, true);
-  assert.equal(leaveSchema.safeParse({ onLeave: true, leaveUntil: inDays(200) }).success, false);
-  assert.equal(leaveSchema.safeParse({ onLeave: true, leaveUntil: "2020-01-01" }).success, false);
+  assert.equal(leaveSchema.safeParse({ onLeave: true, leaveUntil: inDays(5), leaveReason: "Training" }).success, true);
+  assert.equal(leaveSchema.safeParse({ onLeave: true, leaveUntil: inDays(200), leaveReason: "Training" }).success, false);
+  assert.equal(leaveSchema.safeParse({ onLeave: true, leaveUntil: "2020-01-01", leaveReason: "Training" }).success, false);
   assert.equal(leaveSchema.parse({ onLeave: false }).onLeave, false);
+});
+
+test("leave: starting leave needs a short reason, ending it does not", () => {
+  assert.equal(leaveSchema.safeParse({ onLeave: true }).success, false);
+  assert.equal(leaveSchema.safeParse({ onLeave: true, leaveReason: "  " }).success, false);
+  assert.equal(leaveSchema.safeParse({ onLeave: true, leaveReason: "x".repeat(201) }).success, false);
+  assert.equal(leaveSchema.safeParse({ onLeave: true, leaveReason: "Medical" }).success, true);
+  assert.equal(leaveSchema.safeParse({ onLeave: false }).success, true);
 });
 
 test("password reset: email and token formats", () => {
