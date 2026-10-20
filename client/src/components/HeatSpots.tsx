@@ -4,6 +4,7 @@ import { CircleMarker, MapContainer, TileLayer, Tooltip, useMap } from "react-le
 import "leaflet/dist/leaflet.css";
 import { categoryMeta } from "../lib/constants";
 import type { AnalyticsData } from "../types";
+import { PinchZoom } from "./PinchZoom";
 
 type Spot = AnalyticsData["hotspots"][number];
 
@@ -22,6 +23,7 @@ function Fit({ spots }: { spots: Spot[] }) {
 export function HeatSpots({ spots, className = "h-80" }: { spots: Spot[]; className?: string }) {
   return (
     <MapContainer center={[17.43, 78.45]} zoom={11} scrollWheelZoom={false} className={`z-0 w-full rounded-2xl ${className}`}>
+        <PinchZoom />
       <TileLayer attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors' url="https://tile.openstreetmap.org/{z}/{x}/{y}.png" />
       <Fit spots={spots} />
       {spots.map((s) => {

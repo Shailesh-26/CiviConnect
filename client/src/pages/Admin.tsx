@@ -24,7 +24,9 @@ import { useAuth } from "../auth/useAuth";
 import { Avatar } from "../components/Avatar";
 import { CategoryChip } from "../components/CategoryChip";
 import { ConfirmDialog } from "../components/ConfirmDialog";
+import { DepartmentPicker } from "../components/DepartmentPicker";
 import { LeaveDialog } from "../components/LeaveDialog";
+import { Pagination } from "../components/Pagination";
 import { Field } from "../components/Field";
 import { ModelCard } from "../components/ModelCard";
 import { StatusBadge } from "../components/StatusBadge";
@@ -86,6 +88,7 @@ function People() {
   const [editing, setEditing] = useState<AdminUser | null>(null);
   const [adding, setAdding] = useState(false);
   const [confirmOff, setConfirmOff] = useState<AdminUser | null>(null);
+  const [endLeaveFor, setEndLeaveFor] = useState<AdminUser | null>(null);
   const [leaveFor, setLeaveFor] = useState<AdminUser | null>(null);
   const [leaveBusy, setLeaveBusy] = useState(false);
 
@@ -119,6 +122,7 @@ function People() {
     }
   }
 
+  const departments = useMemo(() => [...new Set((users ?? []).filter((u) => u.role !== "citizen" && u.department).map((u) => u.department as string))], [users]);
   const counts = useMemo(() => {
     const all = users ?? [];
     return { all: all.length, citizen: all.filter((u) => u.role === "citizen").length, officer: all.filter((u) => u.role === "officer").length, admin: all.filter((u) => u.role === "admin").length };
@@ -162,7 +166,7 @@ function People() {
                 <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold capitalize ${ROLE_BADGE[u.role]}`}>{u.role}</span>
                 {u.role === "officer" && u.isActive && (
                   u.onLeave ? (
-                    <button type="button" onClick={() => patch(u, { onLeave: false })} title="End leave" className="inline-flex items-center gap-1 rounded-full bg-marker/20 px-2.5 py-0.5 text-xs font-semibold text-marker-dark transition hover:bg-marker/30">
+                    <button type="button" onClick={() => setEndLeaveFor(u)} title="End leave" className="inline-flex items-center gap-1 rounded-full bg-marker/20 px-2.5 py-0.5 text-xs font-semibold text-marker-dark transition hover:bg-marker/30">
                       <Plane size={12} aria-hidden /> On leave{u.onLeave.until ? ` · till ${new Date(u.onLeave.until).toLocaleDateString("en-IN", { day: "numeric", month: "short" })}` : ""}{u.onLeave.reason ? ` · ${u.onLeave.reason}` : ""} · end
                     </button>
                   ) : (
@@ -177,7 +181,11 @@ function People() {
                   <Switch
                     label={u.isActive ? "Active" : "Deactivated"}
                     checked={u.isActive}
-                    onChange={(v) => (v ? patch(u, { isActive: true }) : u.id !== me?.id && setConfirmOff(u))}
+                    onChange={(v) => {
+                      if (v) void patch(u, { isActive: true });
+                      else if (u.id === me?.id) toast.info("You can't deactivate your own account. Another admin can do it for you.", { title: "That's you" });
+                      else setConfirmOff(u);
+                    }}
                   />
                 </div>
               </li>
@@ -186,8 +194,8 @@ function People() {
         </div>
       )}
 
-      <EditUser user={editing} onClose={() => setEditing(null)} onSave={async (body) => editing && (await patch(editing, body)) && setEditing(null)} isMe={editing?.id === me?.id} />
-      <AddOfficer open={adding} onClose={() => setAdding(false)} onCreated={(u) => { setUsers((all) => [u, ...(all ?? [])]); setAdding(false); }} />
+      <EditUser user={editing} onClose={() => setEditing(null)} onSave={async (body) => editing && (await patch(editing, body)) && setEditing(null)} isMe={editing?.id === me?.id} departments={departments} />
+      <AddOfficer open={adding} departments={departments} onClose={() => setAdding(false)} onCreated={(u) => { setUsers((all) => [u, ...(all ?? [])]); setAdding(false); }} />
       <LeaveDialog
         key={leaveFor?.id ?? "none"}
         open={Boolean(leaveFor)}
@@ -216,11 +224,24 @@ function People() {
         }}
         onCancel={() => setConfirmOff(null)}
       />
+      <ConfirmDialog
+        open={Boolean(endLeaveFor)}
+        icon={Plane}
+        title={`End ${endLeaveFor?.name ?? ""}'s leave?`}
+        message={`${endLeaveFor?.name ?? "They"} can get new assignments again. Issues handed over that nobody has started yet go back to them; work a colleague has started stays with that colleague.`}
+        confirmLabel="End leave"
+        cancelLabel="Keep on leave"
+        onConfirm={async () => {
+          if (endLeaveFor) await patch(endLeaveFor, { onLeave: false });
+          setEndLeaveFor(null);
+        }}
+        onCancel={() => setEndLeaveFor(null)}
+      />
     </div>
   );
 }
 
-function EditUser({ user, onClose, onSave, isMe }: { user: AdminUser | null; onClose: () => void; onSave: (b: Partial<{ role: Role; department: string }>) => void; isMe: boolean }) {
+function EditUser({ user, onClose, onSave, isMe, departments }: { user: AdminUser | null; onClose: () => void; onSave: (b: Partial<{ role: Role; department: string }>) => void; isMe: boolean; departments: string[] }) {
   const [role, setRole] = useState<Role>("citizen");
   const [department, setDepartment] = useState("");
   const [shownFor, setShownFor] = useState<string | null>(null);
@@ -253,10 +274,7 @@ function EditUser({ user, onClose, onSave, isMe }: { user: AdminUser | null; onC
             {isMe && <p className="mt-1.5 text-xs text-ink/50">You cannot remove your own admin role.</p>}
           </div>
           {role !== "citizen" && (
-            <div>
-              <label htmlFor="dept" className="block text-sm font-medium">Department</label>
-              <input id="dept" value={department} onChange={(e) => setDepartment(e.target.value)} maxLength={80} placeholder="Roads and Pavements" className="input mt-1.5" />
-            </div>
+            <DepartmentPicker key={user.id} value={department} onChange={setDepartment} existing={departments} />
           )}
           <button type="button" onClick={() => onSave({ ...(role !== user.role ? { role } : {}), ...(department !== (user.department ?? "") ? { department } : {}) })} className="btn btn-primary w-full">
             Save changes
@@ -267,7 +285,7 @@ function EditUser({ user, onClose, onSave, isMe }: { user: AdminUser | null; onC
   );
 }
 
-function AddOfficer({ open, onClose, onCreated }: { open: boolean; onClose: () => void; onCreated: (u: AdminUser) => void }) {
+function AddOfficer({ open, onClose, onCreated, departments }: { open: boolean; onClose: () => void; onCreated: (u: AdminUser) => void; departments: string[] }) {
   const toast = useToast();
   const [form, setForm] = useState({ name: "", email: "", password: "", department: "" });
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -298,7 +316,7 @@ function AddOfficer({ open, onClose, onCreated }: { open: boolean; onClose: () =
       <form onSubmit={submit} className="space-y-4">
         <Field label="Full name" value={form.name} onChange={set("name")} error={errors.name} />
         <Field label="Work email" type="email" value={form.email} onChange={set("email")} error={errors.email} />
-        <Field label="Department" value={form.department} onChange={set("department")} error={errors.department} hint="For example, Roads and Pavements. Used for smart routing." />
+        <DepartmentPicker key={String(open)} value={form.department} onChange={set("department")} existing={departments} error={errors.department} />
         <Field label="Temporary password" type="password" value={form.password} onChange={set("password")} error={errors.password} hint="At least 8 characters with a letter and a number. Ask them to change it from their profile." />
         <button type="submit" disabled={busy} className="btn btn-primary w-full">{busy ? "Creating…" : "Create officer"}</button>
       </form>
@@ -503,34 +521,29 @@ const AUDIT_FILTERS = [
   { id: "category", label: "SLA changes" },
 ];
 
+const AUDIT_PAGE = 25;
+
 function AuditLog() {
   const [filter, setFilter] = useState("");
-  const [entries, setEntries] = useState<AuditEntry[] | null>(null);
-  const [hasMore, setHasMore] = useState(false);
-  const [loadingMore, setLoadingMore] = useState(false);
+  const [page, setPage] = useState(1);
+  const [data, setData] = useState<{ key: string; entries: AuditEntry[]; total: number; pages: number } | null>(null);
+  const key = `${filter}|${page}`;
 
   useEffect(() => {
     let active = true;
-    api<{ entries: AuditEntry[]; hasMore: boolean }>(`/admin/audit${filter ? `?action=${filter}` : ""}`).then((d) => {
-      if (!active) return;
-      setEntries(d.entries);
-      setHasMore(d.hasMore);
+    const params = new URLSearchParams({ page: String(page), limit: String(AUDIT_PAGE) });
+    if (filter) params.set("action", filter);
+    api<{ entries: AuditEntry[]; total: number; pages: number }>(`/admin/audit?${params}`).then((d) => {
+      if (active) setData({ key: `${filter}|${page}`, entries: d.entries, total: d.total, pages: d.pages });
     });
     return () => {
       active = false;
     };
-  }, [filter]);
+  }, [filter, page]);
 
-  async function more() {
-    if (!entries?.length) return;
-    setLoadingMore(true);
-    const params = new URLSearchParams({ before: entries[entries.length - 1].at });
-    if (filter) params.set("action", filter);
-    const d = await api<{ entries: AuditEntry[]; hasMore: boolean }>(`/admin/audit?${params}`);
-    setEntries((all) => [...(all ?? []), ...d.entries]);
-    setHasMore(d.hasMore);
-    setLoadingMore(false);
-  }
+  // Earlier results stay (faded) while the next page loads.
+  const entries = data?.entries ?? null;
+  const loading = data?.key !== key;
 
   const days = useMemo(() => {
     const map = new Map<string, AuditEntry[]>();
@@ -545,7 +558,7 @@ function AuditLog() {
     <div className="space-y-4">
       <div className="flex flex-wrap gap-1.5">
         {AUDIT_FILTERS.map((f) => (
-          <button key={f.id} type="button" onClick={() => { setEntries(null); setFilter(f.id); }} className={`rounded-full px-3.5 py-1.5 text-sm font-medium ${filter === f.id ? "bg-ink text-paper" : "text-ink/65 hover:bg-ink/6"}`}>
+          <button key={f.id} type="button" onClick={() => { setFilter(f.id); setPage(1); }} className={`rounded-full px-3.5 py-1.5 text-sm font-medium ${filter === f.id ? "bg-ink text-paper" : "text-ink/65 hover:bg-ink/6"}`}>
             {f.label}
           </button>
         ))}
@@ -555,7 +568,7 @@ function AuditLog() {
       ) : entries.length === 0 ? (
         <EmptyState icon={History} title="Nothing logged yet" text="Every assignment, status change, escalation and admin decision is recorded here." />
       ) : (
-        <div className="space-y-6">
+        <div className={`space-y-6 transition-opacity ${loading ? "opacity-50" : ""}`}>
           {days.map(([day, list]) => (
             <section key={day}>
               <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-ink/50">{day}</h3>
@@ -577,7 +590,7 @@ function AuditLog() {
               </ol>
             </section>
           ))}
-          {hasMore && <button type="button" onClick={more} disabled={loadingMore} className="btn btn-outline w-full">{loadingMore ? "Loading…" : "Older entries"}</button>}
+          {data && <Pagination page={page} pages={data.pages} total={data.total} limit={AUDIT_PAGE} onPage={(p) => { setPage(p); window.scrollTo({ top: 0, behavior: "smooth" }); }} />}
         </div>
       )}
     </div>

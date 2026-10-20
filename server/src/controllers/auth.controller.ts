@@ -35,8 +35,12 @@ export const login: RequestHandler = async (req, res) => {
   const user = await User.findOne({ email }).select("+passwordHash");
   const passwordOk = await verifyPassword(password, user?.passwordHash);
 
-  if (!user || !passwordOk || !user.isActive) {
+  if (!user || !passwordOk) {
     throw new AppError(401, "Incorrect email or password");
+  }
+  // Said only after the right password, so it never reveals which emails have accounts.
+  if (!user.isActive) {
+    throw new AppError(403, "This account has been deactivated. Please contact your city admin to turn it back on.");
   }
 
   setAuthCookie(res, signToken(user.id));

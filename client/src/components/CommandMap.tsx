@@ -8,6 +8,7 @@ import { customIconFor } from "../lib/customIcons";
 import type { CommandOverview } from "../types";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
+import { PinchZoom } from "./PinchZoom";
 
 type Pin = CommandOverview["pins"][number];
 
@@ -46,6 +47,7 @@ export function CommandMap({ pins, className = "h-[26rem]" }: { pins: Pin[]; cla
   return (
     <div className="relative">
       <MapContainer center={[17.43, 78.45]} zoom={11} scrollWheelZoom={false} className={`z-0 w-full rounded-2xl ${className}`}>
+        <PinchZoom />
         <TileLayer attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors' url="https://tile.openstreetmap.org/{z}/{x}/{y}.png" />
         <Fit pins={pins} />
         {pins.map((p) => (

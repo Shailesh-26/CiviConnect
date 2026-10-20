@@ -4,7 +4,7 @@ import type { Category, Issue } from "../types";
 export type StatusGroup = "all" | "open" | "in_progress" | "resolved" | "rejected";
 export type SortKey = "priority" | "newest" | "oldest" | "support" | "reports";
 
-export type TimeFilter = "overdue" | "due24" | "week";
+export type TimeFilter = "overdue" | "due24" | "week" | "unassigned";
 export type IssueFilters = { q: string; group: StatusGroup; category: Category | ""; sort: SortKey; when?: TimeFilter };
 
 export const STATUS_GROUPS: { value: StatusGroup; label: string }[] = [

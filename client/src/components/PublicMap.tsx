@@ -6,6 +6,7 @@ import { issueLabel } from "../lib/constants";
 import { StatusBadge } from "./StatusBadge";
 import { makePin } from "../lib/pins";
 import type { PublicOverview } from "../types";
+import { PinchZoom } from "./PinchZoom";
 
 type Pin = PublicOverview["pins"][number];
 
@@ -22,6 +23,7 @@ function Fit({ pins }: { pins: Pin[] }) {
 export function PublicMap({ pins, className = "h-[26rem]" }: { pins: Pin[]; className?: string }) {
   return (
     <MapContainer center={[20.5937, 78.9629]} zoom={5} scrollWheelZoom={false} className={`z-0 w-full rounded-2xl ${className}`}>
+        <PinchZoom />
       <TileLayer
         attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
         url="https://tile.openstreetmap.org/{z}/{x}/{y}.png"

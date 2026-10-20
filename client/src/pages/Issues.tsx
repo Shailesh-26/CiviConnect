@@ -10,7 +10,7 @@ import { STATUS_GROUPS, type IssueFilters, type StatusGroup, type TimeFilter } f
 import { usePagedIssues } from "../lib/usePagedIssues";
 
 const START: IssueFilters = { q: "", group: "open", category: "", sort: "priority" };
-const WHEN_LABEL: Record<TimeFilter, string> = { overdue: "Overdue only", due24: "Due within 24 h", week: "Fixed in the last 7 days" };
+const WHEN_LABEL: Record<TimeFilter, string> = { overdue: "Overdue only", due24: "Due within 24 h", week: "Fixed in the last 7 days", unassigned: "Waiting for an officer" };
 
 export default function Issues() {
   const { user } = useAuth();
@@ -68,7 +68,7 @@ export default function Issues() {
           <div className={`transition-opacity ${loading ? "opacity-50" : ""}`}>
             {data.issues.length === 0 ? (
               when ? (
-                <EmptyState icon={Inbox} title={when === "week" ? "Nothing fixed in the last 7 days" : when === "overdue" ? "Nothing overdue" : "Nothing due within a day"} text={when === "week" ? "Fixes you complete will appear here." : "Nice. Everything is on time."} action={<Link to="/issues" className="btn btn-outline">Show the whole queue</Link>} />
+                <EmptyState icon={Inbox} title={when === "week" ? "Nothing fixed in the last 7 days" : when === "overdue" ? "Nothing overdue" : when === "unassigned" ? "Every open issue has an officer" : "Nothing due within a day"} text={when === "week" ? "Fixes you complete will appear here." : "Nice. Everything is on time."} action={<Link to="/issues" className="btn btn-outline">Show the whole queue</Link>} />
               ) : (
                 <EmptyState icon={SearchX} title="No issues match these filters" text="Try another word or a different status tab." action={<button type="button" onClick={() => { setRest({ q: "", category: "", sort: START.sort }); setUrl("all"); }} className="btn btn-outline">Show everything</button>} />
               )

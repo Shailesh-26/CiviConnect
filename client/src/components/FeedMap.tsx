@@ -6,6 +6,7 @@ import "leaflet/dist/leaflet.css";
 import { CATEGORY_COLOR, issueLabel } from "../lib/constants";
 import { makePin } from "../lib/pins";
 import type { FeedItem } from "../types";
+import { PinchZoom } from "./PinchZoom";
 
 function Fit({ center, radiusKm }: { center: { lat: number; lng: number }; radiusKm: number }) {
   const map = useMap();
@@ -24,6 +25,7 @@ export function FeedMap({ items, center, radiusKm, activeId, className = "h-80" 
 
   return (
     <MapContainer center={[center.lat, center.lng]} zoom={13} scrollWheelZoom={false} className={`z-0 w-full rounded-2xl ${className}`}>
+        <PinchZoom />
       <TileLayer
         attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
         url="https://tile.openstreetmap.org/{z}/{x}/{y}.png"

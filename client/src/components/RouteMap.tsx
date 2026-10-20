@@ -5,6 +5,7 @@ import { MapContainer, Marker, Polyline, TileLayer, Tooltip, useMap } from "reac
 import "leaflet/dist/leaflet.css";
 import { issueLabel } from "../lib/constants";
 import type { Issue } from "../types";
+import { PinchZoom } from "./PinchZoom";
 
 function Fit({ points }: { points: [number, number][] }) {
   const map = useMap();
@@ -29,6 +30,7 @@ export function RouteMap({ stops, className = "h-80" }: { stops: Issue[]; classN
   const points = stops.map((s) => [s.location.lat, s.location.lng] as [number, number]);
   return (
     <MapContainer center={points[0] ?? [17.43, 78.45]} zoom={12} scrollWheelZoom={false} className={`z-0 w-full rounded-2xl ${className}`}>
+        <PinchZoom />
       <TileLayer attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors' url="https://tile.openstreetmap.org/{z}/{x}/{y}.png" />
       <Fit points={points} />
       {points.length > 1 && <Polyline positions={points} pathOptions={{ color: "#1f4e79", weight: 3, dashArray: "8 8", opacity: 0.8 }} />}

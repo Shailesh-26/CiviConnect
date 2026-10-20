@@ -54,7 +54,8 @@ const groupMatch = (g: Group) =>
 /**
  * One page of issues with server-side search, filters, sorting and status counts.
  * Query: page, limit (max 50), q, group, category, sort, when.
- * when: "overdue" (open, past its fix-by time), "due24" (open, due within a day), "week" (fixed in the last 7 days).
+ * when: "overdue" (open, past its fix-by time), "due24" (open, due within a day), "week" (fixed in the last 7 days),
+ * "unassigned" (open, no officer yet).
  * They match the Field Desk tiles, so a tile can open exactly the issues it counts.
  */
 export async function pagedIssues(base: Record<string, unknown>, query: Record<string, unknown>, viewerId: string, defaultSort: Sort = "priority") {
@@ -67,6 +68,7 @@ export async function pagedIssues(base: Record<string, unknown>, query: Record<s
   const now = new Date();
   if (query.when === "overdue") Object.assign(match, { status: { $in: OPEN_STATUSES }, slaDueAt: { $lt: now } });
   else if (query.when === "due24") Object.assign(match, { status: { $in: OPEN_STATUSES }, slaDueAt: { $gte: now, $lte: new Date(now.getTime() + 86_400_000) } });
+  else if (query.when === "unassigned") Object.assign(match, { status: { $in: OPEN_STATUSES }, assignedTo: null });
   else if (query.when === "week") Object.assign(match, { status: "resolved", resolvedAt: { $gte: new Date(now.getTime() - 7 * 86_400_000) } });
   if ((CATEGORIES as readonly string[]).includes(String(query.category))) match.category = query.category;
   const q = typeof query.q === "string" ? query.q.trim().slice(0, 80) : "";

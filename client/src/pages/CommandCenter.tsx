@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState, type DragEvent } from "react"
 import { EmergencyBadge } from "../components/EmergencyBadge";
 import { Link } from "react-router-dom";
 import {
+  ArrowUpRight,
   Activity,
   BadgeCheck,
   ChevronLeft,
@@ -37,15 +38,18 @@ import type { CommandOverview, Issue, Suggestion } from "../types";
 
 const CAPACITY = 10;
 
-function Kpi({ label, value, icon: Icon, tone, to }: { label: string; value: number; icon: LucideIcon; tone: string; to?: string }) {
-  const body = (
-    <>
-      <span className={`grid size-9 place-items-center rounded-xl ${tone}`}><Icon size={18} aria-hidden /></span>
+// Each number opens the list of exactly the issues it counts.
+function Kpi({ label, value, icon: Icon, tone, to }: { label: string; value: number; icon: LucideIcon; tone: string; to: string }) {
+  return (
+    <Link to={to} className="card card-hover tilt group block p-4" aria-label={`${label}: ${value}. Open these`}>
+      <span className="flex items-start justify-between">
+        <span className={`grid size-9 place-items-center rounded-xl ${tone}`}><Icon size={18} aria-hidden /></span>
+        <ArrowUpRight size={16} className="text-ink/30 opacity-0 transition duration-300 group-hover:-translate-y-0.5 group-hover:translate-x-0.5 group-hover:text-accent group-hover:opacity-100" aria-hidden />
+      </span>
       <p className="mt-3 font-display text-3xl font-bold"><CountUp value={value} /></p>
       <p className="text-xs text-ink/60">{label}</p>
-    </>
+    </Link>
   );
-  return to ? <Link to={to} className="card card-hover tilt block p-4">{body}</Link> : <div className="card card-hover tilt p-4">{body}</div>;
 }
 
 function BoardCard({ issue, suggestion, onAssign, busy }: { issue: Issue; suggestion?: Suggestion; onAssign?: (officerId: string) => void; busy: boolean }) {
@@ -224,11 +228,11 @@ export default function CommandCenter() {
 
       {/* Bento: KPIs */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
-        <Kpi label="Open issues" value={k.open} icon={CircleDot} tone="bg-accent/12 text-accent" />
-        <Kpi label="Waiting for an officer" value={k.unassigned} icon={Inbox} tone="bg-marker/20 text-marker-dark" />
-        <Kpi label="Overdue" value={k.breached} icon={Flame} tone="bg-alert/12 text-alert" />
-        <Kpi label="Due within 24 h" value={k.dueSoon} icon={Hourglass} tone="bg-marker/20 text-marker-dark" />
-        <Kpi label="Fixed in 7 days" value={k.resolved7d} icon={BadgeCheck} tone="bg-resolved/15 text-resolved" />
+        <Kpi label="Open issues" value={k.open} icon={CircleDot} tone="bg-accent/12 text-accent" to="/issues" />
+        <Kpi label="Waiting for an officer" value={k.unassigned} icon={Inbox} tone="bg-marker/20 text-marker-dark" to="/issues?when=unassigned" />
+        <Kpi label="Overdue" value={k.breached} icon={Flame} tone="bg-alert/12 text-alert" to="/issues?when=overdue" />
+        <Kpi label="Due within 24 h" value={k.dueSoon} icon={Hourglass} tone="bg-marker/20 text-marker-dark" to="/issues?when=due24" />
+        <Kpi label="Fixed in 7 days" value={k.resolved7d} icon={BadgeCheck} tone="bg-resolved/15 text-resolved" to="/issues?status=all&when=week" />
         <Kpi label="Flags to review" value={k.flagsOpen} icon={Flag} tone="bg-alert/12 text-alert" to="/admin?tab=moderation" />
       </div>
 

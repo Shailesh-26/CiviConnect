@@ -30,6 +30,7 @@ import { CATEGORY_COLOR, categoryMeta, STATUS_META } from "../lib/constants";
 import { formatDuration } from "../lib/format";
 import { useToast } from "../lib/toast-context";
 import type { AreaCard, ChronicSpot, Grade, TimelineItem } from "../types";
+import { PinchZoom } from "../components/PinchZoom";
 
 type Tab = "cards" | "chronic" | "replay" | "photos";
 const TABS: { id: Tab; label: string; icon: LucideIcon }[] = [
@@ -60,6 +61,15 @@ function Bar({ label, value, good = true }: { label: string; value: number; good
 
 // ---------------------------------------------------------------- Report cards
 
+// The browser names the PDF after the page title, so give it a useful one while printing.
+function printReport(days: number) {
+  const before = document.title;
+  const date = new Date().toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
+  document.title = `CiviConnect area report cards - last ${days} days - ${date}`;
+  window.addEventListener("afterprint", () => (document.title = before), { once: true });
+  window.print();
+}
+
 function ReportCards() {
   const toast = useToast();
   const [days, setDays] = useState(90);
@@ -85,7 +95,7 @@ function ReportCards() {
             <button key={d} type="button" onClick={() => setDays(d)} className={`rounded-full px-3 py-1.5 text-xs font-semibold ${days === d ? "bg-accent text-paper" : "text-ink/60"}`}>{d} days</button>
           ))}
         </div>
-        <button type="button" onClick={() => window.print()} className="btn btn-outline !rounded-full !py-2 text-xs"><Printer size={15} aria-hidden /> Print</button>
+        <button type="button" onClick={() => printReport(days)} className="btn btn-outline !rounded-full !py-2 text-xs"><Printer size={15} aria-hidden /> Print</button>
         <button
           type="button"
           onClick={async () => (await copyText(window.location.href)) === "copied" && toast.success("Share it with your ward office or residents' association.", { title: "Link copied" })}
@@ -96,12 +106,20 @@ function ReportCards() {
         <p className="ml-auto max-w-md text-[11px] text-ink/50">Grade = 35% fixed on time + 30% share fixed + 20% speed + 15% stayed fixed. Areas with at least 3 reports in the period.</p>
       </div>
 
+      {/* Only on paper: what this is, which period, when it was printed, and how grades work. */}
+      <header className="print-only mb-4 border-b-2 border-black pb-3">
+        <p className="text-[10pt] font-semibold uppercase tracking-widest">CiviConnect · Area report cards</p>
+        <h1 className="mt-1 text-[20pt] font-bold leading-tight">How each area fixed its problems</h1>
+        <p className="mt-1 text-[10.5pt]">Last {days} days · printed {new Date().toLocaleString("en-IN", { day: "numeric", month: "long", year: "numeric", hour: "numeric", minute: "2-digit" })} · {areas?.length ?? 0} areas</p>
+        <p className="mt-2 text-[9.5pt]">Grade = 35% fixed on time + 30% share fixed + 20% speed + 15% stayed fixed. Only areas with at least 3 reports in the period. A = 85 and above, B = 70, C = 55, D = 40, F below 40.</p>
+      </header>
+
       {areas === null ? (
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">{Array.from({ length: 6 }, (_, i) => <Skeleton key={i} className="h-72 !rounded-3xl" />)}</div>
       ) : areas.length === 0 ? (
         <EmptyState icon={Award} title="Not enough data yet" text="Report cards appear once an area has at least 3 reports in the period." />
       ) : (
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+        <div className="report-cards grid gap-4 md:grid-cols-2 xl:grid-cols-3">
           {areas.map((a, i) => {
             const tone = GRADE_TONE[a.grade];
             const moved = a.previousGrade ? ORDER.indexOf(a.grade) - ORDER.indexOf(a.previousGrade) : 0;
@@ -181,6 +199,7 @@ function Chronic() {
     <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)]">
       <div className="card overflow-hidden p-2 lg:sticky lg:top-6 lg:self-start">
         <MapContainer center={[17.43, 78.45]} zoom={11} scrollWheelZoom={false} className="z-0 h-[28rem] w-full rounded-2xl">
+        <PinchZoom />
           <TileLayer attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors' url="https://tile.openstreetmap.org/{z}/{x}/{y}.png" />
           <FitSpots spots={spots} />
           {spots.map((s) => (
@@ -295,6 +314,7 @@ function Replay() {
   return (
     <div className="relative overflow-hidden rounded-3xl border border-ink/10 shadow-card">
       <MapContainer center={[17.43, 78.45]} zoom={11} scrollWheelZoom={false} zoomControl={false} className="z-0 h-[34rem] w-full">
+        <PinchZoom />
         <TileLayer attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors' url="https://tile.openstreetmap.org/{z}/{x}/{y}.png" />
         <FitAll items={items} />
         {visible.map((i) => {
@@ -377,7 +397,9 @@ export default function Insights() {
 
   return (
     <div className="space-y-6">
-      <PageHeader title="Insights" subtitle="How each area is doing, where problems keep coming back, and 90 days of the city in motion." />
+      <div className="no-print">
+        <PageHeader title="Insights" subtitle="How each area is doing, where problems keep coming back, and 90 days of the city in motion." />
+      </div>
       <div className="no-print -mx-1 flex gap-1 overflow-x-auto rounded-2xl border border-ink/10 bg-surface p-1 shadow-card" role="tablist">
         {tabs.map(({ id, label, icon: Icon }) => (
           <button key={id} type="button" role="tab" aria-selected={tab === id} onClick={() => setParams({ tab: id })} className={`inline-flex flex-1 shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-xl px-4 py-2.5 text-sm font-semibold transition ${tab === id ? "bg-accent text-paper shadow-card" : "text-ink/60 hover:bg-ink/5 hover:text-ink"}`}>

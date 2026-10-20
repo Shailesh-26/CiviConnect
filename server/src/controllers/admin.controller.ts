@@ -357,8 +357,18 @@ export const listAudit: RequestHandler = async (req, res) => {
   const filter: Record<string, unknown> = {};
   if (typeof req.query.action === "string" && /^[a-z_.]+$/.test(req.query.action)) filter.action = { $regex: `^${req.query.action}` };
   if (typeof req.query.before === "string" && !Number.isNaN(Date.parse(req.query.before))) filter.createdAt = { $lt: new Date(req.query.before) };
-  const rows = await AuditLog.find(filter).sort({ createdAt: -1 }).limit(60).lean();
+  // Numbered pages (?page=2&limit=25), newest first.
+  const limit = Math.min(100, Math.max(10, Math.floor(Number(req.query.limit) || 60)));
+  const page = Math.max(1, Math.floor(Number(req.query.page) || 1));
+  const [rows, total] = await Promise.all([
+    AuditLog.find(filter).sort({ createdAt: -1 }).skip((page - 1) * limit).limit(limit).lean(),
+    AuditLog.countDocuments(filter),
+  ]);
   res.json({
+    page,
+    limit,
+    total,
+    pages: Math.max(1, Math.ceil(total / limit)),
     entries: rows.map((a) => ({
       id: a._id.toString(),
       actorName: a.actorName,
@@ -369,7 +379,7 @@ export const listAudit: RequestHandler = async (req, res) => {
       targetId: a.targetId ?? null,
       at: a.createdAt,
     })),
-    hasMore: rows.length === 60,
+    hasMore: page * limit < total,
   });
 };
 

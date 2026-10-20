@@ -294,10 +294,22 @@ body::before {
   .tilt { transform: none !important; }
 }
 
+.print-only { display: none; }
 @media print {
-  body::before, aside, nav, header, .no-print { display: none !important; }
+  @page { size: A4; margin: 14mm 12mm; }
+  /* Always light, readable paper, whatever theme is on screen; keep grade colours. */
+  :root, :root[data-theme="dark"] { --c-paper: #ffffff; --c-surface: #ffffff; --c-ink: #111111; color-scheme: light; }
+  html, body { background: #fff !important; color: #111 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  body::before, body::after, aside, nav, header:not(.print-only), .no-print { display: none !important; }
+  .print-only { display: block !important; }
   main { padding: 0 !important; max-width: none !important; }
-  .card { box-shadow: none !important; break-inside: avoid; }
+  .card { box-shadow: none !important; border: 1px solid #cfcfcf !important; break-inside: avoid; }
+  .animate-page, .animate-fade, .reveal { animation: none !important; opacity: 1 !important; translate: none !important; transform: none !important; }
+  /* Report cards: two per row, bigger small print. */
+  .report-cards { display: grid !important; grid-template-columns: 1fr 1fr !important; gap: 8mm !important; }
+  .report-cards article { padding: 5mm !important; font-size: 10.5pt; }
+  .report-cards [class*="text-[10px]"], .report-cards [class*="text-[11px]"], .report-cards .text-xs { font-size: 9pt !important; color: #333 !important; }
+  .report-cards .text-ink\/50, .report-cards .text-ink\/55, .report-cards .text-ink\/60 { color: #444 !important; }
 }
 
 /* ===================== Landing page ===================== */
