@@ -293,7 +293,7 @@ export default function Profile() {
     if ("name" in changes && String(changes.name).length < 2) {
       setErrors({ name: "Name must be at least 2 characters" });
       openSection("identity");
-      toast.error("Please fix the highlighted fields.");
+      toast.error("Please fix the highlighted fields.", { title: "Check your details" });
       return false;
     }
     setSaving(true);

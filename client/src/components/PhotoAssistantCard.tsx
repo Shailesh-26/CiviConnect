@@ -15,6 +15,13 @@ export function PhotoScan({ loading, result }: { loading: boolean; result: Visio
       </div>
     );
   }
+  if (result?.verdict === "not_civic") {
+    return (
+      <span className="pointer-events-none absolute inset-x-0 bottom-2 mx-auto flex w-max items-center gap-1 rounded-full bg-marker px-2.5 py-1 text-[11px] font-semibold text-[#241a00] shadow-card animate-pop">
+        <TriangleAlert size={12} aria-hidden /> Not a civic problem?
+      </span>
+    );
+  }
   if (!result || result.verdict !== "confident") return null;
   const top = result.top[0];
   const color = CATEGORY_COLOR[top.category];
@@ -34,9 +41,11 @@ type Props = {
   result: VisionResult | null;
   selected: Category | "";
   onPick: (c: Category) => void;
+  notCivicPhotos?: number[];
+  photoCount?: number;
 };
 
-export function PhotoAssistantCard({ loading, offline, result, selected, onPick }: Props) {
+export function PhotoAssistantCard({ loading, offline, result, selected, onPick, notCivicPhotos = [], photoCount = 1 }: Props) {
   if (offline) {
     return (
       <p className="mt-4 flex items-center gap-2 rounded-2xl bg-ink/[0.04] px-4 py-3 text-sm text-ink/55 animate-fade">
@@ -72,7 +81,7 @@ export function PhotoAssistantCard({ loading, offline, result, selected, onPick 
         <div className="mt-3 flex gap-3 rounded-xl bg-marker/15 p-3 text-sm">
           <TriangleAlert size={18} className="mt-0.5 shrink-0 text-marker-dark" aria-hidden />
           <div>
-            <p className="font-semibold">This doesn't look like a civic problem</p>
+            <p className="font-semibold">{photoCount > 1 ? "These photos don't look like a civic problem" : "This doesn't look like a civic problem"}</p>
             <p className="mt-0.5 text-ink/65">Check you chose the right photo. You can still continue if it is.</p>
           </div>
         </div>
@@ -114,6 +123,15 @@ export function PhotoAssistantCard({ loading, offline, result, selected, onPick 
             })}
           </ul>
         </>
+      )}
+
+      {result && result.verdict !== "not_civic" && notCivicPhotos.length > 0 && (
+        <p className="mt-3 flex items-start gap-2 rounded-xl bg-marker/15 px-3 py-2 text-xs text-ink/75">
+          <TriangleAlert size={14} className="mt-0.5 shrink-0 text-marker-dark" aria-hidden />
+          <span>
+            <span className="font-semibold">Photo {notCivicPhotos.join(" and ")} {notCivicPhotos.length === 1 ? "doesn't" : "don't"} look like a civic problem.</span> Remove {notCivicPhotos.length === 1 ? "it" : "them"} if {notCivicPhotos.length === 1 ? "it was" : "they were"} added by mistake.
+          </span>
+        </p>
       )}
 
       {result && (

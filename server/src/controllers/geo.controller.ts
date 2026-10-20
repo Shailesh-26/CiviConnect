@@ -6,7 +6,7 @@ const UNAVAILABLE = "Address search is not available right now. Tap the map inst
 
 export const search: RequestHandler = async (req, res) => {
   const q = typeof req.query.q === "string" ? req.query.q.trim().slice(0, 120) : "";
-  if (q.length < 3) {
+  if (q.length < 2) {
     res.json({ results: [] });
     return;
   }

@@ -136,8 +136,8 @@ export default function ReportIssue() {
   const [dragging, setDragging] = useState(false);
   const [emergencyKind, setEmergencyKind] = useState<EmergencyKind | "">("");
 
-  // The Photo Assistant looks at the first photo and pre-selects the problem when it is confident.
-  const assistant = usePhotoAssistant(files[0] ?? null, (r) => {
+  // The Photo Assistant looks at every photo and pre-selects the problem when it is confident.
+  const assistant = usePhotoAssistant(files, (r) => {
     if (r.verdict === "confident" && r.category) setCategory((c) => c || r.category!);
   });
 
@@ -323,7 +323,7 @@ export default function ReportIssue() {
       if (Object.keys(p).length) {
         setFieldErrors(p);
         setStepIndex(i);
-        toast.error(Object.values(p)[0]);
+        toast.error(Object.values(p)[0], { title: "One more thing" });
         return;
       }
     }
@@ -352,7 +352,7 @@ export default function ReportIssue() {
       if (Object.keys(p).length) {
         setFieldErrors(p);
         setStepIndex(steps.indexOf(id));
-        toast.error(Object.values(p)[0]);
+        toast.error(Object.values(p)[0], { title: "One more thing" });
         return;
       }
     }
@@ -404,7 +404,7 @@ export default function ReportIssue() {
             (id === "details" && errors.description),
           );
           if (first) setStepIndex(steps.indexOf(first));
-          toast.error("Please fix the highlighted fields.");
+          toast.error("Please fix the highlighted fields.", { title: "Check your details" });
         } else {
           setError({
             message: err.message,
@@ -533,7 +533,7 @@ export default function ReportIssue() {
               {previews.map((src, index) => (
                 <div key={src} className="relative aspect-square animate-pop overflow-hidden rounded-2xl border border-ink/15">
                   <img src={src} alt={`Photo ${index + 1}`} className="size-full object-cover" />
-                  {index === 0 && <PhotoScan loading={assistant.loading} result={assistant.result} />}
+                  <PhotoScan loading={assistant.photo(index).loading} result={assistant.photo(index).result} />
                   <button type="button" aria-label={`Remove photo ${index + 1}`} onClick={() => setFiles((prev) => prev.filter((_, i) => i !== index))} className="absolute right-2 top-2 grid size-7 place-items-center rounded-full bg-black/70 text-white">
                     <X size={15} aria-hidden />
                   </button>
@@ -552,6 +552,8 @@ export default function ReportIssue() {
               loading={assistant.loading}
               offline={assistant.offline}
               result={assistant.result}
+              notCivicPhotos={assistant.notCivicPhotos}
+              photoCount={files.length}
               selected={category}
               onPick={(c) => {
                 setCategory(c);

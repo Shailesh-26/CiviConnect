@@ -7,4 +7,5 @@ import "./validators.test";
 import "./vision.test";
 import "./phase11.test";
 import "./phase12.test";
+import "./geocode.test";
 import "./http.test";

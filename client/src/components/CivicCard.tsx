@@ -1,3 +1,4 @@
+import { createPortal } from "react-dom";
 import { useEffect, useRef, useState } from "react";
 import { Award, BadgeCheck, Bird, Eye, Flag, Heart, Lock, Megaphone, MessageCircle, Repeat, Sparkles, type LucideIcon } from "lucide-react";
 import { api } from "../lib/api";
@@ -68,7 +69,7 @@ export function CivicCard({ compact = false }: { compact?: boolean }) {
           {badges.map((b) => {
             const Icon = BADGE_ICON[b.id] ?? Award;
             return (
-              <li key={b.id} title={`${b.name}: ${b.description}`} className={`tilt flex flex-col items-center rounded-2xl border p-3 text-center transition ${b.earned ? "border-marker/50 bg-marker/10" : "border-ink/10 bg-ink/[0.03]"}`}>
+              <BadgeTip key={b.id} badge={b} className={`tilt flex flex-col items-center rounded-2xl border p-3 text-center transition outline-none focus-visible:ring-2 focus-visible:ring-accent ${b.earned ? "border-marker/50 bg-marker/10" : "border-ink/10 bg-ink/[0.03]"}`}>
                 <span className={`relative grid size-11 place-items-center rounded-2xl ${b.earned ? "bg-marker text-[#241a00] shadow-card" : "bg-ink/8 text-ink/35"}`}>
                   <Icon size={20} aria-hidden />
                   {!b.earned && <Lock size={11} className="absolute -bottom-1 -right-1 rounded-full bg-surface p-0.5 text-ink/50" aria-hidden />}
@@ -78,7 +79,7 @@ export function CivicCard({ compact = false }: { compact?: boolean }) {
                 {!b.earned && b.goal > 1 && (
                   <span className="mt-1.5 h-1 w-full overflow-hidden rounded-full bg-ink/8"><span className="block h-full rounded-full bg-marker" style={{ width: `${(b.progress / b.goal) * 100}%` }} /></span>
                 )}
-              </li>
+              </BadgeTip>
             );
           })}
         </ul>
@@ -99,5 +100,59 @@ export function CivicCard({ compact = false }: { compact?: boolean }) {
         )}
       </div>
     </section>
+  );
+}
+
+type Badge = CivicScore["badges"][number];
+
+// A small card above a badge on hover, keyboard focus or tap: what it is, how to earn it, how close you are.
+// Drawn on top of the page (portal) and kept inside the screen, so edge badges aren't cut off.
+function BadgeTip({ badge, className, children }: { badge: Badge; className: string; children: React.ReactNode }) {
+  const [at, setAt] = useState<{ x: number; y: number } | null>(null);
+  const show = (el: HTMLElement) => {
+    const r = el.getBoundingClientRect();
+    setAt({ x: Math.min(Math.max(r.left + r.width / 2, 120), window.innerWidth - 120), y: r.top });
+  };
+  const hide = () => setAt(null);
+  // The card is pinned to the screen, so it closes when the page scrolls.
+  useEffect(() => {
+    if (!at) return;
+    const close = () => setAt(null);
+    window.addEventListener("scroll", close, { passive: true });
+    return () => window.removeEventListener("scroll", close);
+  }, [at]);
+  const left = Math.max(0, badge.goal - badge.progress);
+  return (
+    <li
+      tabIndex={0}
+      aria-label={`${badge.name}: ${badge.description}`}
+      onMouseEnter={(e) => show(e.currentTarget)}
+      onMouseLeave={hide}
+      onFocus={(e) => show(e.currentTarget)}
+      onBlur={hide}
+      onClick={(e) => (at ? hide() : show(e.currentTarget))}
+      className={`${className} cursor-default`}
+    >
+      {children}
+      {at &&
+        createPortal(
+          <div role="tooltip" className="pointer-events-none fixed z-[3000] w-56 -translate-x-1/2 -translate-y-full pb-2" style={{ left: at.x, top: at.y }}>
+            <div className="rounded-2xl border border-ink/10 bg-surface p-3 text-left shadow-lift animate-pop">
+              <p className="flex items-center justify-between gap-2 text-sm font-semibold">
+                {badge.name}
+                <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${badge.earned ? "bg-resolved/15 text-resolved" : "bg-ink/8 text-ink/55"}`}>{badge.earned ? "Earned" : "Locked"}</span>
+              </p>
+              <p className="mt-1 text-xs text-ink/65">{badge.description}</p>
+              {!badge.earned && badge.goal > 1 && (
+                <>
+                  <span className="mt-2.5 block h-1.5 overflow-hidden rounded-full bg-ink/8"><span className="block h-full rounded-full bg-marker" style={{ width: `${(badge.progress / badge.goal) * 100}%` }} /></span>
+                  <p className="mt-1 text-[11px] text-ink/55">{badge.progress} of {badge.goal} · {left} more to go</p>
+                </>
+              )}
+            </div>
+          </div>,
+          document.body,
+        )}
+    </li>
   );
 }
