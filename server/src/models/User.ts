@@ -31,6 +31,8 @@ const userSchema = new Schema(
     isActive: { type: Boolean, default: true },
     // Sessions that started before this moment are refused (see middleware/auth.ts).
     passwordChangedAt: { type: Date },
+    // Last time this person did something (a click that changed data, or the app's "still here" ping).
+    lastActiveAt: { type: Date },
     avatar: { type: avatarSchema, default: undefined },
     bio: { type: String, trim: true, maxlength: 160 },
     homeArea: { type: String, trim: true, maxlength: 80 },

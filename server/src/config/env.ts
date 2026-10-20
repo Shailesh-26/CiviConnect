@@ -8,6 +8,9 @@ const schema = z.object({
   CLIENT_URL: z.string().default("http://localhost:5173"),
   JWT_SECRET: z.string().min(32, "JWT_SECRET must be at least 32 characters (see server/.env.example)"),
   JWT_EXPIRES_DAYS: z.coerce.number().int().positive().default(7),
+  // Inactivity logout. The app asks "Are you still there?" after this many idle minutes; the server
+  // refuses a session idle for a few minutes longer. Keep it equal to IDLE_MINUTES in client/src/lib/idle.ts.
+  SESSION_IDLE_MINUTES: z.coerce.number().int().positive().default(15),
   SEED_ADMIN_NAME: z.string().optional(),
   SEED_ADMIN_EMAIL: z.string().optional(),
   SEED_ADMIN_PASSWORD: z.string().optional(),

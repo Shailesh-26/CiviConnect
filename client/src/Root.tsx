@@ -1,5 +1,6 @@
 import App from "./App";
 import { ConnectionBanner } from "./components/ConnectionBanner";
+import { IdleGuard } from "./components/IdleGuard";
 import { AuthProvider } from "./auth/AuthProvider";
 import { NotificationProvider } from "./components/NotificationProvider";
 import { ToastProvider } from "./components/ToastProvider";
@@ -14,6 +15,7 @@ export default function Root() {
           <NotificationProvider>
             <App />
             <ConnectionBanner />
+            <IdleGuard />
           </NotificationProvider>
         </AuthProvider>
       </ToastProvider>

@@ -7,6 +7,7 @@ import {
   login,
   logout,
   me,
+  ping,
   register,
   updateProfile,
   uploadAvatar,
@@ -49,6 +50,7 @@ authRouter.post("/logout", logout);
 authRouter.post("/forgot", forgotLimiter, validateBody(forgotSchema), forgotPassword);
 authRouter.post("/reset", passwordLimiter, validateBody(resetSchema), resetPassword);
 authRouter.get("/me", authenticate, me);
+authRouter.post("/ping", authenticate, ping);
 authRouter.patch("/me", authenticate, validateBody(updateProfileSchema), updateProfile);
 authRouter.post("/me/avatar", authenticate, photo("avatar"), uploadAvatar);
 authRouter.patch("/me/password", authenticate, passwordLimiter, validateBody(changePasswordSchema), changePassword);

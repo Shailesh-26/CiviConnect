@@ -2,6 +2,7 @@ import type { RequestHandler } from "express";
 import { User, type UserRole } from "../models/User";
 import { AppError } from "../utils/AppError";
 import { toPublicUser } from "../utils/publicUser";
+import { env } from "../config/env";
 import { COOKIE_NAME, verifyToken } from "../utils/token";
 
 export const authenticate: RequestHandler = async (req, _res, next) => {
@@ -21,6 +22,18 @@ export const authenticate: RequestHandler = async (req, _res, next) => {
   // A password change logs out every other device: sessions started before it no longer count.
   if (user.passwordChangedAt && session.issuedAt < user.passwordChangedAt.getTime()) {
     throw new AppError(401, "Your password was changed. Please log in again");
+  }
+
+  // Inactivity: the app logs out after SESSION_IDLE_MINUTES (plus a one-minute warning). The server
+  // allows three minutes more, then refuses, so a laptop left open (or asleep) is safe too.
+  const now = Date.now();
+  const idleLimit = (env.SESSION_IDLE_MINUTES + 4) * 60_000;
+  if (user.lastActiveAt && now - user.lastActiveAt.getTime() > idleLimit) {
+    throw new AppError(401, `No activity for ${env.SESSION_IDLE_MINUTES} minutes`);
+  }
+  // Anything that changes data counts as activity (reading pages in the background does not).
+  if (req.method !== "GET" && (!user.lastActiveAt || now - user.lastActiveAt.getTime() > 30_000)) {
+    await User.updateOne({ _id: user._id }, { lastActiveAt: new Date(now) });
   }
 
   req.user = toPublicUser(user);

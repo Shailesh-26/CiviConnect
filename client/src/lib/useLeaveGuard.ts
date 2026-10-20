@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef } from "react";
 import { useBlocker } from "react-router-dom";
+import { unsavedWork } from "./idle";
 
 // Logging out or being sent to the login page is never held back.
 const ALWAYS_ALLOWED = ["/", "/login"];
@@ -21,7 +22,11 @@ export function useLeaveGuard(dirty: boolean) {
     if (!dirty) return;
     const onLeave = (e: BeforeUnloadEvent) => e.preventDefault();
     window.addEventListener("beforeunload", onLeave);
-    return () => window.removeEventListener("beforeunload", onLeave);
+    unsavedWork.count++;
+    return () => {
+      window.removeEventListener("beforeunload", onLeave);
+      unsavedWork.count--;
+    };
   }, [dirty]);
 
   const allowLeave = useCallback(() => {

@@ -68,9 +68,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return data.user;
   }, []);
 
+  // Signed out here even if the server can't be reached, so "Log out" always works.
   const logout = useCallback(async () => {
-    await api("/auth/logout", { method: "POST" });
-    setUser(null);
+    try {
+      await api("/auth/logout", { method: "POST" });
+    } finally {
+      setUser(null);
+    }
   }, []);
 
   const updateUser = useCallback((next: User) => setUser(next), []);

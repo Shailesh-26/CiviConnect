@@ -1,5 +1,5 @@
 import crypto from "node:crypto";
-import type { RequestHandler } from "express";
+import type { RequestHandler, Response } from "express";
 import { env } from "../config/env";
 import { audit } from "../services/audit";
 import { emailLayout, mailConfigured, sendMail } from "../services/mailer";
@@ -10,6 +10,18 @@ import { hashPassword, verifyPassword } from "../utils/password";
 import { toPublicUser } from "../utils/publicUser";
 import { clearAuthCookie, setAuthCookie, signToken } from "../utils/token";
 import type { ChangePasswordInput, ForgotInput, LoginInput, RegisterInput, ResetInput, UpdateProfileInput } from "../validators/auth.schemas";
+
+// Signed in: the session cookie, and the inactivity clock starts now.
+async function startSession(res: Response, userId: string) {
+  setAuthCookie(res, signToken(userId));
+  await User.updateOne({ _id: userId }, { lastActiveAt: new Date() });
+}
+
+// The app calls this every minute or so while someone is using it (see client/src/components/IdleGuard.tsx).
+// Being a POST, authenticate() records the activity; there is nothing else to do.
+export const ping: RequestHandler = (_req, res) => {
+  res.json({ ok: true });
+};
 
 export const register: RequestHandler = async (req, res) => {
   const { name, email, password } = req.body as RegisterInput;
@@ -25,7 +37,7 @@ export const register: RequestHandler = async (req, res) => {
     role: "citizen",
   });
 
-  setAuthCookie(res, signToken(user.id));
+  await startSession(res, user.id);
   res.status(201).json({ user: toPublicUser(user) });
 };
 
@@ -43,7 +55,7 @@ export const login: RequestHandler = async (req, res) => {
     throw new AppError(403, "This account has been deactivated. Please contact your city admin to turn it back on.");
   }
 
-  setAuthCookie(res, signToken(user.id));
+  await startSession(res, user.id);
   res.json({ user: toPublicUser(user) });
 };
 
@@ -172,6 +184,6 @@ export const resetPassword: RequestHandler = async (req, res) => {
   });
 
   // Signed in straight away: they just proved they own the email address.
-  setAuthCookie(res, signToken(user.id));
+  await startSession(res, user.id);
   res.json({ user: toPublicUser(user) });
 };
