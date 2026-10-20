@@ -21,7 +21,7 @@ import {
   toggleHide,
 } from "../controllers/community.controller";
 import { authenticate, requireRole } from "../middleware/auth";
-import { upload } from "../middleware/upload";
+import { photos } from "../middleware/upload";
 import { validateBody } from "../middleware/validate";
 import { commentSchema, flagSchema } from "../validators/community.schemas";
 import { assignSchema, createIssueSchema, emergencySchema, statusSchema, verifySchema } from "../validators/issue.schemas";
@@ -47,7 +47,7 @@ const commentLimiter = rateLimit({
 
 issueRouter.use(authenticate);
 
-issueRouter.post("/", createLimiter, upload.array("photos", 3), validateBody(createIssueSchema), createIssue);
+issueRouter.post("/", createLimiter, photos("photos", 3), validateBody(createIssueSchema), createIssue);
 issueRouter.get("/", listIssues);
 issueRouter.get("/mine", listMine);
 issueRouter.get("/nearby", getNearby);
@@ -59,13 +59,13 @@ issueRouter.patch("/:id/assign", requireRole("admin"), validateBody(assignSchema
 issueRouter.patch(
   "/:id/status",
   requireRole("admin", "officer"),
-  upload.array("photos", 2),
+  photos("photos", 2),
   validateBody(statusSchema),
   updateStatus,
 );
 issueRouter.post("/:id/verify", requireRole("citizen"), validateBody(verifySchema), verifyIssue);
 issueRouter.get("/:id/comments", listComments);
-issueRouter.post("/:id/comments", commentLimiter, upload.array("photos", 2), validateBody(commentSchema), addComment);
+issueRouter.post("/:id/comments", commentLimiter, photos("photos", 2), validateBody(commentSchema), addComment);
 issueRouter.post("/:id/follow", toggleFollow);
 issueRouter.post("/:id/hide", toggleHide);
 issueRouter.post("/:id/flag", flagLimiter, validateBody(flagSchema), flagIssue);

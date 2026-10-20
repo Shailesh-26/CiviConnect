@@ -18,12 +18,12 @@ export function signToken(userId: string) {
   return jwt.sign({ sub: userId }, env.JWT_SECRET, { expiresIn: maxAgeSeconds });
 }
 
-export function verifyToken(token: string): string {
-  const payload = jwt.verify(token, env.JWT_SECRET);
+export function verifyToken(token: string): { userId: string; issuedAt: number } {
+  const payload = jwt.verify(token, env.JWT_SECRET, { algorithms: ["HS256"] });
   if (typeof payload === "string" || !payload.sub) {
     throw new Error("Invalid token payload");
   }
-  return payload.sub;
+  return { userId: payload.sub, issuedAt: payload.iat ?? 0 };
 }
 
 export function setAuthCookie(res: Response, token: string) {

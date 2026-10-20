@@ -37,6 +37,22 @@ export const errorHandler: ErrorRequestHandler = (err, _req, res, _next) => {
     return;
   }
 
+  if (err?.type === "entity.too.large") {
+    res.status(413).json({ message: "That is too much data to send at once" });
+    return;
+  }
+
+  if (err?.name === "CastError") {
+    res.status(400).json({ message: "Something in the request is not valid" });
+    return;
+  }
+
+  // Saved with a condition (see doc.$where), or a list inside it changed: someone else changed the record first.
+  if (err?.name === "DocumentNotFoundError" || err?.name === "VersionError") {
+    res.status(409).json({ message: "Someone else changed this just now. Refresh to see the latest and try again." });
+    return;
+  }
+
   if (err?.code === 11000) {
     res.status(409).json({ message: "A record with this value already exists" });
     return;

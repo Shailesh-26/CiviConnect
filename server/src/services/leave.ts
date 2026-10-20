@@ -46,6 +46,28 @@ export async function setLeave(officerId: string, on: boolean, until: Date | nul
   if (reason) officer.set("onLeaveReason", reason);
   await officer.save();
 
+  const { moved, receivers } = await handOverOpenIssues(officer, actor, "leave");
+  const handed = moved.filter((m) => m.to).length;
+  const summary = `${officer.name} on leave${until ? ` until ${fmt(until)}` : ""}${reason ? ` (${reason})` : ""}; ${handed} of ${moved.length} open issues reassigned`;
+  await audit(actor, "user.leave_started", { type: "user", id: officer.id }, summary, { moved });
+  await notify(await adminIds(), {
+    type: "leave",
+    title: `${officer.name} is on leave${until ? ` until ${fmt(until)}` : ""}`,
+    body: (reason ? `Reason: ${reason}. ` : "") + (moved.length ? `${handed} open ${handed === 1 ? "issue was" : "issues were"} handed to colleagues${moved.length - handed ? `, ${moved.length - handed} went back to Unassigned` : ""}.` : "No open issues needed to move."),
+    link: "/dashboard",
+  }, actor.id);
+  broadcast([...(await adminIds()), ...receivers], "refresh", { reason: "leave" });
+  return { officer, moved, back: noBack };
+}
+
+const AWAY: Record<"leave" | "inactive", string> = { leave: "is on leave", inactive: "is no longer an active officer" };
+
+/**
+ * Hand every open issue of an officer to the best available colleague (same smart routing as the
+ * Command Center), or back to the Unassigned lane when nobody fits. Used for leave, and when an
+ * admin deactivates an officer or changes their role, so no issue is left with someone who cannot act.
+ */
+export async function handOverOpenIssues(officer: { _id: Types.ObjectId; id: string; name: string }, actor: Actor, why: "leave" | "inactive") {
   const open = await Issue.find({ assignedTo: officer._id, status: { $in: OPEN_STATUSES } });
   const ctx = await routingContext();
   const moved: { ticket: string; to: string | null }[] = [];
@@ -59,32 +81,22 @@ export async function setLeave(officerId: string, on: boolean, until: Date | nul
     const name = issueName(issue);
     if (pick) {
       issue.assignedTo = new Types.ObjectId(pick.id);
-      issue.handedOverFrom = officer._id;
+      // Only leave remembers who had it, so the issue can go back when they return.
+      if (why === "leave") issue.handedOverFrom = officer._id;
       ctx.load.set(pick.id, (ctx.load.get(pick.id) ?? 0) + 1);
       receivers.add(pick.id);
-      issue.timeline.push({ status: issue.status, note: `Reassigned to ${pick.name}: ${officer.name} is on leave`, images: [], by: byId, byName: actor.name, at: now });
-      await notify([pick.id], { type: "assigned", title: `New assignment: ${name}`, body: `Handed over because ${officer.name} is on leave.`, issueId: issue.id, category: issue.category });
+      issue.timeline.push({ status: issue.status, note: `Reassigned to ${pick.name}: ${officer.name} ${AWAY[why]}`, images: [], by: byId, byName: actor.name, at: now });
+      await notify([pick.id], { type: "assigned", title: `New assignment: ${name}`, body: `Handed over because ${officer.name} ${AWAY[why]}.`, issueId: issue.id, category: issue.category });
     } else {
       issue.set("assignedTo", undefined);
-      issue.handedOverFrom = officer._id;
-      issue.timeline.push({ status: issue.status, note: `Back in the unassigned queue: ${officer.name} is on leave`, images: [], by: byId, byName: actor.name, at: now });
+      if (why === "leave") issue.handedOverFrom = officer._id;
+      issue.timeline.push({ status: issue.status, note: `Back in the unassigned queue: ${officer.name} ${AWAY[why]}`, images: [], by: byId, byName: actor.name, at: now });
     }
     issue.lastActivityAt = now;
     await issue.save();
     moved.push({ ticket: issue.ticket, to: pick?.name ?? null });
   }
-
-  const handed = moved.filter((m) => m.to).length;
-  const summary = `${officer.name} on leave${until ? ` until ${fmt(until)}` : ""}${reason ? ` (${reason})` : ""}; ${handed} of ${moved.length} open issues reassigned`;
-  await audit(actor, "user.leave_started", { type: "user", id: officer.id }, summary, { moved });
-  await notify(await adminIds(), {
-    type: "leave",
-    title: `${officer.name} is on leave${until ? ` until ${fmt(until)}` : ""}`,
-    body: (reason ? `Reason: ${reason}. ` : "") + (moved.length ? `${handed} open ${handed === 1 ? "issue was" : "issues were"} handed to colleagues${moved.length - handed ? `, ${moved.length - handed} went back to Unassigned` : ""}.` : "No open issues needed to move."),
-    link: "/dashboard",
-  }, actor.id);
-  broadcast([...(await adminIds()), ...receivers], "refresh", { reason: "leave" });
-  return { officer, moved, back: noBack };
+  return { moved, receivers };
 }
 
 /**

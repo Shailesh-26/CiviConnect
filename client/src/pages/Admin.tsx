@@ -115,7 +115,10 @@ function People() {
         );
         return true;
       }
-      toast.success(body.isActive === false ? `${target.name} can no longer log in.` : body.isActive ? `${target.name} can log in again.` : "Changes saved.", { title: "Updated" });
+      const moved = d.moved ?? [];
+      const handed = moved.filter((m) => m.to).length;
+      const handover = moved.length ? ` Their ${moved.length} open ${moved.length === 1 ? "issue went" : "issues went"} to ${handed === moved.length ? "colleagues" : handed ? `colleagues (${moved.length - handed} to Unassigned)` : "Unassigned"}.` : "";
+      toast.success((body.isActive === false ? `${target.name} can no longer log in.` : body.isActive ? `${target.name} can log in again.` : "Changes saved.") + handover, { title: "Updated" });
       return true;
     } catch (err) {
       toast.error(err instanceof ApiError ? err.message : "Could not save. Try again.");
@@ -217,7 +220,7 @@ function People() {
         icon={ShieldUser}
         tone="danger"
         title={`Deactivate ${confirmOff?.name ?? ""}?`}
-        message="They will be logged out and cannot sign in until you reactivate them. Their reports and history stay."
+        message={`They will be logged out and cannot sign in until you reactivate them. Their reports and history stay.${confirmOff?.role === "officer" ? " Their open issues go to colleagues straight away." : ""}`}
         confirmLabel="Deactivate"
         onConfirm={async () => {
           if (confirmOff) await patch(confirmOff, { isActive: false });

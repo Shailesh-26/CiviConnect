@@ -12,7 +12,8 @@
     "start": "node dist/server.js",
     "test": "tsx --test test/all.test.ts",
     "vision:index": "tsx src/scripts/indexPhotos.ts",
-    "vision:search": "tsx src/scripts/searchDebug.ts"
+    "vision:search": "tsx src/scripts/searchDebug.ts",
+    "attack": "tsx src/scripts/attack.ts"
   },
   "keywords": [],
   "author": "",

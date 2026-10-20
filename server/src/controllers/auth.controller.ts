@@ -113,7 +113,10 @@ export const changePassword: RequestHandler = async (req, res) => {
   }
 
   user.passwordHash = await hashPassword(newPassword);
+  user.passwordChangedAt = new Date();
   await user.save();
+  // Other devices are logged out; this one gets a fresh session so the person stays signed in here.
+  setAuthCookie(res, signToken(user.id));
   res.json({ message: "Password changed" });
 };
 
@@ -157,6 +160,7 @@ export const resetPassword: RequestHandler = async (req, res) => {
   if (!user) throw new AppError(400, "This reset link has expired or was already used. Ask for a new one.");
 
   user.passwordHash = await hashPassword(password);
+  user.passwordChangedAt = new Date();
   user.set({ resetTokenHash: undefined, resetTokenExpires: undefined });
   await user.save();
   await audit({ id: user.id, name: user.name, role: user.role }, "user.password_reset", { type: "user", id: user.id }, `${user.name} reset their password by email`);

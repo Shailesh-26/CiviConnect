@@ -12,7 +12,7 @@ import {
   uploadAvatar,
 } from "../controllers/auth.controller";
 import { authenticate } from "../middleware/auth";
-import { upload } from "../middleware/upload";
+import { photo } from "../middleware/upload";
 import { validateBody } from "../middleware/validate";
 import { changePasswordSchema, forgotSchema, loginSchema, registerSchema, resetSchema, updateProfileSchema } from "../validators/auth.schemas";
 
@@ -50,5 +50,5 @@ authRouter.post("/forgot", forgotLimiter, validateBody(forgotSchema), forgotPass
 authRouter.post("/reset", passwordLimiter, validateBody(resetSchema), resetPassword);
 authRouter.get("/me", authenticate, me);
 authRouter.patch("/me", authenticate, validateBody(updateProfileSchema), updateProfile);
-authRouter.post("/me/avatar", authenticate, upload.single("avatar"), uploadAvatar);
+authRouter.post("/me/avatar", authenticate, photo("avatar"), uploadAvatar);
 authRouter.patch("/me/password", authenticate, passwordLimiter, validateBody(changePasswordSchema), changePassword);

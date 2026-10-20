@@ -33,11 +33,15 @@ export async function sendMail(mail: Mail): Promise<boolean> {
   }
 }
 
+export const escapeHtml = (s: string) => s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!);
+
 // A plain, branded email body. Inline styles only, because email apps ignore stylesheets.
+// Every piece of text is escaped: a user's name like "<a href=...>" must arrive as plain text.
 export function emailLayout(title: string, paragraphs: string[], button?: { text: string; url: string }) {
-  const body = paragraphs.map((p) => `<p style="margin:0 0 14px;color:#334155;font-size:15px;line-height:1.55">${p}</p>`).join("");
+  title = escapeHtml(title);
+  const body = paragraphs.map((p) => `<p style="margin:0 0 14px;color:#334155;font-size:15px;line-height:1.55">${escapeHtml(p)}</p>`).join("");
   const cta = button
-    ? `<p style="margin:22px 0"><a href="${button.url}" style="background:#1f4e79;color:#fff;text-decoration:none;padding:12px 20px;border-radius:10px;font-weight:600;display:inline-block">${button.text}</a></p>`
+    ? `<p style="margin:22px 0"><a href="${escapeHtml(button.url)}" style="background:#1f4e79;color:#fff;text-decoration:none;padding:12px 20px;border-radius:10px;font-weight:600;display:inline-block">${escapeHtml(button.text)}</a></p>`
     : "";
   return `<div style="font-family:Segoe UI,Arial,sans-serif;background:#f4f5f1;padding:28px"><div style="max-width:520px;margin:auto;background:#fff;border-radius:16px;padding:28px;border:1px solid #e5e7eb">
 <p style="margin:0 0 18px;font-weight:700;font-size:18px;color:#1f4e79">Civi<span style="color:#e0a100">Connect</span></p>

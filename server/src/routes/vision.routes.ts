@@ -2,7 +2,7 @@ import { Router } from "express";
 import rateLimit from "express-rate-limit";
 import { classifyVision, getVisionStats, getVisionStatus, listFixFlags, reviewFixFlag, searchByWords, similarToPhoto } from "../controllers/vision.controller";
 import { authenticate, requireRole } from "../middleware/auth";
-import { upload } from "../middleware/upload";
+import { photo } from "../middleware/upload";
 
 export const visionRouter = Router();
 
@@ -16,7 +16,7 @@ const classifyLimiter = rateLimit({
 
 visionRouter.use(authenticate);
 visionRouter.get("/status", getVisionStatus);
-visionRouter.post("/classify", classifyLimiter, upload.single("image"), classifyVision);
+visionRouter.post("/classify", classifyLimiter, photo("image"), classifyVision);
 visionRouter.get("/stats", requireRole("admin"), getVisionStats);
 visionRouter.post("/similar", classifyLimiter, similarToPhoto);
 visionRouter.get("/search", requireRole("officer", "admin"), classifyLimiter, searchByWords);

@@ -59,7 +59,7 @@ const groupMatch = (g: Group) =>
  * They match the Field Desk tiles, so a tile can open exactly the issues it counts.
  */
 export async function pagedIssues(base: Record<string, unknown>, query: Record<string, unknown>, viewerId: string, defaultSort: Sort = "priority") {
-  const page = Math.max(1, Math.floor(Number(query.page) || 1));
+  const page = Math.min(10_000, Math.max(1, Math.floor(Number(query.page) || 1)));
   const limit = Math.min(50, Math.max(5, Math.floor(Number(query.limit) || 20)));
   const group: Group = (GROUPS as readonly string[]).includes(String(query.group)) ? (query.group as Group) : "all";
   const sort: Sort = (SORTS as readonly string[]).includes(String(query.sort)) ? (query.sort as Sort) : defaultSort;

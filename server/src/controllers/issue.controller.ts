@@ -62,7 +62,23 @@ const CHANNEL_LABEL: Record<Channel, string> = { phone: "phone call", walk_in: "
  *  - admin:   a complaint registered for a citizen who phoned, walked in or wrote. Needs the
  *    citizen's name and the channel. Merges like a citizen report.
  */
-export const createIssue: RequestHandler = async (req, res) => {
+// People whose report is being saved right now. A double-click sends two requests at once; the
+// second is refused here, because the "already reported nearby" check cannot see a report that is
+// still being saved.
+const sending = new Set<string>();
+
+export const createIssue: RequestHandler = async (req, res, next) => {
+  const key = req.user!.id;
+  if (sending.has(key)) throw new AppError(429, "Your report is still being sent. Please wait a moment.");
+  sending.add(key);
+  try {
+    await saveReport(req, res, next);
+  } finally {
+    sending.delete(key);
+  }
+};
+
+const saveReport: RequestHandler = async (req, res) => {
   const user = req.user!;
   const input = req.body as CreateIssueInput;
   const { category, description, lat, lng, address } = input;
@@ -332,6 +348,8 @@ export const assignIssue: RequestHandler = async (req, res) => {
     throw new AppError(400, `${officer.name} is on leave${until}. Choose another officer.`);
   }
 
+  // Save only if nobody changed it while we were deciding (two admins assigning at once).
+  issue.$where = { status: issue.status, assignedTo: issue.assignedTo ?? null };
   issue.assignedTo = officer._id;
   issue.lastActivityAt = new Date();
   if (issue.status === "reported") issue.status = "acknowledged";
@@ -381,8 +399,12 @@ export const updateStatus: RequestHandler = async (req, res) => {
     throw new AppError(403, "Only the assigned officer or an admin can update this issue");
   }
 
+  if (issue.status === status) {
+    // Usually two people on the same issue: the other one got there first.
+    throw new AppError(409, `This issue is already ${STATUS_NAME[status]}. Refresh to see the latest.`);
+  }
   if (!TRANSITIONS[issue.status].includes(status)) {
-    throw new AppError(400, `An issue cannot move from "${issue.status}" to "${status}"`);
+    throw new AppError(400, `This issue is ${STATUS_NAME[issue.status]} now, so it cannot be moved to ${STATUS_NAME[status]}. Refresh to see the latest.`);
   }
   if ((status === "resolved" || status === "rejected") && !note) {
     throw new AppError(400, "Add a short note explaining this decision");
@@ -398,6 +420,9 @@ export const updateStatus: RequestHandler = async (req, res) => {
   const images = await Promise.all(buffers.map((b) => uploadImage(b)));
 
   const previous = issue.status;
+  // Save only if the status is still what we checked: an officer and an admin acting at the same
+  // moment must not both succeed. The loser gets "Someone else changed this just now".
+  issue.$where = { status: previous };
   issue.status = status;
   issue.lastActivityAt = new Date();
   issue.resolvedAt = status === "resolved" ? new Date() : undefined;
@@ -453,6 +478,7 @@ export const verifyIssue: RequestHandler = async (req, res) => {
     throw new AppError(400, "Only resolved issues can be verified");
   }
 
+  issue.$where = { status: "resolved" };
   const userId = new Types.ObjectId(user.id);
   const existing = issue.verifications.find((v) => v.user.equals(userId));
   if (existing) {

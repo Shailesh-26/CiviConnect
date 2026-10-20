@@ -29,6 +29,8 @@ const userSchema = new Schema(
     role: { type: String, enum: USER_ROLES, default: "citizen", index: true },
     department: { type: String, trim: true },
     isActive: { type: Boolean, default: true },
+    // Sessions that started before this moment are refused (see middleware/auth.ts).
+    passwordChangedAt: { type: Date },
     avatar: { type: avatarSchema, default: undefined },
     bio: { type: String, trim: true, maxlength: 160 },
     homeArea: { type: String, trim: true, maxlength: 80 },

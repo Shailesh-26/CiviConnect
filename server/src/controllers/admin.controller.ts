@@ -8,7 +8,7 @@ import { CATEGORIES, Issue, OPEN_STATUSES, type Category } from "../models/Issue
 import { User } from "../models/User";
 import { audit } from "../services/audit";
 import { broadcast, adminIds } from "../services/notify";
-import { setLeave } from "../services/leave";
+import { handOverOpenIssues, setLeave } from "../services/leave";
 import { suggest, type OfficerLite } from "../services/routing";
 import { setSlaHours, slaHoursFor, slaTable } from "../services/sla";
 import { AppError } from "../utils/AppError";
@@ -62,6 +62,7 @@ export const updateUser: RequestHandler = async (req, res) => {
   if (!user) throw new AppError(404, "User not found");
 
   const changes: string[] = [];
+  const wasWorkingOfficer = user.role === "officer" && user.isActive;
   if (input.role && input.role !== user.role) {
     if (input.role === "officer" && !(input.department ?? user.department)) {
       throw new AppError(400, "Give the officer a department", { errors: [{ field: "department", message: "Department is required for officers" }] });
@@ -81,6 +82,15 @@ export const updateUser: RequestHandler = async (req, res) => {
   if (changes.length) await audit(req.user!, "user.updated", { type: "user", id }, `${user.name}: ${changes.join(", ")}`);
 
   let moved: { ticket: string; to: string | null }[] = [];
+  // No longer a working officer: their open issues go to colleagues (or Unassigned) at once.
+  if (wasWorkingOfficer && (user.role !== "officer" || !user.isActive)) {
+    const result = await handOverOpenIssues(user, req.user!, "inactive");
+    moved = result.moved;
+    if (moved.length) {
+      await audit(req.user!, "user.issues_handed_over", { type: "user", id }, `${user.name}'s ${moved.length} open ${moved.length === 1 ? "issue was" : "issues were"} handed over`, { moved });
+      broadcast([...(await adminIds()), ...result.receivers], "refresh", { reason: "handover" });
+    }
+  }
   let back: { returned: { ticket: string }[]; kept: { ticket: string }[] } | null = null;
   if (input.onLeave !== undefined && user.role === "officer") {
     const result = await setLeave(id, input.onLeave, input.leaveUntil ?? null, req.user!, input.leaveReason);
@@ -400,7 +410,7 @@ export const listAudit: RequestHandler = async (req, res) => {
   const filter = auditFilter(req.query);
   // Numbered pages (?page=2&limit=25), newest first.
   const limit = Math.min(100, Math.max(10, Math.floor(Number(req.query.limit) || 60)));
-  const page = Math.max(1, Math.floor(Number(req.query.page) || 1));
+  const page = Math.min(10_000, Math.max(1, Math.floor(Number(req.query.page) || 1)));
   const [rows, total] = await Promise.all([
     AuditLog.find(filter).sort({ createdAt: -1 }).skip((page - 1) * limit).limit(limit).lean(),
     AuditLog.countDocuments(filter),
