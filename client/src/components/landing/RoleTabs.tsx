@@ -1,10 +1,11 @@
-import { createElement, useState } from "react";
+import { createElement, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { ArrowRight, BriefcaseBusiness, Check, Radio, UserRound } from "lucide-react";
 import { CATEGORY_COLOR } from "../../lib/constants";
 import { useInView, useInterval } from "../../lib/useInView";
 import type { Category } from "../../types";
 import { CategoryIcon } from "../CategoryIcon";
+import { RoadArt } from "./RoadArt";
 
 const ROLES = [
   {
@@ -50,27 +51,79 @@ const ROLES = [
 
 type RoleId = (typeof ROLES)[number]["id"];
 
+// A tiny looping walk through the real report wizard: photo, problem, pin, details, submitted.
+const STEPS = ["Photo", "Problem", "Location", "Details", "Review"];
+const CATS: Category[] = ["pothole", "drainage", "garbage", "fallen_tree", "streetlight", "other"];
+const catName = (c: Category) => (c === "fallen_tree" ? "Fallen tree" : c === "streetlight" ? "Street light" : c[0].toUpperCase() + c.slice(1));
+
 function CitizenScreen() {
+  const [ref, inView] = useInView({ threshold: 0.3 });
+  const [step, setStep] = useState(0);
+  useInterval(() => setStep((s) => (s + 1) % STEPS.length), 1500, inView);
+
   return (
-    <div className="space-y-3">
+    <div ref={ref} className="space-y-3">
       <div className="flex gap-1.5">
-        {["Photo", "Problem", "Location", "Details", "Review"].map((s, i) => (
+        {STEPS.map((s, i) => (
           <div key={s} className="flex-1">
             <div className="h-1.5 overflow-hidden rounded-full bg-ink/10">
-              <div className="cc-wizard-fill h-full origin-left rounded-full bg-accent" style={{ animationDelay: `${i * 0.7}s` }} />
+              <div className="h-full origin-left rounded-full bg-accent transition-transform duration-500 ease-[cubic-bezier(.22,1,.36,1)]" style={{ transform: `scaleX(${i <= step ? 1 : 0})` }} />
             </div>
-            <p className="mt-1 text-[10px] text-ink/50">{s}</p>
+            <p className={`mt-1 text-[10px] transition-colors ${i === step ? "font-semibold text-accent" : "text-ink/50"}`}>{s}</p>
           </div>
         ))}
       </div>
-      <p className="font-display text-base font-semibold">What's the problem?</p>
-      <div className="grid grid-cols-3 gap-2">
-        {(["pothole", "drainage", "garbage", "fallen_tree", "streetlight", "other"] as Category[]).map((c, i) => (
-          <div key={c} className={`grid place-items-center gap-1 rounded-xl border p-2.5 text-[11px] font-medium ${i === 1 ? "cc-pick border-transparent text-white" : "border-ink/10 text-ink/60"}`} style={i === 1 ? { background: CATEGORY_COLOR[c] } : undefined}>
-            <CategoryIcon category={c} size={18} />
-            {c === "fallen_tree" ? "Fallen tree" : c === "streetlight" ? "Street light" : c[0].toUpperCase() + c.slice(1)}
+      <div key={step} className="min-h-40 animate-fade">
+        {step === 0 && (
+          <div className="relative h-40 overflow-hidden rounded-xl">
+            <RoadArt className="block h-full w-full" />
+            <div className="cc-scan pointer-events-none absolute inset-0" aria-hidden />
+            <span className="absolute bottom-2 left-1/2 -translate-x-1/2 rounded-full px-2.5 py-1 text-[11px] font-semibold text-white shadow-card animate-pop [animation-delay:700ms]" style={{ background: CATEGORY_COLOR.pothole }}>Pothole · 87%</span>
           </div>
-        ))}
+        )}
+        {step === 1 && (
+          <>
+            <p className="font-display text-base font-semibold">What's the problem?</p>
+            <div className="mt-2 grid grid-cols-3 gap-2">
+              {CATS.map((c) => (
+                <div key={c} className={`grid place-items-center gap-1 rounded-xl border p-2.5 text-[11px] font-medium transition-all duration-300 ${c === "pothole" ? "scale-105 border-transparent text-white shadow-card" : "border-ink/10 text-ink/60"}`} style={c === "pothole" ? { background: CATEGORY_COLOR[c] } : undefined}>
+                  <CategoryIcon category={c} size={18} />
+                  {catName(c)}
+                </div>
+              ))}
+            </div>
+          </>
+        )}
+        {step === 2 && (
+          <div className="relative h-40 overflow-hidden rounded-xl bg-ink/[0.04]">
+            <div className="grid-paper absolute inset-0" aria-hidden />
+            <svg viewBox="0 0 200 120" className="absolute inset-0 size-full" preserveAspectRatio="none" aria-hidden>
+              <path d="M0 70 H200 M80 0 V120 M150 0 V120" stroke="var(--c-ink)" strokeOpacity=".12" strokeWidth="9" />
+            </svg>
+            <span className="cc-pin-drop absolute left-[42%] top-[58%] grid size-8 place-items-center rounded-full rounded-bl-none -rotate-45 text-white shadow-card" style={{ background: CATEGORY_COLOR.pothole }}>
+              <span className="rotate-45"><CategoryIcon category="pothole" size={14} /></span>
+            </span>
+            <span className="absolute bottom-2 left-2 rounded-lg bg-surface px-2 py-1 text-[11px] font-medium shadow-card animate-pop [animation-delay:600ms]">Near Ameerpet metro station</span>
+          </div>
+        )}
+        {step === 3 && (
+          <div className="space-y-2 rounded-xl border border-ink/10 p-3">
+            <p className="text-[11px] font-semibold text-ink/60">Describe it</p>
+            <p className="cc-type inline-block max-w-full overflow-hidden whitespace-nowrap border-r-2 border-accent pr-0.5 text-xs text-ink/80">Deep pothole in the left lane, bikes swerving.</p>
+            <div className="flex items-center justify-between rounded-lg bg-ink/[0.04] px-2 py-1.5 text-[11px] text-ink/60">
+              Is anyone in danger right now? <span className="rounded-full bg-ink/10 px-2 py-0.5 font-semibold">No</span>
+            </div>
+          </div>
+        )}
+        {step === 4 && (
+          <div className="grid h-40 place-items-center rounded-xl bg-resolved/8 text-center">
+            <div>
+              <span className="mx-auto grid size-12 place-items-center rounded-full bg-resolved text-white shadow-card animate-pop"><Check size={24} strokeWidth={3} aria-hidden /></span>
+              <p className="mt-2 font-display text-base font-semibold">Submitted · CC-0142</p>
+              <p className="text-[11px] text-ink/55">You'll be told at every step until it's fixed.</p>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -135,6 +188,15 @@ export function RoleTabs() {
   const [index, setIndex] = useState(0);
   const [paused, setPaused] = useState(false);
   useInterval(() => setIndex((i) => (i + 1) % ROLES.length), 7000, inView && !paused);
+  // The header's Product menu can ask for a role ("Report wizard" shows the citizen's screen).
+  useEffect(() => {
+    const show = (e: Event) => {
+      const i = ROLES.findIndex((r) => r.id === (e as CustomEvent<string>).detail);
+      if (i >= 0) setIndex(i);
+    };
+    window.addEventListener("cc:show-role", show);
+    return () => window.removeEventListener("cc:show-role", show);
+  }, []);
   const role = ROLES[index];
 
   return (

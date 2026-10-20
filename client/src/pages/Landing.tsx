@@ -254,7 +254,7 @@ export default function Landing() {
         {failed && <p className="mt-4 text-sm text-ink/55">Live numbers are unavailable right now. Start the server to see them.</p>}
 
         <div className="mt-6 grid gap-4 lg:grid-cols-[1.6fr_1fr]">
-          <div ref={mapRef} className="reveal card overflow-hidden p-2.5">
+          <div ref={mapRef} id="live-map" className="reveal card scroll-mt-28 overflow-hidden p-2.5">
             {data && mapVisible ? (
               <Suspense fallback={<Skeleton className="h-[28rem] w-full !rounded-2xl" />}><PublicMap pins={data.pins} className="h-[28rem]" /></Suspense>
             ) : (
@@ -284,7 +284,7 @@ export default function Landing() {
                 {!stats && Array.from({ length: 6 }, (_, i) => <Skeleton key={i} className="h-7 w-full" />)}
               </ul>
             </div>
-            <div className="reveal card p-5">
+            <div id="live-feed" className="reveal card scroll-mt-28 p-5">
               <p className="flex items-center justify-between font-display text-base font-semibold">Just now <span className="text-xs font-normal text-ink/45">auto-updating</span></p>
               <ul className="mt-3 space-y-2">
                 {(data?.activity ?? []).slice(0, 5).map((a, i) => (

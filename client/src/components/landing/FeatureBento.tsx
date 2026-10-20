@@ -5,9 +5,9 @@ import { useInView, useInterval } from "../../lib/useInView";
 import { PriorityPlayground } from "./PriorityPlayground";
 import { ProofSlider } from "./ProofSlider";
 
-function Tile({ icon: Icon, kicker, title, text, className = "", children, delay = 0 }: { icon: typeof Bell; kicker: string; title: string; text: string; className?: string; children: React.ReactNode; delay?: number }) {
+function Tile({ id, icon: Icon, kicker, title, text, className = "", children, delay = 0 }: { id?: string; icon: typeof Bell; kicker: string; title: string; text: string; className?: string; children: React.ReactNode; delay?: number }) {
   return (
-    <article className={`reveal card card-hover flex flex-col overflow-hidden p-5 sm:p-6 ${className}`} style={{ "--rd": `${delay}ms` } as React.CSSProperties}>
+    <article id={id} className={`reveal card card-hover flex flex-col overflow-hidden p-5 sm:p-6 ${className}`} style={{ "--rd": `${delay}ms` } as React.CSSProperties}>
       <p className="flex items-center gap-2 text-xs font-semibold uppercase tracking-widest text-accent"><Icon size={14} aria-hidden /> {kicker}</p>
       <h3 className="mt-2 text-xl font-semibold sm:text-2xl">{title}</h3>
       <p className="mt-1.5 max-w-md text-sm text-ink/60">{text}</p>
@@ -150,7 +150,7 @@ export function FeatureBento() {
       <Tile icon={Radio} kicker="Real time" title="Live, without refreshing" text="Status changes, replies and escalations reach the right people the moment they happen." className="md:col-span-3">
         <LiveDemo />
       </Tile>
-      <Tile icon={Award} kicker="Accountability" title="Every area gets a report card" text="Wards are graded on what actually matters to residents. Hover a bar to see its weight." className="md:col-span-3" delay={80}>
+      <Tile id="report-cards" icon={Award} kicker="Accountability" title="Every area gets a report card" text="Wards are graded on what actually matters to residents. Hover a bar to see its weight." className="md:col-span-3" delay={80}>
         <GradeDemo />
       </Tile>
     </div>

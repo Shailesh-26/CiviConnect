@@ -5,6 +5,7 @@ import { useAuth } from "../auth/useAuth";
 import { AuthShell } from "../components/AuthShell";
 import { Field } from "../components/Field";
 import { ApiError } from "../lib/api";
+import { rules, useFormChecks } from "../lib/useFormChecks";
 
 // Shown only on the dev server. Matches the accounts created by `npm run seed:demo`.
 const DEMO_PASSWORD = "Demo@123";
@@ -22,27 +23,20 @@ export default function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
-  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [submitting, setSubmitting] = useState(false);
+  const form = useFormChecks({ email, password }, { email: rules.email, password: rules.required("Enter your password") });
 
   if (user) return <Navigate to={from} replace />;
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
     setError(null);
-    // Check the obvious things here, so each empty box gets its own message straight away.
-    const problems: Record<string, string> = {};
-    if (!email.trim()) problems.email = "Enter your email";
-    else if (!/^\S+@\S+\.\S+$/.test(email.trim())) problems.email = "That doesn't look like an email address";
-    if (!password) problems.password = "Enter your password";
-    setFieldErrors(problems);
-    if (Object.keys(problems).length) return;
-
+    if (!form.checkAll()) return;
     setSubmitting(true);
     try {
       await login(email.trim(), password);
     } catch (err) {
-      if (err instanceof ApiError && Object.keys(err.fieldErrors).length) setFieldErrors(err.fieldErrors);
+      if (err instanceof ApiError && Object.keys(err.fieldErrors).length) form.setServerErrors(err.fieldErrors);
       else setError(err instanceof ApiError ? err.message : "Something went wrong. Try again.");
       setSubmitting(false);
     }
@@ -51,9 +45,9 @@ export default function Login() {
   return (
     <AuthShell title="Welcome back" subtitle="Log in to track your reports and see what has been fixed.">
       <form onSubmit={onSubmit} className="mt-6 space-y-4" noValidate>
-        <Field label="Email" type="email" value={email} onChange={setEmail} autoComplete="email" icon={Mail} error={fieldErrors.email} />
+        <Field label="Email" type="email" value={email} onChange={setEmail} autoComplete="email" icon={Mail} error={form.errors.email} onBlur={() => form.blur("email")} />
         <div>
-          <Field label="Password" type="password" value={password} onChange={setPassword} autoComplete="current-password" icon={Lock} error={fieldErrors.password} />
+          <Field label="Password" type="password" value={password} onChange={setPassword} autoComplete="current-password" icon={Lock} error={form.errors.password} onBlur={() => form.blur("password")} />
           <p className="mt-1.5 text-right text-xs"><Link to="/forgot-password" className="font-semibold text-accent hover:underline">Forgot password?</Link></p>
         </div>
         {error && (

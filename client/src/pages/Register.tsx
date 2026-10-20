@@ -5,6 +5,7 @@ import { useAuth } from "../auth/useAuth";
 import { AuthShell } from "../components/AuthShell";
 import { Field } from "../components/Field";
 import { ApiError } from "../lib/api";
+import { rules, useFormChecks } from "../lib/useFormChecks";
 
 function strength(password: string) {
   let score = 0;
@@ -29,9 +30,9 @@ export default function Register() {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const form = useFormChecks({ name, email, password }, { name: rules.name, email: rules.email, password: rules.newPassword });
 
   const score = strength(password);
 
@@ -40,13 +41,13 @@ export default function Register() {
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
     setError(null);
-    setFieldErrors({});
+    if (!form.checkAll()) return;
     setSubmitting(true);
     try {
-      await register(name, email, password);
+      await register(name.trim(), email.trim(), password);
     } catch (err) {
       if (err instanceof ApiError) {
-        setFieldErrors(err.fieldErrors);
+        form.setServerErrors(err.fieldErrors);
         if (Object.keys(err.fieldErrors).length === 0) setError(err.message);
       } else {
         setError("Something went wrong. Try again.");
@@ -58,8 +59,8 @@ export default function Register() {
   return (
     <AuthShell title="Join your neighbours" subtitle="Create a free account and start fixing what is broken around you.">
       <form onSubmit={onSubmit} className="mt-6 space-y-4" noValidate>
-        <Field label="Full name" value={name} onChange={setName} autoComplete="name" error={fieldErrors.name} icon={User} />
-        <Field label="Email" type="email" value={email} onChange={setEmail} autoComplete="email" error={fieldErrors.email} icon={Mail} />
+        <Field label="Full name" value={name} onChange={setName} autoComplete="name" error={form.errors.name} onBlur={() => form.blur("name")} icon={User} />
+        <Field label="Email" type="email" value={email} onChange={setEmail} autoComplete="email" error={form.errors.email} onBlur={() => form.blur("email")} icon={Mail} />
         <div>
           <Field
             label="Password"
@@ -68,7 +69,8 @@ export default function Register() {
             onChange={setPassword}
             autoComplete="new-password"
             hint="At least 8 characters, with a letter and a number."
-            error={fieldErrors.password}
+            error={form.errors.password}
+            onBlur={() => form.blur("password")}
             icon={Lock}
           />
           {password && (

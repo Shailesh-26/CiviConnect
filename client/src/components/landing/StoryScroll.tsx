@@ -78,20 +78,41 @@ function Visual({ step }: { step: number }) {
   );
 }
 
-// Scroll-driven story: the step in the middle of the screen lights up and the sticky picture follows it.
+// Scroll-driven story: the step nearest the middle of the screen lights up and the sticky picture follows it.
 export function StoryScroll() {
   const [active, setActive] = useState(0);
 
+  // Whichever step is closest to the middle of the screen is the active one. Measured on scroll
+  // (once per frame), so it works with smooth scrolling, any screen height and any browser zoom.
   useEffect(() => {
     const items = Array.from(document.querySelectorAll<HTMLElement>("[data-story]"));
-    const io = new IntersectionObserver(
-      (entries) => {
-        for (const e of entries) if (e.isIntersecting) setActive(Number((e.target as HTMLElement).dataset.story));
-      },
-      { rootMargin: "-48% 0px -48% 0px" },
-    );
-    items.forEach((el) => io.observe(el));
-    return () => io.disconnect();
+    let frame = 0;
+    const update = () => {
+      frame = 0;
+      const middle = window.innerHeight / 2;
+      let best = 0;
+      let bestDistance = Infinity;
+      items.forEach((el, i) => {
+        const r = el.getBoundingClientRect();
+        const distance = Math.abs(r.top + r.height / 2 - middle);
+        if (distance < bestDistance) {
+          bestDistance = distance;
+          best = i;
+        }
+      });
+      setActive(best);
+    };
+    const schedule = () => {
+      if (!frame) frame = requestAnimationFrame(update);
+    };
+    window.addEventListener("scroll", schedule, { passive: true });
+    window.addEventListener("resize", schedule);
+    schedule();
+    return () => {
+      window.removeEventListener("scroll", schedule);
+      window.removeEventListener("resize", schedule);
+      cancelAnimationFrame(frame);
+    };
   }, []);
 
   return (

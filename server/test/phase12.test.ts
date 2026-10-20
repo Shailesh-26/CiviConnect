@@ -38,10 +38,10 @@ test("fix check: nothing to compare with is not held against the officer", () =>
 import { pickRivals, splitByRelevance, strongestRival, SEARCH_MIN_SCORE } from "../src/utils/searchRelevance";
 
 test("photo search keeps only photos close to the best match", () => {
-  const ranked = [0.31, 0.3, 0.27, 0.24, 0.22, 0.2, 0.15].map((s) => ({ s }));
+  const ranked = [0.36, 0.34, 0.3, 0.27, 0.22, 0.2, 0.15].map((s) => ({ s }));
   const { strong, looser } = splitByRelevance(ranked, (x) => x.s, 24);
-  assert.deepEqual(strong.map((x) => x.s), [0.31, 0.3, 0.27]);
-  assert.deepEqual(looser.map((x) => x.s), [0.24, 0.22, 0.2]);
+  assert.deepEqual(strong.map((x) => x.s), [0.36, 0.34, 0.3]);
+  assert.deepEqual(looser.map((x) => x.s), [0.27, 0.22, 0.2]);
 });
 
 test("photo search returns no strong matches when nothing is similar", () => {
@@ -73,4 +73,19 @@ test("the rival that means the same as the search words is ignored", () => {
   assert.deepEqual(kept.map((r) => r.key), ["streetlight"]);
   const photo = unit([0.2, 0, 1, ...Array(13).fill(0)]);
   assert.equal(strongestRival(photo, kept)?.key, "streetlight");
+});
+
+// Real numbers from "npm run vision:search -- garbage" on the demo city (2026-10-20):
+// [score for "garbage", the photo's real category, strongest other category score].
+test("photo search on real scores for garbage keeps the garbage photos and drops the rest", () => {
+  const rows: [number, string, number][] = [
+    [0.284, "garbage", 0.207], [0.26, "garbage", 0.232], [0.258, "streetlight", 0.307], [0.257, "streetlight", 0.287],
+    [0.255, "garbage", 0.192], [0.243, "garbage", 0.233], [0.233, "drainage", 0.333], [0.231, "drainage", 0.26],
+    [0.231, "garbage", 0.232], [0.23, "garbage", 0.213], [0.228, "drainage", 0.275], [0.226, "pothole", 0.29],
+    [0.224, "garbage", 0.214], [0.223, "garbage", 0.23], [0.219, "streetlight", 0.275], [0.218, "garbage", 0.235],
+  ];
+  const ranked = rows.map(([s, category, rival]) => ({ s, category, beats: s >= rival - 0.005 }));
+  const { strong } = splitByRelevance(ranked, (x) => x.s, 24, (x) => x.beats);
+  assert.ok(strong.length >= 7);
+  assert.ok(strong.every((x) => x.category === "garbage"));
 });

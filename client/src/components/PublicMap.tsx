@@ -2,7 +2,8 @@ import { useEffect } from "react";
 import L from "leaflet";
 import { MapContainer, Marker, Popup, TileLayer, useMap } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
-import { issueLabel, STATUS_META } from "../lib/constants";
+import { issueLabel } from "../lib/constants";
+import { StatusBadge } from "./StatusBadge";
 import { makePin } from "../lib/pins";
 import type { PublicOverview } from "../types";
 
@@ -34,8 +35,10 @@ export function PublicMap({ pins, className = "h-[26rem]" }: { pins: Pin[]; clas
         >
           <Popup>
             <p className="font-display text-base font-semibold">{issueLabel(pin)}</p>
-            <p className="mt-0.5 text-xs text-ink/60">
-              {STATUS_META[pin.status].label} · {pin.reportCount} {pin.reportCount === 1 ? "report" : "reports"}
+            <p className="mt-0.5 text-xs text-ink/55">{pin.ticket}</p>
+            <p className="mt-2 flex items-center gap-2 text-xs">
+              <StatusBadge status={pin.status} />
+              <span className="text-ink/65">{pin.reportCount} {pin.reportCount === 1 ? "report" : "reports"}</span>
             </p>
           </Popup>
         </Marker>

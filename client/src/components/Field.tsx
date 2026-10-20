@@ -10,9 +10,10 @@ type Props = {
   hint?: string;
   error?: string;
   icon?: LucideIcon;
+  onBlur?: () => void;
 };
 
-export function Field({ label, value, onChange, type = "text", autoComplete, hint, error, icon: Icon }: Props) {
+export function Field({ label, value, onChange, type = "text", autoComplete, hint, error, icon: Icon, onBlur }: Props) {
   const id = useId();
   const [shown, setShown] = useState(false);
   const isPassword = type === "password";
@@ -30,7 +31,9 @@ export function Field({ label, value, onChange, type = "text", autoComplete, hin
           value={value}
           autoComplete={autoComplete}
           aria-invalid={error ? true : undefined}
+          aria-describedby={error || hint ? `${id}-msg` : undefined}
           onChange={(e) => onChange(e.target.value)}
+          onBlur={onBlur}
           className={`input ${Icon ? "!pl-10" : ""} ${isPassword ? "!pr-11" : ""}`}
         />
         {isPassword && (
@@ -44,7 +47,7 @@ export function Field({ label, value, onChange, type = "text", autoComplete, hin
           </button>
         )}
       </div>
-      {error ? <p className="mt-1.5 text-sm text-alert">{error}</p> : hint ? <p className="mt-1.5 text-xs text-ink/55">{hint}</p> : null}
+      {error ? <p id={`${id}-msg`} className="mt-1.5 text-sm text-alert animate-fade">{error}</p> : hint ? <p id={`${id}-msg`} className="mt-1.5 text-xs text-ink/55">{hint}</p> : null}
     </div>
   );
 }

@@ -1,16 +1,31 @@
 import { useEffect, useRef, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Award, ArrowRight, ChevronDown, FilePlus2, Map as MapIcon, Radar, Radio } from "lucide-react";
 import { useAuth } from "../../auth/useAuth";
 import { Logo } from "../Logo";
 import { ThemeToggle } from "../ThemeToggle";
 
+// Logged out, each item scrolls to the part of this page that shows it (and flashes it).
+// Logged in, it opens the real page in the app.
 const PRODUCT = [
-  { icon: FilePlus2, title: "Report wizard", text: "Photo, pin, details. Done in under a minute.", tone: "bg-marker/20 text-marker-dark" },
-  { icon: Radar, title: "Neighbourhood", text: "Everything reported within 2 km of you.", tone: "bg-accent/12 text-accent" },
-  { icon: MapIcon, title: "Explore the city", text: "Clusters, heat and live pins on one map.", tone: "bg-resolved/15 text-resolved" },
-  { icon: Award, title: "Area report cards", text: "Every ward graded on how fast it fixes things.", tone: "bg-alert/10 text-alert" },
+  { icon: FilePlus2, title: "Report wizard", text: "Photo, pin, details. Done in under a minute.", tone: "bg-marker/20 text-marker-dark", target: "roles", role: "citizen", app: "/report" },
+  { icon: Radar, title: "Neighbourhood", text: "Everything reported within 2 km of you.", tone: "bg-accent/12 text-accent", target: "live-feed", app: "/neighbourhood" },
+  { icon: MapIcon, title: "Explore the city", text: "Clusters, heat and live pins on one map.", tone: "bg-resolved/15 text-resolved", target: "live-map", app: "/map" },
+  { icon: Award, title: "Area report cards", text: "Every ward graded on how fast it fixes things.", tone: "bg-alert/10 text-alert", target: "report-cards", app: "/insights" },
 ];
+
+// Scrolls to a section even if the address already ends in that #hash, then briefly outlines it.
+function scrollToSection(id: string, role?: string) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  if (role) window.dispatchEvent(new CustomEvent("cc:show-role", { detail: role }));
+  el.scrollIntoView({ behavior: "smooth", block: id === "roles" ? "start" : "center" });
+  history.replaceState(null, "", `#${id}`);
+  const flashed = id === "roles" ? el.querySelector<HTMLElement>(".shadow-lift") ?? el : el;
+  flashed.classList.remove("cc-flash");
+  window.setTimeout(() => flashed.classList.add("cc-flash"), 450);
+  window.setTimeout(() => flashed.classList.remove("cc-flash"), 2400);
+}
 
 const LINKS = [
   { href: "#roles", label: "Who it's for" },
@@ -23,6 +38,7 @@ const SECTIONS = ["features", "roles", "how", "live", "faq"];
 
 export function LandingHeader() {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [scrolled, setScrolled] = useState(false);
   const [active, setActive] = useState("");
   const [menu, setMenu] = useState(false);
@@ -119,9 +135,18 @@ export function LandingHeader() {
             <div className="cc-menu absolute left-1/2 top-full w-[34rem] pt-3" data-open={product}>
               <div className="grid grid-cols-[1fr_12rem] gap-2 rounded-3xl border border-ink/10 bg-surface/95 p-2 shadow-lift backdrop-blur-xl">
                 <ul className="grid gap-1">
-                  {PRODUCT.map(({ icon: Icon, title, text, tone }, i) => (
+                  {PRODUCT.map(({ icon: Icon, title, text, tone, target, role, app }, i) => (
                     <li key={title} className="cc-menu-item" style={{ transitionDelay: product ? `${60 + i * 35}ms` : "0ms" }}>
-                      <a href="#features" onClick={() => setProduct(false)} className="group flex gap-3 rounded-2xl p-3 transition-colors hover:bg-ink/5">
+                      <a
+                        href={user ? app : `#${target}`}
+                        onClick={(e) => {
+                          e.preventDefault();
+                          setProduct(false);
+                          if (user) navigate(app);
+                          else scrollToSection(target, role);
+                        }}
+                        className="group flex gap-3 rounded-2xl p-3 transition-colors hover:bg-ink/5"
+                      >
                         <span className={`grid size-10 shrink-0 place-items-center rounded-xl transition-transform duration-300 group-hover:scale-110 ${tone}`}><Icon size={19} aria-hidden /></span>
                         <span>
                           <span className="block text-sm font-semibold">{title}</span>
@@ -131,7 +156,7 @@ export function LandingHeader() {
                     </li>
                   ))}
                 </ul>
-                <a href="#live" onClick={() => setProduct(false)} className="group relative flex flex-col justify-end overflow-hidden rounded-2xl bg-signboard p-4 text-white">
+                <a href="#live" onClick={(e) => { e.preventDefault(); setProduct(false); scrollToSection("live"); }} className="group relative flex flex-col justify-end overflow-hidden rounded-2xl bg-signboard p-4 text-white">
                   <span className="grid-paper absolute inset-0 opacity-30" aria-hidden />
                   <span className="absolute right-4 top-4 flex size-3">
                     <span className="absolute inline-flex size-full animate-pulse-ring rounded-full bg-marker" />

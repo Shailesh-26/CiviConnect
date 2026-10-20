@@ -1,13 +1,14 @@
 import { cosine } from "./vectors";
 
+// Tuned on real scores from the demo city (see test "photo search on real scores for garbage").
 // CLIP gives every photo some similarity to any sentence, so "the 24 closest" always fills up even
 // when only three photos really match. Two checks decide what counts as a match:
 //  1. Rivals: the photo must look more like the search words than like any OTHER kind of civic
 //     problem (a broken street light with litter around it is closer to "a broken street light"
 //     than to "garbage"). This compares scores with each other, so it needs no tuned threshold.
 //  2. Closeness: it must also be near the best match and above a small floor.
-export const SEARCH_MIN_SCORE = 0.2;
-export const SEARCH_MARGIN = 0.05;
+export const SEARCH_MIN_SCORE = 0.21;
+export const SEARCH_MARGIN = 0.08;
 export const RIVAL_SLACK = 0.005;
 export const SAME_MEANING = 0.9;
 const LOOSER_MAX = 12;
