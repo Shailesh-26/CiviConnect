@@ -1,3 +1,5 @@
+import { looksUnreachable, reportReachable } from "./connection";
+
 export class ApiError extends Error {
   status: number;
   fieldErrors: Record<string, string>;
@@ -26,10 +28,16 @@ export async function api<T>(path: string, { method = "GET", body }: Options = {
       body: body ? (isForm ? body : JSON.stringify(body)) : undefined,
     });
   } catch {
+    reportReachable(false);
     throw new ApiError(0, "Cannot reach the server. Check your connection and try again.");
   }
 
   const data = await res.json().catch(() => null);
+  if (looksUnreachable(res.status, data)) {
+    reportReachable(false);
+    throw new ApiError(0, "Cannot reach the server. Check your connection and try again.");
+  }
+  reportReachable(true);
 
   if (!res.ok) {
     const fieldErrors: Record<string, string> = {};

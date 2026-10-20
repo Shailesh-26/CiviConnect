@@ -16,9 +16,12 @@ export function useLiveRefresh(reload: () => void, fallbackMs = 60_000) {
       timer = window.setTimeout(() => fn.current(), 600);
     };
     const off = subscribe(later);
+    // After the server comes back, reload once so the page isn't showing stale numbers.
+    window.addEventListener("cc:back-online", later);
     const every = window.setInterval(() => fn.current(), fallbackMs);
     return () => {
       off();
+      window.removeEventListener("cc:back-online", later);
       window.clearInterval(every);
       window.clearTimeout(timer);
     };

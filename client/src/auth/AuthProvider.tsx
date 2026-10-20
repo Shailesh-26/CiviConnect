@@ -7,13 +7,33 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
+  // Who is logged in? If the server can't be reached, keep asking every few seconds instead of
+  // treating it as "logged out", so a server restart never throws anyone back to the login page.
   useEffect(() => {
-    api<{ user: User }>("/auth/me")
-      .then((data) => setUser(data.user))
-      .catch((err) => {
-        if (!(err instanceof ApiError) || err.status !== 401) console.error(err);
-      })
-      .finally(() => setLoading(false));
+    let active = true;
+    let timer: number | undefined;
+    const check = () => {
+      api<{ user: User }>("/auth/me")
+        .then((data) => {
+          if (!active) return;
+          setUser(data.user);
+          setLoading(false);
+        })
+        .catch((err) => {
+          if (!active) return;
+          if (err instanceof ApiError && err.status === 0) {
+            timer = window.setTimeout(check, 4000);
+            return;
+          }
+          if (!(err instanceof ApiError) || err.status !== 401) console.error(err);
+          setLoading(false);
+        });
+    };
+    check();
+    return () => {
+      active = false;
+      window.clearTimeout(timer);
+    };
   }, []);
 
   const login = useCallback(async (email: string, password: string) => {

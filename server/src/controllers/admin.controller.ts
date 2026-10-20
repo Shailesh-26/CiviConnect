@@ -354,10 +354,30 @@ export const updateCategory: RequestHandler = async (req, res) => {
 
 // ---------------------------------------------------------------- Audit log
 
-// The whole audit log (or one filter of it) to download. ?format=csv (default) or json (for the printable PDF view).
-export const exportAudit: RequestHandler = async (req, res) => {
+// Audit filters shared by the list and the export: action type, who did it (role), and a date range.
+// Dates are whole days in India time: from=2026-10-01&to=2026-10-20 includes all of the 20th.
+function auditFilter(q: Record<string, unknown>) {
   const filter: Record<string, unknown> = {};
-  if (typeof req.query.action === "string" && /^[a-z_.]+$/.test(req.query.action)) filter.action = { $regex: `^${req.query.action}` };
+  if (typeof q.action === "string" && /^[a-z_.]+$/.test(q.action)) filter.action = { $regex: `^${q.action}` };
+  if (typeof q.role === "string" && ["admin", "officer", "citizen", "system"].includes(q.role)) filter.actorRole = q.role;
+  const day = (v: unknown, end: boolean) => (typeof v === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v) ? new Date(`${v}T${end ? "23:59:59.999" : "00:00:00"}+05:30`) : null);
+  const from = day(q.from, false);
+  const to = day(q.to, true);
+  const range: Record<string, Date> = {};
+  if (from) range.$gte = from;
+  if (to) range.$lte = to;
+  if (typeof q.before === "string" && !Number.isNaN(Date.parse(q.before))) range.$lt = new Date(q.before);
+  if (Object.keys(range).length) filter.createdAt = range;
+  return filter;
+}
+
+// The audit log, filtered, to download. ?format=csv (default), json (for the printable PDF view) or count.
+export const exportAudit: RequestHandler = async (req, res) => {
+  const filter = auditFilter(req.query);
+  if (req.query.format === "count") {
+    res.json({ total: await AuditLog.countDocuments(filter) });
+    return;
+  }
   const json = req.query.format === "json";
   const rows = await AuditLog.find(filter).sort({ createdAt: -1 }).limit(json ? 2000 : 20000).lean();
   if (json) {
@@ -369,17 +389,15 @@ export const exportAudit: RequestHandler = async (req, res) => {
     ["time_ist", "time_utc", "who", "role", "action", "what_happened", "target_type", "target_id"],
     rows.map((a) => [ist(a.createdAt), new Date(a.createdAt).toISOString(), a.actorName, a.actorRole, a.action, a.summary, a.targetType ?? "", a.targetId ?? ""]),
   );
-  const day = new Date().toISOString().slice(0, 10);
-  const name = `civiconnect-audit-log${typeof req.query.action === "string" && req.query.action ? `-${req.query.action.replace(/[^a-z_]/g, "")}` : ""}-${day}.csv`;
+  const part = (v: unknown) => (typeof v === "string" && v ? `-${v.replace(/[^a-z0-9_-]/gi, "")}` : "");
+  const name = `civiconnect-audit-log${part(req.query.action)}${part(req.query.role)}${part(req.query.from)}${req.query.to ? `-to${part(req.query.to)}` : ""}.csv`;
   res.setHeader("Content-Type", "text/csv; charset=utf-8");
   res.setHeader("Content-Disposition", `attachment; filename="${name}"`);
   res.send(csv);
 };
 
 export const listAudit: RequestHandler = async (req, res) => {
-  const filter: Record<string, unknown> = {};
-  if (typeof req.query.action === "string" && /^[a-z_.]+$/.test(req.query.action)) filter.action = { $regex: `^${req.query.action}` };
-  if (typeof req.query.before === "string" && !Number.isNaN(Date.parse(req.query.before))) filter.createdAt = { $lt: new Date(req.query.before) };
+  const filter = auditFilter(req.query);
   // Numbered pages (?page=2&limit=25), newest first.
   const limit = Math.min(100, Math.max(10, Math.floor(Number(req.query.limit) || 60)));
   const page = Math.max(1, Math.floor(Number(req.query.page) || 1));

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
 import { createPortal } from "react-dom";
 import { Link, useSearchParams } from "react-router-dom";
-import { Download, FileText,
+import { Download,
   BrainCircuit,
   Plane,
   Bot,
@@ -24,6 +24,7 @@ import { useAuth } from "../auth/useAuth";
 import { Avatar } from "../components/Avatar";
 import { CategoryChip } from "../components/CategoryChip";
 import { ConfirmDialog } from "../components/ConfirmDialog";
+import { AuditExportDialog } from "../components/AuditExportDialog";
 import { DepartmentPicker } from "../components/DepartmentPicker";
 import { LeaveDialog } from "../components/LeaveDialog";
 import { Pagination } from "../components/Pagination";
@@ -558,15 +559,17 @@ function AuditLog() {
   const [printing, setPrinting] = useState<{ entries: AuditEntry[]; total: number } | null>(null);
   const [preparing, setPreparing] = useState(false);
   const filterLabel = AUDIT_FILTERS.find((f) => f.id === filter)?.label ?? "Everything";
-  async function exportPdf() {
+  const [exporting, setExporting] = useState(false);
+  const [printLabel, setPrintLabel] = useState(filterLabel);
+  async function exportPdf(params: URLSearchParams, label: string) {
     setPreparing(true);
     try {
-      const params = new URLSearchParams({ format: "json" });
-      if (filter) params.set("action", filter);
+      params.set("format", "json");
       const d = await api<{ entries: AuditEntry[]; total: number }>(`/admin/audit/export?${params}`);
+      setPrintLabel(label);
       setPrinting(d);
       const before = document.title;
-      document.title = `CiviConnect audit log - ${filterLabel} - ${new Date().toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}`;
+      document.title = `CiviConnect audit log - ${label}`;
       window.addEventListener("afterprint", () => { document.title = before; setPrinting(null); }, { once: true });
       // Let React draw the table before the print dialog takes its snapshot.
       window.setTimeout(() => window.print(), 150);
@@ -581,7 +584,7 @@ function AuditLog() {
         <section className="print-only">
           <header className="print-only mb-4 border-b-2 border-black pb-3">
             <p className="text-[10pt] font-semibold uppercase tracking-widest">CiviConnect · Audit log</p>
-            <h1 className="mt-1 text-[18pt] font-bold">Every recorded action: {filterLabel.toLowerCase()}</h1>
+            <h1 className="mt-1 text-[18pt] font-bold">Audit log: {printLabel}</h1>
             <p className="mt-1 text-[10pt]">Printed {new Date().toLocaleString("en-IN", { dateStyle: "long", timeStyle: "short" })} · {printing.entries.length < printing.total ? `latest ${printing.entries.length} of ${printing.total} entries (download the CSV for all)` : `${printing.total} entries`}</p>
           </header>
           <table className="audit-print w-full border-collapse text-[9pt]">
@@ -600,16 +603,14 @@ function AuditLog() {
           </table>
         </section>
       )}
+      <AuditExportDialog key={String(exporting)} open={exporting} actions={AUDIT_FILTERS} defaultAction={filter} onClose={() => setExporting(false)} onPdf={(params, label) => void exportPdf(params, label)} />
       <div className="no-print flex flex-wrap items-center gap-1.5">
         {AUDIT_FILTERS.map((f) => (
           <button key={f.id} type="button" onClick={() => { setFilter(f.id); setPage(1); }} className={`rounded-full px-3.5 py-1.5 text-sm font-medium ${filter === f.id ? "bg-ink text-paper" : "text-ink/65 hover:bg-ink/6"}`}>
             {f.label}
           </button>
         ))}
-        <span className="ml-auto flex gap-1.5">
-          <a href={`/api/admin/audit/export${filter ? `?action=${filter}` : ""}`} download className="btn btn-outline !rounded-full !py-1.5 text-xs"><Download size={14} aria-hidden /> CSV</a>
-          <button type="button" onClick={exportPdf} disabled={preparing} className="btn btn-outline !rounded-full !py-1.5 text-xs"><FileText size={14} aria-hidden /> {preparing ? "Preparing…" : "PDF"}</button>
-        </span>
+        <button type="button" onClick={() => setExporting(true)} disabled={preparing} className="btn btn-outline ml-auto !rounded-full !py-1.5 text-xs"><Download size={14} aria-hidden /> {preparing ? "Preparing PDF…" : "Export"}</button>
       </div>
       {entries === null ? (
         <ListSkeleton rows={5} />
