@@ -7,15 +7,7 @@
     <meta name="description" content="CiviConnect: report civic problems, watch them get merged, prioritised and fixed with proof." />
     <meta name="theme-color" content="#1f4e79" />
     <title>CiviConnect · Fix your street</title>
-    <script>
-      (function () {
-        try {
-          var saved = localStorage.getItem("cc-theme");
-          var dark = saved ? saved === "dark" : window.matchMedia("(prefers-color-scheme: dark)").matches;
-          if (dark) document.documentElement.classList.add("dark");
-        } catch (e) {}
-      })();
-    </script>
+    <script src="/theme.js"></script>
   </head>
   <body>
     <div id="root"></div>

@@ -10,7 +10,9 @@ const isProd = env.NODE_ENV === "production";
 const cookieOptions = {
   httpOnly: true,
   secure: isProd,
-  sameSite: isProd ? ("none" as const) : ("lax" as const),
+  // The site and the API share one address, so the cookie never needs to travel cross-site. "lax" keeps
+  // other websites from sending it with their forms (protection against cross-site request forgery).
+  sameSite: "lax" as const,
   path: "/",
 };
 

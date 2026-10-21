@@ -1,0 +1,10 @@
+{
+  "name": "civiconnect",
+  "private": true,
+  "description": "Build and start scripts used by Render: one service sends both the website and the API.",
+  "engines": { "node": ">=22" },
+  "scripts": {
+    "build": "npm ci --prefix client --include=dev && npm run build --prefix client && npm ci --prefix server --include=dev && npm run build --prefix server",
+    "start": "npm start --prefix server"
+  }
+}
