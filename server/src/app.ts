@@ -34,6 +34,9 @@ app.use(
         "connect-src": ["'self'"],
       },
     },
+    // OpenStreetMap refuses map tiles that arrive without a Referer (its tile usage policy). Helmet's default
+    // "no-referrer" removed it, so the live site showed "Access blocked". This sends only the site address.
+    referrerPolicy: { policy: "strict-origin-when-cross-origin" },
   }),
 );
 app.use(cors({ origin: env.CLIENT_URL, credentials: true }));
